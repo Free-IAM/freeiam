@@ -2,10 +2,9 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """LDAP Connection."""
 
-import asyncio
 import contextlib
 import logging
-import os
+import time
 from collections.abc import AsyncGenerator, Callable, Generator
 from typing import Any, Self, TypeAlias
 
@@ -21,7 +20,6 @@ from freeiam.ldap.attr import Attributes
 from freeiam.ldap.constants import AnyOption, AnyOptionValue, Option, OptionValue, ResponseType, Scope, TLSOption, TLSOptionValue, Version
 from freeiam.ldap.dn import DN
 from freeiam.ldap.schema import Schema
-from freeiam.ldap.sync_connection import Connection as SynchronousConnection
 
 
 __all__ = ('Connection',)
@@ -104,38 +102,14 @@ class Connection:
         self._hide_parent_exception = _hide_parent_exception
         self.__conn_s = None
 
-    @property
-    def _sync_connection(self):
-        if self.__conn_s is None:
-            self.__conn_s = SynchronousConnection(
-                self.uri,
-                # start_tls=self._start_tls,
-                timeout=self.timeout,
-                automatic_reconnect=self.automatic_reconnect,
-                max_connection_attempts=self.max_connection_attempts,
-                retry_delay=self.retry_delay,
-                _hide_parent_exception=self._hide_parent_exception,
-                _conn=self._conn,
-            )
-        return self.__conn_s
-
-    async def __aenter__(self) -> Self:
+    def __enter__(self) -> Self:
         """Initialize asynchronous connection."""
         self.connect()
         return self
 
-    async def __aexit__(self, etype, exc, etraceback) -> None:
-        """Close connection on shutdown."""
-        await self.unbind()
-        self.disconnect()
-
-    def __enter__(self) -> SynchronousConnection:
-        """Initialize synchronous connection."""
-        return self._sync_connection.__enter__()
-
     def __exit__(self, etype, exc, etraceback) -> None:
         """Close connection on shutdown."""
-        self._sync_connection.__exit__(etype, exc, etraceback)
+        self.unbind()
         self.disconnect()
 
     def get_option(self, option: AnyOption) -> int:
@@ -263,13 +237,11 @@ class Connection:
 
     def disconnect(self) -> None:
         """Disconnect from LDAP server."""
-        self._remove_reader()
         self._conn = None
         self.__conn_s = None
 
     def reconnect(self, *, force: bool = True) -> None:
         """Reconnect to the LDAP server."""
-        self._remove_reader()
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.reconnect(self.uri, self.max_connection_attempts, self.retry_delay, force=force)
             # if self._start_tls:
@@ -283,7 +255,7 @@ class Connection:
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.start_tls_s()
 
-    async def get_schema(self, subschema_dn: DN | str | None = None) -> ldap.schema.subentry.SubSchema:
+    def get_schema(self, subschema_dn: DN | str | None = None) -> ldap.schema.subentry.SubSchema:
         """Get LDAP Schema."""
         conn = self.conn
         # cache schema by connection
@@ -293,44 +265,42 @@ class Connection:
 
         if not self.__schema.get(subschema_dn):
             try:
-                subschemasubentry = await (
-                    self.get(subschema_dn, attrs=['subschemaSubentry']) if subschema_dn else self.get_root_dse(['subschemaSubentry'])
-                )
+                subschemasubentry = self.get(subschema_dn, attrs=['subschemaSubentry']) if subschema_dn else self.get_root_dse(['subschemaSubentry'])
                 try:
                     subschemasubentry_dn = subschemasubentry.attr['subschemaSubentry'][0].decode('UTF-8')
                 except KeyError:  # pragma: no cover; impossible?
                     if subschema_dn:
-                        return await self.get_schema()
+                        return self.get_schema()
                     subschema = None
             except (errors.NoSuchObject, errors.NoSuchAttribute, errors.InsufficientAccess, errors.UndefinedType):
                 subschema = None
             else:
                 try:
-                    subschema = (await self.get(subschemasubentry_dn, SCHEMA_ATTRS, '(objectClass=subschema)')).attr
+                    subschema = (self.get(subschemasubentry_dn, SCHEMA_ATTRS, '(objectClass=subschema)')).attr
                 except errors.NoSuchObject:  # pragma: no cover
                     subschema = None
             self.__schema[subschema_dn] = Schema(ldap.schema.SubSchema(subschema, 0))
             Attributes.set_schema(self.__schema[subschema_dn])
         return self.__schema[subschema_dn]
 
-    async def bind(self, authzid: str | None, password: str | None, *, controls: LDAPControlList | None = None) -> None:
+    def bind(self, authzid: str | None, password: str | None, *, controls: LDAPControlList | None = None) -> None:
         """Authenticate via plaintext credentials."""
         conn = self.conn
         self._last_auth_state = ('simple_bind_s', authzid, password)
-        response = await self._execute(conn, conn.simple_bind, authzid, password, controls)
+        response = self._execute(conn, conn.simple_bind, authzid, password, controls)
         return Result(None, None, response.ctrls, response)
 
-    async def bind_external(self):  # pragma: no cover
+    def bind_external(self):  # pragma: no cover
         """Authenticate via EXTERNAL method e.g. UNIX socket or TLS client certificate."""
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.sasl_interactive_bind_s('', ldap.sasl.external())
 
-    async def bind_sasl_gssapi(self) -> None:  # pragma: no cover
+    def bind_sasl_gssapi(self) -> None:  # pragma: no cover
         """Authenticate via GSSAPI e.g. via Kerberos ticket."""
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.sasl_interactive_bind_s('', ldap.sasl.gssapi())
 
-    async def bind_oauthbearer(self, authzid, token) -> None:  # pragma: no cover; requires SASL module
+    def bind_oauthbearer(self, authzid, token) -> None:  # pragma: no cover; requires SASL module
         """Authenticate via OAuth 2.0 Access Token."""
         oauth = ldap.sasl.sasl(
             {
@@ -351,7 +321,7 @@ class Connection:
             with errors.LdapError.wrap(self._hide_parent_exception):
                 getattr(self.conn, self._last_auth_state[0])(*self._last_auth_state[1:])
 
-    async def unbind(self, *, controls: LDAPControlList | None = None) -> Result:
+    def unbind(self, *, controls: LDAPControlList | None = None) -> Result:
         """Unbind."""
         self._last_auth_state = None
         try:
@@ -359,14 +329,14 @@ class Connection:
         except RuntimeError:  # not connected
             return None
         try:
-            response = await self._execute(conn, conn.unbind_ext, controls)
+            response = self._execute(conn, conn.unbind_ext, controls)
         except AttributeError as exc:  # duplicated unbind
             if exc.args and exc.args[0] == "ReconnectLDAPObject has no attribute '_l'":
                 return None
             raise  # pragma: no cover; not possible
         return Result(None, None, response.ctrls, response)
 
-    async def whoami(self, *, controls: LDAPControlList | None = None) -> DN | str:
+    def whoami(self, *, controls: LDAPControlList | None = None) -> DN | str:
         """Get authenticated user DN (authzid). "Who am I?" Operation."""
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
@@ -377,44 +347,42 @@ class Connection:
             return DN(dn.removeprefix('dn:'))
         return dn  # pragma: no cover
 
-    async def change_password(self, dn: DN | str, old_password: str, new_password: str, *, controls: LDAPControlList | None = None) -> Result:
+    def change_password(self, dn: DN | str, old_password: str, new_password: str, *, controls: LDAPControlList | None = None) -> Result:
         """Change password."""
         conn = self.conn
-        response = await self._execute(conn, conn.passwd, str(dn), old_password, new_password, controls)
+        response = self._execute(conn, conn.passwd, str(dn), old_password, new_password, controls)
         return Result(DN.get(dn), None, response.ctrls, response)  # pragma: no cover
 
-    async def exists(self, dn: DN | str, unique: bool = False, *, controls: LDAPControlList | None = None) -> bool:
+    def exists(self, dn: DN | str, unique: bool = False, *, controls: LDAPControlList | None = None) -> bool:
         """Check if LDAP object exists."""
         try:
-            await self.get(dn, ['1.1'], unique=unique, controls=controls)
+            self.get(dn, ['1.1'], unique=unique, controls=controls)
         except errors.NoSuchObject:
             return False
         return True
 
-    async def get(
+    def get(
         self, dn: DN | str, attrs=None, ldap_filter='(objectClass=*)', *, unique: bool = False, controls: LDAPControlList | None = None
     ) -> Result:
         """Get a LDAP object."""
-        for obj in await self.search(base=dn, scope=Scope.BASE, ldap_filter=ldap_filter, attrs=attrs, unique=unique, controls=controls):
+        for obj in self.search(base=dn, scope=Scope.BASE, ldap_filter=ldap_filter, attrs=attrs, unique=unique, controls=controls):
             return obj
         return None  # pragma: no cover; impossible
-        # obj, = [_ async for _ in self.search_iter(base=dn, scope=Scope.BASE, ldap_filter=ldap_filter, attrs=attrs, unique=unique, controls=controls)]  # noqa: E501
+        # obj, = [_ for _ in self.search_iter(base=dn, scope=Scope.BASE, ldap_filter=ldap_filter, attrs=attrs, unique=unique, controls=controls)]  # noqa: E501
         # return obj[0]
         # # GC calls gen.aclose() causing unnecessary .cancel() to be called:
-        # # return await anext(self.search_iter(base=dn, scope=Scope.BASE, ldap_filter=ldap_filter, attrs=attrs, unique=unique, controls=controls))
+        # # return next(self.search_iter(base=dn, scope=Scope.BASE, ldap_filter=ldap_filter, attrs=attrs, unique=unique, controls=controls))
 
-    async def get_attr(
-        self, dn, attr, ldap_filter='(objectClass=*)', *, unique: bool = False, controls: LDAPControlList | None = None
-    ) -> list[bytes]:
+    def get_attr(self, dn, attr, ldap_filter='(objectClass=*)', *, unique: bool = False, controls: LDAPControlList | None = None) -> list[bytes]:
         """Get attribute of an LDAP object."""
-        attributes = (await self.get(dn, attrs=[attr], ldap_filter=ldap_filter, unique=unique, controls=controls)).attr
+        attributes = (self.get(dn, attrs=[attr], ldap_filter=ldap_filter, unique=unique, controls=controls)).attr
         try:
             return attributes[attr]
         except KeyError:
-            await self.get_schema()
+            self.get_schema()
             return attributes[attr]
 
-    async def search_iter(
+    def search_iter(
         self,
         base: DN | str = '',
         scope: Scope = Scope.SUBTREE,
@@ -431,7 +399,7 @@ class Connection:
         all_results = []
         # sizelimit = 1 if unique else sizelimit
         try:
-            async for response in self._execute_iter(
+            for response in self._execute_iter(
                 conn,
                 conn.search_ext,
                 str(base),
@@ -449,14 +417,13 @@ class Connection:
                 if unique and len(all_results) > 1:
                     raise errors.NotUnique(all_results)
                 try:
-                    for result in results:
-                        yield result
+                    yield from results
                     if response.ctrls:
                         yield Result(None, None, response.ctrls, response)
                 except GeneratorExit as exc:
                     with contextlib.suppress(errors.NoSuchOperation):
-                        # await self.cancel(response.msgid)  # better do it immediately
-                        self._sync_connection.cancel(response.msgid)
+                        # self.cancel(response.msgid)  # better do it immediately
+                        self.cancel(response.msgid)
                     raise exc from exc
         except errors.NoSuchObject as no_object_error:
             no_object_error.base_dn = DN.get(base)
@@ -469,7 +436,7 @@ class Connection:
         #         raise
         #     raise errors.NotUnique() from None
 
-    async def search(
+    def search(
         self,
         base: DN | str = '',
         scope: Scope = Scope.SUBTREE,
@@ -485,7 +452,7 @@ class Connection:
         conn = self.conn
         all_results = []
         try:
-            response = await self._execute(
+            response = self._execute(
                 conn,
                 conn.search_ext,
                 str(base),
@@ -510,7 +477,7 @@ class Connection:
             raise
         return results
 
-    async def search_dn(
+    def search_dn(
         self,
         base: DN | str = '',
         scope: Scope = Scope.SUBTREE,
@@ -522,11 +489,11 @@ class Connection:
     ) -> AsyncGenerator[DN, None]:
         """Search for DNs of LDAP objects."""
         # FIXME: the following hangs forever as the iterative search is unfinished while the FD reader is replaced
-        # async for result in self.search(base, scope, ldap_filter, ['1.1'], unique=unique, sizelimit=sizelimit, controls=controls, _attrsonly=True):
-        for result in await self.search(base, scope, ldap_filter, [], unique=unique, sizelimit=sizelimit, controls=controls, _attrsonly=True):
+        # for result in self.search(base, scope, ldap_filter, ['1.1'], unique=unique, sizelimit=sizelimit, controls=controls, _attrsonly=True):
+        for result in self.search(base, scope, ldap_filter, [], unique=unique, sizelimit=sizelimit, controls=controls, _attrsonly=True):
             yield result.dn
 
-    async def search_paginated(
+    def search_paginated(
         self,
         base: DN | str = '',
         scope: Scope = Scope.SUBTREE,
@@ -542,7 +509,7 @@ class Connection:
         pagination = SimplePagedResultsControl(criticality=True, size=page_size, cookie='')
         while True:
             last = None
-            async for result in self.search_iter(
+            for result in self.search_iter(
                 base, scope, ldap_filter, attrs, unique=unique, sizelimit=sizelimit, controls=[*(controls or []), pagination]
             ):
                 last = result
@@ -559,7 +526,7 @@ class Connection:
             if not pagination.cookie:
                 break
 
-    async def add(
+    def add(
         self,
         dn: DN | str,
         attrs: dict | Attributes,
@@ -568,9 +535,9 @@ class Connection:
     ) -> Result:
         """Create a LDAP object."""
         al = ldap.modlist.addModlist(attrs)
-        return await self.add_al(dn, al, controls=controls)
+        return self.add_al(dn, al, controls=controls)
 
-    async def add_al(
+    def add_al(
         self,
         dn: DN | str,
         al: list[tuple[str, list[bytes]]],
@@ -579,10 +546,10 @@ class Connection:
     ) -> Result:
         """Create a LDAP object from addlist."""
         conn = self.conn
-        response = await self._execute(conn, conn.add_ext, str(dn), al, controls)
+        response = self._execute(conn, conn.add_ext, str(dn), al, controls)
         return Result(DN.get(dn), None, response.ctrls, response)
 
-    async def modify(
+    def modify(
         self,
         dn: DN | str,
         oldattr: dict | Attributes,
@@ -592,9 +559,9 @@ class Connection:
     ) -> Result:
         """Modify a LDAP object."""
         ml = ldap.modlist.modifyModlist(oldattr, newattr)
-        return await self.modify_ml(dn, ml, controls=controls)
+        return self.modify_ml(dn, ml, controls=controls)
 
-    async def modify_ml(
+    def modify_ml(
         self,
         dn: DN | str,
         ml: list[tuple[int, str, list[bytes] | None]],
@@ -605,8 +572,8 @@ class Connection:
         conn = self.conn
         new_dn = self._compute_changed_dn(DN(dn), ml)
         if dn != new_dn:
-            dn = (await self.rename(dn, new_dn)).dn
-        response = await self._execute(conn, conn.modify_ext, str(dn), ml, controls)
+            dn = (self.rename(dn, new_dn)).dn
+        response = self._execute(conn, conn.modify_ext, str(dn), ml, controls)
         return Result(DN.get(dn), None, response.ctrls, response)
 
     @classmethod
@@ -640,7 +607,7 @@ class Connection:
             return new_rdn + dn.parent
         return dn
 
-    async def move(
+    def move(
         self,
         dn: DN | str,
         newposition: DN | str,
@@ -650,9 +617,9 @@ class Connection:
         """Move a LDAP object."""
         dn = DN.get(dn)
         newposition = DN.get(newposition)
-        return await self.rename(dn, dn[0] + newposition, delete_old=True, controls=controls)
+        return self.rename(dn, dn[0] + newposition, delete_old=True, controls=controls)
 
-    async def rename(
+    def rename(
         self,
         dn: DN | str,
         newdn: DN | str,
@@ -663,10 +630,10 @@ class Connection:
         """Rename a LDAP object."""
         conn = self.conn
         newdn = DN.get(newdn)
-        response = await self._execute(conn, conn.rename, str(dn), str(newdn[0]), str(newdn.parent), int(delete_old), controls)
+        response = self._execute(conn, conn.rename, str(dn), str(newdn[0]), str(newdn.parent), int(delete_old), controls)
         return Result(newdn, None, response.ctrls, response)
 
-    async def modrdn(
+    def modrdn(
         self,
         dn: DN | str,
         newrdn: DN | str,
@@ -675,24 +642,24 @@ class Connection:
         controls: LDAPControlList | None = None,
     ) -> Result:
         """Rename a LDAP object."""
-        return await self.rename(dn, DN.get(newrdn) + DN.get(dn).parent, delete_old, controls=controls)
+        return self.rename(dn, DN.get(newrdn) + DN.get(dn).parent, delete_old, controls=controls)
 
-    async def delete(self, dn: DN | str, *, controls: LDAPControlList | None = None) -> Result:
+    def delete(self, dn: DN | str, *, controls: LDAPControlList | None = None) -> Result:
         """Delete a LDAP object."""
         conn = self.conn
-        response = await self._execute(conn, conn.delete_ext, str(dn), controls)
+        response = self._execute(conn, conn.delete_ext, str(dn), controls)
         return Result(DN.get(dn), None, response.ctrls, response)
 
-    async def delete_recursive(self, dn: DN | str, *, controls: LDAPControlList | None = None) -> Result:
+    def delete_recursive(self, dn: DN | str, *, controls: LDAPControlList | None = None) -> Result:
         """Delete a LDAP object recursively."""
         try:
-            return await self.delete(dn, controls=controls)
+            return self.delete(dn, controls=controls)
         except errors.NotAllowedOnNonleaf:
-            async for child in self.search_dn(dn, Scope.ONELEVEL):
-                await self.delete_recursive(child)
-        return await self.delete(dn, controls=controls)
+            for child in self.search_dn(dn, Scope.ONELEVEL):
+                self.delete_recursive(child)
+        return self.delete(dn, controls=controls)
 
-    async def compare(
+    def compare(
         self,
         dn: DN | str,
         attr: str,
@@ -703,7 +670,7 @@ class Connection:
         """Compare the value of an LDAP object."""
         conn = self.conn
         try:
-            await self._execute(conn, conn.compare_ext, str(dn), attr, value, controls)
+            self._execute(conn, conn.compare_ext, str(dn), attr, value, controls)
         except errors.NoSuchObject as no_object_error:
             no_object_error.base_dn = DN.get(dn)
             raise
@@ -713,7 +680,7 @@ class Connection:
             return False
         raise RuntimeError()  # pragma: no cover; impossible
 
-    async def compare_dn(self, entry: DN | str, dn: DN | str) -> bool:
+    def compare_dn(self, entry: DN | str, dn: DN | str) -> bool:
         """Compare LDAP DN with existing entry."""
         dn = DN.get(dn)
         entry = DN.get(entry)
@@ -721,7 +688,7 @@ class Connection:
         for i, parent in enumerate(entry.walk()):
             for attr, value, _ in dn.rdns[-i - 1]:
                 try:
-                    equal = await self.compare(str(parent), attr, value)
+                    equal = self.compare(str(parent), attr, value)
                     if not equal:  # pragma: no cover; https://github.com/nedbat/coveragepy/issues/2014
                         return False
                 except errors.NoSuchObject:
@@ -730,23 +697,23 @@ class Connection:
                     raise
         return True
 
-    async def get_root_dse(self, attrs: list[str] | None = None, ldap_filter: str = '(objectClass=*)') -> Result:
+    def get_root_dse(self, attrs: list[str] | None = None, ldap_filter: str = '(objectClass=*)') -> Result:
         """Get Root DSE (Directory Server Entry)."""
-        return await self.get('', attrs or ['*', '+'], ldap_filter=ldap_filter)
+        return self.get('', attrs or ['*', '+'], ldap_filter=ldap_filter)
 
-    async def get_naming_contexts(self) -> list[str]:
+    def get_naming_contexts(self) -> list[str]:
         """Return namingContexts of Root DSE."""
-        result = await self.get_attr('', 'namingContexts')
+        result = self.get_attr('', 'namingContexts')
         return [x.decode('UTF-8') for x in result]
 
-    async def abandon(self, msgid: int, *, controls: LDAPControlList | None = None) -> Result:
+    def abandon(self, msgid: int, *, controls: LDAPControlList | None = None) -> Result:
         """Abandon a LDAP operation."""
         log.debug('Abandon: %s', msgid)
         conn = self.conn
-        response = await self._execute(conn, conn.abandon_ext, msgid, controls)
+        response = self._execute(conn, conn.abandon_ext, msgid, controls)
         return Result(None, None, response.ctrls, response)
 
-    async def cancel(self, msgid: int, *, controls: LDAPControlList | None = None) -> bool:
+    def cancel(self, msgid: int, *, controls: LDAPControlList | None = None) -> bool:
         """Cancel a LDAP operation."""
         log.debug('Cancel: %s', msgid)
         try:
@@ -754,7 +721,7 @@ class Connection:
         except RuntimeError:
             return False
         try:
-            await self._execute(conn, conn.cancel, msgid, controls)
+            self._execute(conn, conn.cancel, msgid, controls)
         except errors.NoSuchOperation:
             log.warning('Cancel failed', extra={'msgid': msgid})
             raise
@@ -765,10 +732,10 @@ class Connection:
         else:  # pragma: no cover
             return True
 
-    async def extop(self, extreq: ldap.extop.ExtendedRequest, extop_resp_class=None, *, controls: LDAPControlList | None = None) -> Result | Any:
+    def extop(self, extreq: ldap.extop.ExtendedRequest, extop_resp_class=None, *, controls: LDAPControlList | None = None) -> Result | Any:
         """Perform extended operation."""
         conn = self.conn
-        response = await self._execute(conn, conn.extop, extreq, controls)
+        response = self._execute(conn, conn.extop, extreq, controls)
 
         if extop_resp_class:  # pragma: no cover
             return extop_resp_class(response.name, response.value)
@@ -789,25 +756,24 @@ class Connection:
             self._restore_options()
         self._restore_auth_state()
 
-    async def _execute(self, conn: LDAPObject, operation: Callable, *args: Any, **kwargs: Any) -> _Response:
+    def _execute(self, conn: LDAPObject, operation: Callable, *args: Any, **kwargs: Any) -> _Response:
         """Execute the operation and wait asynchronously for the result."""
-        msgid = await self._retry(self.request, operation, *args, **kwargs)
+        msgid = self._retry(self.request, operation, *args, **kwargs)
         if msgid is None:  # abandon_ext, unbind_ext
             return _Response(None, None, msgid, [], None, None)
         response = None
-        async for resp in self._poll(conn, msgid, 1):
+        for resp in self._poll(conn, msgid, 1):
             if response is not None:  # pragma: no cover
                 raise RuntimeError('Wrong method used! Use _execute_iter instead!')  # noqa: TRY003
             response = resp
         return response
 
-    async def _execute_iter(self, conn: LDAPObject, operation: Callable, *args: Any, **kwargs: Any) -> AsyncGenerator[_Response, None]:
+    def _execute_iter(self, conn: LDAPObject, operation: Callable, *args: Any, **kwargs: Any) -> AsyncGenerator[_Response, None]:
         """Execute the operation and yield the results asynchronously."""
-        msgid = await self._retry(self.request, operation, *args, **kwargs)
+        msgid = self._retry(self.request, operation, *args, **kwargs)
         if msgid is None:  # abandon_ext, unbind_ext
             return
-        async for response in self._poll(conn, msgid, 0):
-            yield response
+        yield from self._poll(conn, msgid, 0)
 
     def get_result(self, conn: LDAPObject, msgid: ResponseType = ResponseType.Any, _all: int = 0, timeout: int = 0) -> _Response:
         """Get the LDAP result for the given msgid."""
@@ -836,7 +802,7 @@ class Connection:
         log.debug('%s() -> %r', op, msgid, extra={'OPERATION': op, 'MSGID': msgid})
         return msgid
 
-    async def _retry(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
+    def _retry(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
         """Retry operation or reconnect if necessary."""
         max_attempts = attempts = self.max_connection_attempts
         while attempts:
@@ -852,10 +818,10 @@ class Connection:
                 attempts -= 1
                 if not attempts:
                     raise
-                await asyncio.sleep(self.retry_delay)
+                time.sleep(self.retry_delay)
         raise RuntimeError()  # pragma: no cover; impossible
 
-    def _poll_s(self, conn: LDAPObject, msgid: ResponseType = ResponseType.Any, _all: int = 0) -> Generator[_Response, None]:  # pragma: no cover
+    def _poll(self, conn: LDAPObject, msgid: ResponseType = ResponseType.Any, _all: int = 0) -> Generator[_Response, None]:  # pragma: no cover
         """Wait synchronously for operation to succeed."""
         # this method must only used by the synchronous variant of this class
         while True:
@@ -874,71 +840,3 @@ class Connection:
             if rtype == ldap.RES_SEARCH_RESULT:
                 break
             break
-
-    async def _poll(self, conn: LDAPObject, msgid: ResponseType = ResponseType.Any, _all: int = 0) -> AsyncGenerator[_Response, None]:
-        """Wait asynchronously for operation to succeed."""
-        loop = asyncio.get_running_loop()
-        while True:
-            # TODO: move the asyncio stuff out of here
-            fut = loop.create_future()
-
-            fd = conn.fileno()
-            self._add_reader(loop, fd, self._ready, conn, msgid, fut, _all)
-
-            try:
-                response = await self._wait_for(fut)
-            except errors.NoResultsReturned:  # pragma: no cover; how?
-                self._remove_reader(fd)
-                break
-            except Exception:
-                self._remove_reader(fd)
-                raise
-
-            rtype = response.type
-            if rtype is None:  # pragma: no cover; handled in _ready()
-                continue
-
-            yield response
-            if rtype == ldap.RES_SEARCH_ENTRY:
-                continue
-            if rtype == ldap.RES_SEARCH_RESULT:
-                break
-            break
-
-    def _ready(self, fd: int, conn: LDAPObject, msgid: int, fut: asyncio.Future[_Response], _all: ResponseType):
-        log.debug('FD %s is ready', fd)
-        try:
-            os.fstat(fd)
-            response = self.get_result(conn, msgid, _all=_all, timeout=0)
-            if response.type is None:
-                return
-
-            fut.set_result(response)
-            self._remove_reader(fd)
-        except (OSError, errors.LdapError) as exc:
-            log.error('FD %s is not valid - maybe connection is closed', fd)  # noqa: TRY400
-            fut.set_exception(exc)
-            self._remove_reader(fd)
-
-    async def _wait_for(self, fut: asyncio.Future[_Response]) -> _Response:
-        if self.timeout > 0:
-            return await asyncio.wait_for(fut, timeout=self.timeout)
-        return await fut
-
-    @classmethod
-    def _add_reader(cls, loop: asyncio.AbstractEventLoop, fd: int, func, *args: Any) -> None:
-        log.debug('Select on FD %s', fd)
-        os.fstat(fd)
-        # FIXME: deadlock; it replaces a previous reader, e.g. when in a iterative search or other parallel operation
-        loop.add_reader(fd, func, fd, *args)
-        # register reader from the loop thread
-        # loop.call_soon_threadsafe(lambda: loop.add_reader(fd, func, fd, *args))
-
-    def _remove_reader(self, fd: int | None = None) -> None:
-        fd = fd or self.fileno
-        log.debug('Remove reader FD %s', fd)
-        if fd == -1:  # pragma: no cover
-            return
-        loop = asyncio.get_running_loop()
-        loop.remove_reader(fd)
-        # loop.call_soon_threadsafe(lambda: loop.remove_reader(fd))
