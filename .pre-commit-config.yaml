@@ -1,0 +1,78 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+    - id: check-added-large-files
+    - id: check-json
+    - id: check-xml
+    - id: check-yaml
+    - id: check-merge-conflict
+    - id: pretty-format-json
+      args:
+        - --autofix
+        - --no-ensure-ascii
+    - id: trailing-whitespace
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+    - id: python-check-blanket-noqa
+    - id: python-no-eval
+    - id: rst-backticks
+    - id: rst-directive-colons
+    - id: rst-inline-touching-normal
+  # - repo: https://github.com/pycqa/flake8
+  #   rev: '7.2.0'
+  #   hooks:
+  #   - id: flake8
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 'v0.11.13'
+    hooks:
+      - id: ruff-check
+        alias: "ruff"
+      - id: ruff-format
+        alias: "ruff-format-check"
+        args: ["--check"]
+      - id: ruff-check
+        alias: "ruff-fix"
+        stages: [ manual ]
+        args: ["--fix", "--unsafe-fixes"]
+      - id: ruff-check
+        alias: "ruff-statistics"
+        stages: [ manual ]
+        args: ["--statistics"]
+      - id: ruff-check
+        alias: "ruff-select"
+        stages: [ manual ]
+        args: ["--select", "CPY001"]
+      - id: ruff-format
+        alias: "ruff-format"
+        stages: [ manual ]
+  # - repo: https://github.com/pycqa/isort
+  #   rev: 5.13.2
+  #   hooks:
+  #     - id: isort
+  #       entry: isort -c
+  #     - id: isort
+  #       alias: "isort-fix"
+  #       stages: [ manual ]
+  #       entry: isort
+  - repo: https://github.com/fsfe/reuse-tool
+    rev: v5.0.2
+    hooks:
+      - id: reuse
+        alias: reuse-annotate
+        name: "reuse annotate"
+        args: ["annotate", "-c", "Florian Best", "-l", "FreeIAM", "--skip-unrecognised", "--skip-existing", "--template", "univention"]
+        pass_filenames: true
+        description: "Annotate all unlicensed files"
+        stages: [ manual ]
+      - id: reuse
+        alias: reuse-lint
+        stages: [ manual ]
+      - id: reuse-lint-file
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.0.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [ commit-msg ]
+        args: ["--strict"]

@@ -1,0 +1,229 @@
+[project]
+name = "FreeIAM"
+dynamic = ["version"]
+description = "Free IAM is a free Identity and Access Management solution including generic libraries suitable for any LDAP client"
+authors = [{ name = "Florian Best" }]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "python-ldap",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools_scm]
+version_file = "src/freeiam/_version.py"
+
+[project.optional-dependencies]
+dev = [
+    "build",
+    "cryptography",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-benchmark",
+    "pytest-cov",
+    "pytest-timeout",
+    "tox",
+    "testcontainers[docker]",
+    "python-semantic-release",
+]
+test = [
+    "cryptography",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-benchmark",
+    "pytest-cov",
+    "pytest-timeout",
+    "testcontainers[docker]",
+]
+docs = [
+    "sphinx",
+    "furo",
+]
+benchmark = [
+    "ldap3",
+    "bonsai",
+]
+
+[build-system]
+requires = ["setuptools", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.semantic_release]
+version_source = "tag"
+commit_parser = "conventional"
+changelog_file = "CHANGELOG.md"
+build_command = "python -m build"
+upload_to_pypi = false
+upload_to_release = false
+
+[tool.isort]
+py_version = "311"
+combine_as_imports = true
+filter_files = true
+force_grid_wrap = false
+known_first_party = "freeiam"
+known_third_party = "ldap"
+line_length = 150
+multi_line_output = 5
+include_trailing_comma = true
+lines_after_imports = 2
+skip_glob = "venv/*"
+
+[tool.coverage.run]
+branch = true
+source = ["freeiam"]
+
+[tool.coverage.report]
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]
+
+omit = [
+    "src/freeiam/_version.py",
+    "src/freeiam/ldap/schema.py",
+    "src/freeiam/ldap/filter.py",
+    "src/freeiam/authorization/*.py",
+    "src/freeiam/i18n/*.py",
+    "src/freeiam/objects/*.py",
+    "src/freeiam/web/*.py",
+]
+[tool.coverage.html]
+skip_empty = true
+
+[tool.ruff]
+target-version = "py311"
+
+line-length = 150
+
+[tool.ruff.lint]
+preview = true
+
+select = ["ALL"]
+ignore = [
+ "T20",  # allow use of print()
+ # "I",  # isort, ruff isort is missing features
+ "ANN",  # missing type annotation
+ "ERA",  # don't remove commented out code
+ "D107",  # Missing docstring in `__init__`
+ "D203",  # incorrect-blank-line-before-class
+ "D212",  # Multi-line docstring summary should start at the first line
+ "DOC201",  # `return` is not documented in docstring
+ "DOC501",  # Raised exception missing from docstring
+ "DOC402",  # `yield` is not documented in docstring
+ "D105",  # Missing docstring in magic method
+ "SLF001",  # Private member accessed
+ "PLR0904",  # Too many public methods (> 20)
+ "PLR0913",  # Too many arguments in function definition"
+ "PLR0917",  # Too many positional arguments
+ "FBT001",  # Boolean-typed positional argument in function definition
+ "FBT002",  # Boolean default positional argument in function definition
+ "S404",  # `subprocess` module is possibly insecure
+ "RSE102",  # unnecessary-paren-on-raise-exception
+ "TD001",  # invalid-todo-tag, we allow FIXME
+ "TD002", # Missing author in TODO
+ "TD003", # Missing issue link for this TODO
+ "FIX001", # Line contains FIXME, consider resolving the issue
+ "FIX002", # Line contains TODO, consider resolving the issue
+ "EM101",  # Exception must not use a string literal, assign to variable first
+ "N818",
+
+ "COM812",  # missing-trailing-comma
+]
+
+unfixable = ["RUF100", "T20"]
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+task-tags = ["TODO", "FIXME"]
+
+[tool.ruff.lint.extend-per-file-ignores]
+"tests/*" = [
+ "D",
+ "S603",
+ "S607",
+ "S101",
+ "PLC0415",
+ "CPY001",
+ "INP001",
+ "ARG001",
+ "S403",
+ "S301",
+]
+"benchmarks/*" = [
+ "D",
+ "S603",
+ "S607",
+ "S101",
+ "PLC0415",
+ "CPY001",
+ "INP001",
+ "ARG001",
+ "S403",
+ "S301",
+]
+
+"docs/*" = [
+ "D",
+ "PIE790",
+ "S603",
+ "S607",
+ "S101",
+ "PLC0415",
+ "CPY001",
+ "INP001",
+ "ARG001",
+ "S403",
+ "S301",
+ "FBT003",
+]
+"*/__init__.py" = ["D104"]
+
+[tool.ruff.lint.flake8-builtins]
+builtins-ignorelist = ["copyright", "license", "object", "exit", "quit", "credits"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 20
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+multiline-quotes = "double"
+inline-quotes = "single"
+
+[tool.ruff.lint.flake8-unused-arguments]
+ignore-variadic-names = true
+
+[tool.ruff.lint.flake8-pytest-style]
+parametrize-names-type = "csv"
+
+[tool.ruff.lint.flake8-annotations]
+ignore-fully-untyped = true
+
+[tool.ruff.lint.ruff]
+parenthesize-tuple-in-subscript = true
+
+[tool.ruff.lint.flake8-copyright]
+notice-rgx = "(?:Copyright(?:\\s+\\(C\\)|:)?|SPDX-FileCopyrightText:)\\s+([0-9, -]+)\\s+"
+min-file-size = 2
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+#filter-files = true
+#force-grid-wrap = false
+known-first-party = ["freeiam"]
+known-third-party = ["ldap"]
+# https://github.com/astral-sh/ruff/issues/2600 :
+#multi-line-output = 5
+#include-trailing-comma = true
+lines-after-imports = 2
+#skip-glob = "venv/*"
