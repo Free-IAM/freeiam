@@ -364,20 +364,20 @@ class Connection:
         return True
 
     def get(
-        self, dn: DN | str, attrs=None, ldap_filter='(objectClass=*)', *, unique: bool = False, controls: LDAPControlList | None = None
+        self, dn: DN | str, attrs=None, filter_expr='(objectClass=*)', *, unique: bool = False, controls: LDAPControlList | None = None
     ) -> Result:
         """Get a LDAP object."""
-        for obj in self.search(base=dn, scope=Scope.BASE, ldap_filter=ldap_filter, attrs=attrs, unique=unique, controls=controls):
+        for obj in self.search(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls):
             return obj
         return None  # pragma: no cover; impossible
-        # obj, = [_ for _ in self.search_iter(base=dn, scope=Scope.BASE, ldap_filter=ldap_filter, attrs=attrs, unique=unique, controls=controls)]  # noqa: E501
+        # obj, = [_ for _ in self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls)]  # noqa: E501
         # return obj[0]
         # # GC calls gen.aclose() causing unnecessary .cancel() to be called:
-        # # return next(self.search_iter(base=dn, scope=Scope.BASE, ldap_filter=ldap_filter, attrs=attrs, unique=unique, controls=controls))
+        # # return next(self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls))
 
-    def get_attr(self, dn, attr, ldap_filter='(objectClass=*)', *, unique: bool = False, controls: LDAPControlList | None = None) -> list[bytes]:
+    def get_attr(self, dn, attr, filter_expr='(objectClass=*)', *, unique: bool = False, controls: LDAPControlList | None = None) -> list[bytes]:
         """Get attribute of an LDAP object."""
-        attributes = (self.get(dn, attrs=[attr], ldap_filter=ldap_filter, unique=unique, controls=controls)).attr
+        attributes = (self.get(dn, attrs=[attr], filter_expr=filter_expr, unique=unique, controls=controls)).attr
         try:
             return attributes[attr]
         except KeyError:
@@ -388,7 +388,7 @@ class Connection:
         self,
         base: DN | str = '',
         scope: Scope = Scope.SUBTREE,
-        ldap_filter: str = '(objectClass=*)',
+        filter_expr: str = '(objectClass=*)',
         attrs: list[str] | None = None,
         *,
         unique: bool = False,
@@ -406,7 +406,7 @@ class Connection:
                 conn.search_ext,
                 str(base),
                 scope,
-                filterstr=ldap_filter,
+                filterstr=filter_expr,
                 attrlist=attrs,
                 attrsonly=int(_attrsonly),
                 serverctrls=controls,
@@ -429,7 +429,7 @@ class Connection:
                     raise exc from exc
         except errors.NoSuchObject as no_object_error:
             no_object_error.base_dn = DN.get(base)
-            no_object_error.filter = ldap_filter
+            no_object_error.filter = filter_expr
             no_object_error.scope = scope
             no_object_error.attrs = attrs
             raise
@@ -442,7 +442,7 @@ class Connection:
         self,
         base: DN | str = '',
         scope: Scope = Scope.SUBTREE,
-        ldap_filter: str = '(objectClass=*)',
+        filter_expr: str = '(objectClass=*)',
         attrs: list[str] | None = None,
         *,
         unique: bool = False,
@@ -459,7 +459,7 @@ class Connection:
                 conn.search_ext,
                 str(base),
                 scope,
-                filterstr=ldap_filter,
+                filterstr=filter_expr,
                 attrlist=attrs,
                 attrsonly=int(_attrsonly),
                 serverctrls=controls,
@@ -473,7 +473,7 @@ class Connection:
                 raise errors.NotUnique(all_results)
         except errors.NoSuchObject as no_object_error:
             no_object_error.base_dn = DN.get(base)
-            no_object_error.filter = ldap_filter
+            no_object_error.filter = filter_expr
             no_object_error.scope = scope
             no_object_error.attrs = attrs
             raise
@@ -483,7 +483,7 @@ class Connection:
         self,
         base: DN | str = '',
         scope: Scope = Scope.SUBTREE,
-        ldap_filter: str = '(objectClass=*)',
+        filter_expr: str = '(objectClass=*)',
         *,
         unique: bool = False,
         sizelimit: bool | None = None,
@@ -491,15 +491,15 @@ class Connection:
     ) -> AsyncGenerator[DN, None]:
         """Search for DNs of LDAP objects."""
         # FIXME: the following hangs forever as the iterative search is unfinished while the FD reader is replaced
-        # for result in self.search(base, scope, ldap_filter, ['1.1'], unique=unique, sizelimit=sizelimit, controls=controls, _attrsonly=True):
-        for result in self.search(base, scope, ldap_filter, [], unique=unique, sizelimit=sizelimit, controls=controls, _attrsonly=True):
+        # for result in self.search(base, scope, filter_expr, ['1.1'], unique=unique, sizelimit=sizelimit, controls=controls, _attrsonly=True):
+        for result in self.search(base, scope, filter_expr, [], unique=unique, sizelimit=sizelimit, controls=controls, _attrsonly=True):
             yield result.dn
 
     def search_paginated(
         self,
         base: DN | str = '',
         scope: Scope = Scope.SUBTREE,
-        ldap_filter: str = '(objectClass=*)',
+        filter_expr: str = '(objectClass=*)',
         attrs: list[str] | None = None,
         page_size: int = 100,
         *,
@@ -512,7 +512,7 @@ class Connection:
         while True:
             last = None
             for result in self.search_iter(
-                base, scope, ldap_filter, attrs, unique=unique, sizelimit=sizelimit, controls=[*(controls or []), pagination]
+                base, scope, filter_expr, attrs, unique=unique, sizelimit=sizelimit, controls=[*(controls or []), pagination]
             ):
                 last = result
                 if result.dn is not None:
@@ -699,9 +699,9 @@ class Connection:
                     raise
         return True
 
-    def get_root_dse(self, attrs: list[str] | None = None, ldap_filter: str = '(objectClass=*)') -> Result:
+    def get_root_dse(self, attrs: list[str] | None = None, filter_expr: str = '(objectClass=*)') -> Result:
         """Get Root DSE (Directory Server Entry)."""
-        return self.get('', attrs or ['*', '+'], ldap_filter=ldap_filter)
+        return self.get('', attrs or ['*', '+'], filter_expr=filter_expr)
 
     def get_naming_contexts(self) -> list[str]:
         """Return namingContexts of Root DSE."""
