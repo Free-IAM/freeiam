@@ -721,8 +721,7 @@ class Connection:
         for i, parent in enumerate(entry.walk()):
             for attr, value, _ in dn.rdns[-i - 1]:
                 try:
-                    equal = await self.compare(str(parent), attr, value)
-                    if not equal:  # pragma: no cover; https://github.com/nedbat/coveragepy/issues/2014
+                    if not await self.compare(str(parent), attr, value):
                         return False
                 except errors.NoSuchObject:
                     if attr == entry.rdns[-1][0][0]:
