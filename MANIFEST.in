@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2025 Florian Best
+# SPDX-License-Identifier: CC0-1.0
+
+exclude create_sync.sh
+exclude .gitignore
+exclude Makefile
+exclude .pre-commit-config.yaml
+exclude pytest_benchmark.ini
+exclude pytest.ini
+exclude .readthedocs.yml
+exclude tox.ini
+recursive-exclude benchmarks *
+recursive-exclude docs *
+recursive-exclude .github *
+recursive-exclude .reuse *
+recursive-exclude tests *

@@ -209,6 +209,4 @@ __marimo__/
 # Vim
 .*.sw?
 
-src/freeiam/_version.py
-
 schema/

@@ -1,22 +1,25 @@
 [project]
-name = "FreeIAM"
-dynamic = ["version"]
-description = "Free IAM is a free Identity and Access Management solution including generic libraries suitable for any LDAP client"
-authors = [{ name = "Florian Best" }]
+name = "freeiam"
+description = "FreeIAM is a free and flexible Identity and Access Management solution."
+authors = [{ name = "Florian Best", email="contact@freeiam.org" }]
+version = "0.0.0"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "python-ldap",
 ]
 
+[project.urls]
+homepage = "https://freeiam.org"
+documentation = "https://docs.freeiam.org"
+repository = "https://github.com/Free-IAM/freeiam"
+changelog = "https://github.com/Free-IAM/freeiam/blob/main/CHANGELOG.md"
+
 [tool.setuptools]
 package-dir = { "" = "src" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools_scm]
-version_file = "src/freeiam/_version.py"
 
 [project.optional-dependencies]
 dev = [
@@ -50,16 +53,8 @@ benchmark = [
 ]
 
 [build-system]
-requires = ["setuptools", "setuptools_scm"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
-
-[tool.semantic_release]
-version_source = "tag"
-commit_parser = "conventional"
-changelog_file = "CHANGELOG.md"
-build_command = "python -m build"
-upload_to_pypi = false
-upload_to_release = false
 
 [tool.isort]
 py_version = "311"
@@ -100,6 +95,7 @@ skip_empty = true
 [tool.ruff]
 target-version = "py311"
 
+namespace-packages = ["freeiam", "freeiam.ldap"]
 line-length = 150
 
 [tool.ruff.lint]
@@ -145,6 +141,14 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 task-tags = ["TODO", "FIXME"]
 
 [tool.ruff.lint.extend-per-file-ignores]
+"src/*.py" = [
+ "INP001",
+]
+"src/*" = [
+ "PLC2701",
+ "PLW0406",
+]
+
 "tests/*" = [
  "D",
  "S603",
@@ -227,3 +231,77 @@ known-third-party = ["ldap"]
 #include-trailing-comma = true
 lines-after-imports = 2
 #skip-glob = "venv/*"
+
+[tool.semantic_release]
+assets = []
+build_command_env = []
+commit_message = "chore(release): publish {version}"
+commit_parser = "conventional"
+logging_use_named_masks = false
+major_on_zero = true
+allow_zero_version = true
+no_git_verify = false
+tag_format = "v{version}"
+version_toml = ["pyproject.toml:project.version"]
+
+[tool.semantic_release.branches.main]
+match = "(main|master)"
+prerelease_token = "rc"
+prerelease = false
+
+[tool.semantic_release.changelog]
+exclude_commit_patterns = [
+    '''chore(?:\([^)]*?\))?: .+''',
+    '''ci(?:\([^)]*?\))?: .+''',
+    '''refactor(?:\([^)]*?\))?: .+''',
+    '''style(?:\([^)]*?\))?: .+''',
+    '''test(?:\([^)]*?\))?: .+''',
+    '''build\((?!deps\): .+)''',
+    '''docs\(readthedocs\): .+''',
+    '''feat: initial source code structure.*''',
+]
+mode = "update"
+insertion_flag = "<!-- version list -->"
+template_dir = "templates"
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
+output_format = "md"
+mask_initial_release = true
+
+[tool.semantic_release.changelog.environment]
+block_start_string = "{%"
+block_end_string = "%}"
+variable_start_string = "{{"
+variable_end_string = "}}"
+comment_start_string = "{#"
+comment_end_string = "#}"
+trim_blocks = false
+lstrip_blocks = false
+newline_sequence = "\n"
+keep_trailing_newline = false
+extensions = []
+autoescape = false
+
+[tool.semantic_release.commit_author]
+env = "GIT_COMMIT_AUTHOR"
+default = "semantic-release <semantic-release@freeiam.org>"
+
+[tool.semantic_release.commit_parser_options]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+other_allowed_tags = ["build", "chore", "ci", "docs", "style", "refactor", "test"]
+allowed_tags = ["feat", "fix", "perf", "build", "chore", "ci", "docs", "style", "refactor", "test"]
+default_bump_level = 0
+parse_squash_commits = true
+ignore_merge_commits = true
+
+[tool.semantic_release.remote]
+name = "origin"
+type = "github"
+ignore_token_for_push = false
+insecure = false
+
+[tool.semantic_release.publish]
+dist_glob_patterns = ["dist/*"]
+upload_to_vcs_release = false

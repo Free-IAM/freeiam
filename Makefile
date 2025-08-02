@@ -1,4 +1,7 @@
-.PHONY: test docs docs-open lint format build upload changelog publish coverage benchmark pre-commit-install
+# SPDX-FileCopyrightText: 2025 Florian Best
+# SPDX-License-Identifier: CC0-1.0
+
+.PHONY: test docs docs-open lint format build upload changelog publish coverage benchmark copyright pre-commit-install
 
 test:
 	-tox
@@ -23,10 +26,10 @@ format:
 	-pre-commit run -a --hook-stage manual ruff-format
 
 changelog:
-	-semantic-release version
+	semantic-release version --no-push --skip-build --changelog
 
 publish:
-	-semantic-release publish
+	semantic-release publish
 
 build:
 	python -m build
@@ -41,6 +44,10 @@ benchmark:
 	-pytest -m benchmark_only --benchmark-only --benchmark-save=ldap_run
 	-pytest-benchmark compare --csv > benchmark.csv
 	-pytest-benchmark compare --json > benchmark.json
+
+copyright:
+	-pre-commit run -a --hook-stage manual reuse-annotate
+	-pre-commit run -a --hook-stage manual reuse-lint
 
 pre-commit-install:
 	pre-commit install
