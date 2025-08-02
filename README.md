@@ -3,7 +3,7 @@
 [![Coverage](https://img.shields.io/codecov/c/github/Free-IAM/freeiam.svg)](https://codecov.io/gh/Free-IAM/freeiam)
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/release/python-3110/)
-[![Docs](https://readthedocs.org/projects/freeiam/badge/?version=latest)](https://freeiam.readthedocs.io/en/latest/)
+[![Docs](https://readthedocs.org/projects/free-iam/badge/?version=latest)](https://docs.freeiam.org/en/latest/)
 [![Ruff](https://img.shields.io/badge/linter-ruff-blue)](https://docs.astral.sh/ruff/)
 
 [![PyPI](https://img.shields.io/pypi/v/freeiam)](https://pypi.org/project/freeiam/)
