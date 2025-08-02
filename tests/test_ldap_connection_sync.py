@@ -15,8 +15,9 @@ log = logging.getLogger(__name__)
 
 
 TESTUSERNAME = 'testsynuser'
-PAGEPREFIX = 'synpage'
 TESTUSERNAME_B = TESTUSERNAME.encode()
+PAGEPREFIX = 'synpage'
+NUM_PAGEUSERS = 13
 
 
 @pytest.fixture
@@ -376,27 +377,33 @@ def test_paginated_search_expect_nothing(conn, base_dn):
 @pytest.fixture(scope='session')
 def page_users(sess_conn, base_dn):
     results = []
-    for i in range(1, 10):
+    for i in range(1, NUM_PAGEUSERS):
         dn = f'cn={PAGEPREFIX}user{i},{base_dn}'
-        attrs = {
-            'objectClass': [b'inetOrgPerson'],
-            'uid': [b'testuser'],
-            'cn': [f'{PAGEPREFIX}user{i}'.encode()],
-            'sn': [b'User'],
-            'mail': [b'testuser@freeiam.org'],
-        }
-        result = sess_conn.add(dn, attrs)
-        assert result.dn == dn
+        create_user(sess_conn, dn, sn='User')
         results.append(dn)
     return tuple(results)
 
 
 def test_paginated_search(conn, page_users, base_dn):
     results = list(page_users)
-    for entry in conn.search_paginated(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', page_size=5):
+    page_size = 5
+    total_entries = 0
+    cur_entry_on_page = 1
+    for entry in conn.search_paginated(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', page_size=page_size):
         assert results.pop(0) == entry.dn
 
+        assert entry.page.page_size == page_size
+        assert entry.page.page == (1 + total_entries // page_size)
+        assert entry.page.is_last_in_page == (page_size == entry.page.entry)
+        assert entry.page.entry == cur_entry_on_page
+
+        total_entries += 1
+        cur_entry_on_page += 1
+        if entry.page.is_last_in_page:
+            cur_entry_on_page = 1
+
     assert not results, results
+    assert total_entries + 1 == NUM_PAGEUSERS
 
 
 def test_unique_search(conn, page_users, base_dn):

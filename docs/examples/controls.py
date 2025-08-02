@@ -34,7 +34,7 @@ async def ldap_create_user_examples():
         result = await conn.add(dn, attrs, controls=[post_read_control])
         print(result.dn, result.attrs)
 
-        entry = result.get_control(post_read_control).entry
+        entry = result.controls.get(post_read_control).entry
         print(decode(entry['entryUUID']))
         print(decode(entry['entryCSN']))
         print(decode(entry['creatorsName']))

@@ -58,7 +58,7 @@ async def main():
             '(&(uid=*)(objectClass=person))',
             page_size=10,
         ):
-            print(entry.dn, entry.attr)
+            print(entry.dn, entry.attr, entry.page)
 
         # get a certain object, and use its attributes
         obj = await conn.get('uid=max.mustermann,dc=freeiam,dc=org')

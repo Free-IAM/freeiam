@@ -2,16 +2,20 @@ import pytest_asyncio
 from ldap.controls import RelaxRulesControl, SimplePagedResultsControl
 
 from freeiam import ldap
-from freeiam.ldap._wrapper import Result  # noqa: PLC2701
+from freeiam.ldap._wrapper import Controls, Result  # noqa: PLC2701
 
 
 def test_result_control_empty():
-    result = Result('', {}, [], None)
     ctrl = SimplePagedResultsControl()
-    assert result.get_control(ctrl) is None
 
-    result = Result('', {}, [ctrl], None)
-    assert result.get_control(RelaxRulesControl()) is None
+    result = Result('', {}, Controls(None, None, []), None)
+    assert result.controls.get(ctrl) is None
+
+    result = Result('', {}, Controls(None, None, None), None)
+    assert result.controls.get(ctrl) is None
+
+    result = Result('', {}, Controls(None, None, [ctrl]), None)
+    assert result.controls.get(RelaxRulesControl()) is None
 
 
 @pytest_asyncio.fixture(scope='function')

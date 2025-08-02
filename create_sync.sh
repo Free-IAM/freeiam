@@ -45,9 +45,10 @@ s/PAGEPREFIX = 'page'/PAGEPREFIX = 'synpage'/g;
 # s/def _execute_s/def _execute/g;
 sed "$expr" src/freeiam/ldap/connection.py > src/freeiam/ldap/sync_connection.py
 ruff format src/freeiam/ldap/sync_connection.py
+ruff check --add-noqa --select SIM113 src/freeiam/ldap/sync_connection.py
 ruff check --fix --unsafe-fixes --select I001,F401,UP028,C416 src/freeiam/ldap/sync_connection.py
 
 sed "${expr}${expr_py}" tests/test_ldap_connection.py > tests/test_ldap_connection_sync.py
 ruff format tests/test_ldap_connection_sync.py
-ruff check --add-noqa --select SIM117 tests/test_ldap_connection_sync.py
+ruff check --add-noqa --select SIM113,SIM117 tests/test_ldap_connection_sync.py
 ruff check --fix --unsafe-fixes --select I001,PT,C416,SIM117 tests/test_ldap_connection_sync.py
