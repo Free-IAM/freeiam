@@ -30,6 +30,8 @@ log = logging.getLogger(__name__)
 
 LDAPControlList: TypeAlias = list[ldap.controls.LDAPControl]
 LDAPObject: TypeAlias = ldap.ldapobject.SimpleLDAPObject
+LDAPAddList: TypeAlias = list[tuple[str, list[bytes]]]
+LDAPModList: TypeAlias = list[tuple[int, str, list[bytes] | None]]
 
 
 class Connection:
@@ -573,7 +575,7 @@ class Connection:
     async def add_al(
         self,
         dn: DN | str,
-        al: list[tuple[str, list[bytes]]],
+        al: LDAPAddList,
         *,
         controls: LDAPControlList | None = None,
     ) -> Result:
@@ -597,7 +599,7 @@ class Connection:
     async def modify_ml(
         self,
         dn: DN | str,
-        ml: list[tuple[int, str, list[bytes] | None]],
+        ml: LDAPModList,
         *,
         controls: LDAPControlList | None = None,
     ) -> Result:
