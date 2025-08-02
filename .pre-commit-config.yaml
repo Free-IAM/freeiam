@@ -62,7 +62,7 @@ repos:
       - id: reuse
         alias: reuse-annotate
         name: "reuse annotate"
-        args: ["annotate", "-c", "Florian Best", "-l", "FreeIAM", "--skip-unrecognised", "--skip-existing", "--template", "univention"]
+        args: ["annotate", "-c", "Florian Best", "-l", "MIT OR Apache-2.0", "--skip-unrecognised", "--skip-existing", "--template", "default"]
         pass_filenames: true
         description: "Annotate all unlicensed files"
         stages: [ manual ]
