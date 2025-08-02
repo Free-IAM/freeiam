@@ -4,6 +4,11 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.11"
+  apt_packages:
+    - libldap2-dev
+    - libsasl2-dev
+    - libssl-dev
+    - build-essential
 
 python:
   install:
