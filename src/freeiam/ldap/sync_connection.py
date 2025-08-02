@@ -11,13 +11,13 @@ from typing import Any, Self, TypeAlias
 import ldap.ldapobject
 import ldap.modlist
 import ldap.sasl
-from ldap.controls import SimplePagedResultsControl
 from ldap.schema import SCHEMA_ATTRS
 
 from freeiam import errors
-from freeiam.ldap._wrapper import Result, _Response
+from freeiam.ldap._wrapper import Controls, Result, SimplePage, _Response
 from freeiam.ldap.attr import Attributes
 from freeiam.ldap.constants import AnyOption, AnyOptionValue, Option, OptionValue, ResponseType, Scope, TLSOption, TLSOptionValue, Version
+from freeiam.ldap.controls import simple_paged_results
 from freeiam.ldap.dn import DN
 from freeiam.ldap.schema import Schema
 
@@ -26,7 +26,6 @@ __all__ = ('Connection',)
 
 log = logging.getLogger(__name__)
 
-LDAPControlList: TypeAlias = list[ldap.controls.LDAPControl]
 LDAPObject: TypeAlias = ldap.ldapobject.SimpleLDAPObject
 LDAPAddList: TypeAlias = list[tuple[str, list[bytes]]]
 LDAPModList: TypeAlias = list[tuple[int, str, list[bytes] | None]]
@@ -285,12 +284,12 @@ class Connection:
             Attributes.set_schema(self.__schema[subschema_dn])
         return self.__schema[subschema_dn]
 
-    def bind(self, authzid: str | None, password: str | None, *, controls: LDAPControlList | None = None) -> None:
+    def bind(self, authzid: str | None, password: str | None, *, controls: Controls | None = None) -> None:
         """Authenticate via plaintext credentials."""
         conn = self.conn
         self._last_auth_state = ('simple_bind_s', authzid, password)
-        response = self._execute(conn, conn.simple_bind, authzid, password, controls)
-        return Result(None, None, response.ctrls, response)
+        response = self._execute(conn, conn.simple_bind, authzid, password, **Controls.expand(controls))
+        return Result.from_response(None, None, controls, response)
 
     def bind_external(self):  # pragma: no cover
         """Authenticate via EXTERNAL method e.g. UNIX socket or TLS client certificate."""
@@ -323,7 +322,7 @@ class Connection:
             with errors.LdapError.wrap(self._hide_parent_exception):
                 getattr(self.conn, self._last_auth_state[0])(*self._last_auth_state[1:])
 
-    def unbind(self, *, controls: LDAPControlList | None = None) -> Result:
+    def unbind(self, *, controls: Controls | None = None) -> Result:
         """Unbind."""
         self._last_auth_state = None
         try:
@@ -331,31 +330,31 @@ class Connection:
         except RuntimeError:  # not connected
             return None
         try:
-            response = self._execute(conn, conn.unbind_ext, controls)
+            response = self._execute(conn, conn.unbind_ext, **Controls.expand(controls))
         except AttributeError as exc:  # duplicated unbind
             if exc.args and exc.args[0] == "ReconnectLDAPObject has no attribute '_l'":
                 return None
             raise  # pragma: no cover; not possible
-        return Result(None, None, response.ctrls, response)
+        return Result.from_response(None, None, controls, response)
 
-    def whoami(self, *, controls: LDAPControlList | None = None) -> DN | str:
+    def whoami(self, *, controls: Controls | None = None) -> DN | str:
         """Get authenticated user DN (authzid). "Who am I?" Operation."""
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
-                dn = self.conn.whoami_s(controls)
+                dn = self.conn.whoami_s(**Controls.expand(controls))
         except RuntimeError:
             return None
         if dn.startswith('dn:'):
             return DN(dn.removeprefix('dn:'))
         return dn  # pragma: no cover
 
-    def change_password(self, dn: DN | str, old_password: str, new_password: str, *, controls: LDAPControlList | None = None) -> Result:
+    def change_password(self, dn: DN | str, old_password: str, new_password: str, *, controls: Controls | None = None) -> Result:
         """Change password."""
         conn = self.conn
-        response = self._execute(conn, conn.passwd, str(dn), old_password, new_password, controls)
-        return Result(DN.get(dn), None, response.ctrls, response)  # pragma: no cover
+        response = self._execute(conn, conn.passwd, str(dn), old_password, new_password, **Controls.expand(controls))
+        return Result.from_response(dn, None, controls, response)  # pragma: no cover
 
-    def exists(self, dn: DN | str, unique: bool = False, *, controls: LDAPControlList | None = None) -> bool:
+    def exists(self, dn: DN | str, unique: bool = False, *, controls: Controls | None = None) -> bool:
         """Check if LDAP object exists."""
         try:
             self.get(dn, ['1.1'], unique=unique, controls=controls)
@@ -363,9 +362,7 @@ class Connection:
             return False
         return True
 
-    def get(
-        self, dn: DN | str, attrs=None, filter_expr='(objectClass=*)', *, unique: bool = False, controls: LDAPControlList | None = None
-    ) -> Result:
+    def get(self, dn: DN | str, attrs=None, filter_expr='(objectClass=*)', *, unique: bool = False, controls: Controls | None = None) -> Result:
         """Get a LDAP object."""
         for obj in self.search(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls):
             return obj
@@ -375,7 +372,7 @@ class Connection:
         # # GC calls gen.aclose() causing unnecessary .cancel() to be called:
         # # return next(self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls))
 
-    def get_attr(self, dn, attr, filter_expr='(objectClass=*)', *, unique: bool = False, controls: LDAPControlList | None = None) -> list[bytes]:
+    def get_attr(self, dn, attr, filter_expr='(objectClass=*)', *, unique: bool = False, controls: Controls | None = None) -> list[bytes]:
         """Get attribute of an LDAP object."""
         attributes = (self.get(dn, attrs=[attr], filter_expr=filter_expr, unique=unique, controls=controls)).attr
         try:
@@ -393,7 +390,7 @@ class Connection:
         *,
         unique: bool = False,
         sizelimit: bool | None = None,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
         _attrsonly: bool = False,
     ) -> AsyncGenerator[Result, None]:
         """Search iterative for DN and Attributes of LDAP objects."""
@@ -409,19 +406,18 @@ class Connection:
                 filterstr=filter_expr,
                 attrlist=attrs,
                 attrsonly=int(_attrsonly),
-                serverctrls=controls,
-                clientctrls=None,
+                **Controls.expand(controls),
                 timeout=self.timeout,
                 sizelimit=sizelimit or OptionValue.NoLimit,
             ):
-                results = [Result(DN(dn), Attributes(attributes), response.ctrls, response) for dn, attributes in response.data]
+                results = [Result.from_response(dn, attributes, controls, response) for dn, attributes in response.data]
                 all_results.extend(results)
                 if unique and len(all_results) > 1:
                     raise errors.NotUnique(all_results)
                 try:
                     yield from results
                     if response.ctrls:
-                        yield Result(None, None, response.ctrls, response)
+                        yield Result.from_response(None, None, controls, response)
                 except GeneratorExit as exc:
                     with contextlib.suppress(errors.NoSuchOperation):
                         # self.cancel(response.msgid)  # better do it immediately
@@ -447,7 +443,7 @@ class Connection:
         *,
         unique: bool = False,
         sizelimit: bool | None = None,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
         _attrsonly: bool = False,
     ) -> AsyncGenerator[Result, None]:
         """Search for DN and Attributes of LDAP objects."""
@@ -462,12 +458,11 @@ class Connection:
                 filterstr=filter_expr,
                 attrlist=attrs,
                 attrsonly=int(_attrsonly),
-                serverctrls=controls,
-                clientctrls=None,
+                **Controls.expand(controls),
                 timeout=self.timeout,
                 sizelimit=sizelimit or OptionValue.NoLimit,
             )
-            results = [Result((dn), Attributes(attributes), response.ctrls, response) for dn, attributes in response.data]
+            results = [Result.from_response(dn, attributes, controls, response) for dn, attributes in response.data]
             all_results.extend(results)
             if unique and len(all_results) > 1:
                 raise errors.NotUnique(all_results)
@@ -487,7 +482,7 @@ class Connection:
         *,
         unique: bool = False,
         sizelimit: bool | None = None,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
     ) -> AsyncGenerator[DN, None]:
         """Search for DNs of LDAP objects."""
         # FIXME: the following hangs forever as the iterative search is unfinished while the FD reader is replaced
@@ -505,22 +500,26 @@ class Connection:
         *,
         unique: bool = False,
         sizelimit: bool | None = None,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
     ) -> AsyncGenerator[Result, None]:
         """Search paginated using SimplePagedResults control."""
-        pagination = SimplePagedResultsControl(criticality=True, size=page_size, cookie='')
+        pagination = simple_paged_results(criticality=True, size=page_size, cookie='')
+        controls = Controls.append_server(controls, pagination)
+        page = 0
         while True:
-            last = None
-            for result in self.search_iter(
-                base, scope, filter_expr, attrs, unique=unique, sizelimit=sizelimit, controls=[*(controls or []), pagination]
-            ):
-                last = result
+            current = None
+            page += 1
+            entry_number = 0
+            for result in self.search_iter(base, scope, filter_expr, attrs, unique=unique, sizelimit=sizelimit, controls=controls):
+                entry_number += 1  # noqa: SIM113
+                result.page = SimplePage(page=page, entry=entry_number, page_size=page_size)
+                current = result
                 if result.dn is not None:
                     yield result
 
-            if last is None:  # pragma: no cover
+            if current is None:  # pragma: no cover
                 break
-            control = last.get_control(pagination)
+            control = current.controls.get(pagination)
             if not control:  # pragma: no cover
                 break  # Server doesn't support pagination
 
@@ -533,7 +532,7 @@ class Connection:
         dn: DN | str,
         attrs: dict | Attributes,
         *,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
     ) -> Result:
         """Create a LDAP object."""
         al = ldap.modlist.addModlist(attrs)
@@ -544,12 +543,12 @@ class Connection:
         dn: DN | str,
         al: LDAPAddList,
         *,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
     ) -> Result:
         """Create a LDAP object from addlist."""
         conn = self.conn
-        response = self._execute(conn, conn.add_ext, str(dn), al, controls)
-        return Result(DN.get(dn), None, response.ctrls, response)
+        response = self._execute(conn, conn.add_ext, str(dn), al, **Controls.expand(controls))
+        return Result.from_response(dn, None, controls, response)
 
     def modify(
         self,
@@ -557,7 +556,7 @@ class Connection:
         oldattr: dict | Attributes,
         newattr: dict | Attributes,
         *,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
     ) -> Result:
         """Modify a LDAP object."""
         ml = ldap.modlist.modifyModlist(oldattr, newattr)
@@ -568,15 +567,15 @@ class Connection:
         dn: DN | str,
         ml: LDAPModList,
         *,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
     ) -> Result:
         """Modify a LDAP object from modlist."""
         conn = self.conn
         new_dn = self._compute_changed_dn(DN(dn), ml)
         if dn != new_dn:
             dn = (self.rename(dn, new_dn)).dn
-        response = self._execute(conn, conn.modify_ext, str(dn), ml, controls)
-        return Result(DN.get(dn), None, response.ctrls, response)
+        response = self._execute(conn, conn.modify_ext, str(dn), ml, **Controls.expand(controls))
+        return Result.from_response(dn, None, controls, response)
 
     @classmethod
     def _compute_changed_dn(cls, dn: DN, ml: list[tuple[int, str, list[bytes] | None]]) -> DN:
@@ -614,7 +613,7 @@ class Connection:
         dn: DN | str,
         newposition: DN | str,
         *,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
     ) -> Result:
         """Move a LDAP object."""
         dn = DN.get(dn)
@@ -627,13 +626,13 @@ class Connection:
         newdn: DN | str,
         delete_old: bool = True,
         *,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
     ) -> Result:
         """Rename a LDAP object."""
         conn = self.conn
         newdn = DN.get(newdn)
-        response = self._execute(conn, conn.rename, str(dn), str(newdn[0]), str(newdn.parent), int(delete_old), controls)
-        return Result(newdn, None, response.ctrls, response)
+        response = self._execute(conn, conn.rename, str(dn), str(newdn[0]), str(newdn.parent), int(delete_old), **Controls.expand(controls))
+        return Result.from_response(newdn, None, controls, response)
 
     def modrdn(
         self,
@@ -641,18 +640,18 @@ class Connection:
         newrdn: DN | str,
         delete_old: bool = True,
         *,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
     ) -> Result:
         """Rename a LDAP object."""
         return self.rename(dn, DN.get(newrdn) + DN.get(dn).parent, delete_old, controls=controls)
 
-    def delete(self, dn: DN | str, *, controls: LDAPControlList | None = None) -> Result:
+    def delete(self, dn: DN | str, *, controls: Controls | None = None) -> Result:
         """Delete a LDAP object."""
         conn = self.conn
-        response = self._execute(conn, conn.delete_ext, str(dn), controls)
-        return Result(DN.get(dn), None, response.ctrls, response)
+        response = self._execute(conn, conn.delete_ext, str(dn), **Controls.expand(controls))
+        return Result.from_response(dn, None, controls, response)
 
-    def delete_recursive(self, dn: DN | str, *, controls: LDAPControlList | None = None) -> Result:
+    def delete_recursive(self, dn: DN | str, *, controls: Controls | None = None) -> Result:
         """Delete a LDAP object recursively."""
         try:
             return self.delete(dn, controls=controls)
@@ -667,12 +666,12 @@ class Connection:
         attr: str,
         value: bytes,
         *,
-        controls: LDAPControlList | None = None,
+        controls: Controls | None = None,
     ) -> bool:
         """Compare the value of an LDAP object."""
         conn = self.conn
         try:
-            self._execute(conn, conn.compare_ext, str(dn), attr, value, controls)
+            self._execute(conn, conn.compare_ext, str(dn), attr, value, **Controls.expand(controls))
         except errors.NoSuchObject as no_object_error:
             no_object_error.base_dn = DN.get(dn)
             raise
@@ -708,14 +707,14 @@ class Connection:
         result = self.get_attr('', 'namingContexts')
         return [x.decode('UTF-8') for x in result]
 
-    def abandon(self, msgid: int, *, controls: LDAPControlList | None = None) -> Result:
+    def abandon(self, msgid: int, *, controls: Controls | None = None) -> Result:
         """Abandon a LDAP operation."""
         log.debug('Abandon: %s', msgid)
         conn = self.conn
-        response = self._execute(conn, conn.abandon_ext, msgid, controls)
-        return Result(None, None, response.ctrls, response)
+        response = self._execute(conn, conn.abandon_ext, msgid, **Controls.expand(controls))
+        return Result.from_response(None, None, controls, response)
 
-    def cancel(self, msgid: int, *, controls: LDAPControlList | None = None) -> bool:
+    def cancel(self, msgid: int, *, controls: Controls | None = None) -> bool:
         """Cancel a LDAP operation."""
         log.debug('Cancel: %s', msgid)
         try:
@@ -723,7 +722,7 @@ class Connection:
         except RuntimeError:
             return False
         try:
-            self._execute(conn, conn.cancel, msgid, controls)
+            self._execute(conn, conn.cancel, msgid, **Controls.expand(controls))
         except errors.NoSuchOperation:
             log.warning('Cancel failed', extra={'msgid': msgid})
             raise
@@ -734,14 +733,14 @@ class Connection:
         else:  # pragma: no cover
             return True
 
-    def extop(self, extreq: ldap.extop.ExtendedRequest, extop_resp_class=None, *, controls: LDAPControlList | None = None) -> Result | Any:
+    def extop(self, extreq: ldap.extop.ExtendedRequest, extop_resp_class=None, *, controls: Controls | None = None) -> Result | Any:
         """Perform extended operation."""
         conn = self.conn
-        response = self._execute(conn, conn.extop, extreq, controls)
+        response = self._execute(conn, conn.extop, extreq, **Controls.expand(controls))
 
         if extop_resp_class:  # pragma: no cover
             return extop_resp_class(response.name, response.value)
-        return Result(None, None, response.ctrls, response)  # pragma: no cover
+        return Result.from_response(None, None, controls, response)  # pragma: no cover
 
     def __getstate__(self) -> dict:
         """Return state for pickle."""
