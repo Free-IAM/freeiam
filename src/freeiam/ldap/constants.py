@@ -94,7 +94,7 @@ class Option(IntEnum):
     ResultCode = ldap.OPT_RESULT_CODE
     ServerControls = ldap.OPT_SERVER_CONTROLS
     Sizelimit = ldap.OPT_SIZELIMIT
-    TCPUserTimeout = ldap.OPT_TCP_USER_TIMEOUT
+    # TCPUserTimeout = ldap.OPT_TCP_USER_TIMEOUT
     Timelimit = ldap.OPT_TIMELIMIT
     Timeout = ldap.OPT_TIMEOUT
     """Timeout. A timeout of -1 or None resets timeout to infinity."""
@@ -144,24 +144,24 @@ class TLSOption(IntEnum):
     CACertdir = ldap.OPT_X_TLS_CACERTDIR
     CACertfile = ldap.OPT_X_TLS_CACERTFILE
     Certfile = ldap.OPT_X_TLS_CERTFILE
-    Cipher = ldap.OPT_X_TLS_CIPHER
+    # Cipher = ldap.OPT_X_TLS_CIPHER
     CipherSuite = ldap.OPT_X_TLS_CIPHER_SUITE
     CRLCheck = ldap.OPT_X_TLS_CRLCHECK
     CRLFile = ldap.OPT_X_TLS_CRLFILE
     Context = ldap.OPT_X_TLS_CTX  # DO NOT USE!
-    DHFile = ldap.OPT_X_TLS_DHFILE
-    ECName = ldap.OPT_X_TLS_ECNAME
+    # DHFile = ldap.OPT_X_TLS_DHFILE
+    # ECName = ldap.OPT_X_TLS_ECNAME
     Keyfile = ldap.OPT_X_TLS_KEYFILE
-    NewContext = ldap.OPT_X_TLS_NEWCTX
+    # NewContext = ldap.OPT_X_TLS_NEWCTX
     """libldap does not materialize all TLS settings immediately. You must use OPT_X_TLS_NEWCTX with value 0 to instruct libldap to apply pending TLS settings and create a new internal TLS context"""  # noqa: E501
     Package = ldap.OPT_X_TLS_PACKAGE
-    PeerCert = ldap.OPT_X_TLS_PEERCERT
-    ProtocolMax = ldap.OPT_X_TLS_PROTOCOL_MAX
-    ProtocolMin = ldap.OPT_X_TLS_PROTOCOL_MIN
+    # PeerCert = ldap.OPT_X_TLS_PEERCERT
+    # ProtocolMax = ldap.OPT_X_TLS_PROTOCOL_MAX
+    # ProtocolMin = ldap.OPT_X_TLS_PROTOCOL_MIN
     RandomFile = ldap.OPT_X_TLS_RANDOM_FILE  # DO NOT USE!
-    RequireCert = ldap.OPT_X_TLS_REQUIRE_CERT
-    RequireSAN = ldap.OPT_X_TLS_REQUIRE_SAN
-    Version = ldap.OPT_X_TLS_VERSION
+    # RequireCert = ldap.OPT_X_TLS_REQUIRE_CERT
+    # RequireSAN = ldap.OPT_X_TLS_REQUIRE_SAN
+    # Version = ldap.OPT_X_TLS_VERSION
 
 
 class TLSOptionValue(IntEnum):
@@ -184,7 +184,7 @@ class TLSOptionValue(IntEnum):
     ProtocolTLS10 = ldap.OPT_X_TLS_PROTOCOL_TLS1_0
     ProtocolTLS11 = ldap.OPT_X_TLS_PROTOCOL_TLS1_1
     ProtocolTLS12 = ldap.OPT_X_TLS_PROTOCOL_TLS1_2
-    ProtocolTLS13 = ldap.OPT_X_TLS_PROTOCOL_TLS1_3
+    # ProtocolTLS13 = ldap.OPT_X_TLS_PROTOCOL_TLS1_3
 
 
 class Dereference(IntEnum):
