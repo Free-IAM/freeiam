@@ -1,0 +1,35 @@
+#!/usr/bin/python3
+"""Long running LDAP server test instance."""
+# SPDX-FileCopyrightText: 2025 Florian Best
+# SPDX-License-Identifier: MIT OR Apache-2.0
+
+import time
+
+
+if __name__ == '__main__':
+    import tests.conftest
+
+    with tests.conftest._ldap_server() as server:
+        ldap_uri = server['ldap_uri']
+        ldaps_uri = server['ldaps_uri']
+        port_ldap = server['port_ldap']
+        port_ldaps = server['port_ldaps']
+        ca_cert = server['ca_cert']
+        ADMIN_DN = server['bind_dn']
+        ADMIN_PW = server['bind_pw']
+        BASE_DN = server['base_dn']
+
+        print(f'openssl x509 -in {ca_cert} -text -noout')
+        print(f'openssl s_client -starttls ldap -connect localhost:{port_ldap}')
+        print(f'openssl s_client -connect localhost:{port_ldaps} -showcerts')
+        env_vars = f'LDAPTLS_REQCERT=allow LDAPTLS_CACERT="{ca_cert}"'
+        print(f'{env_vars} ldapsearch -LLL -H "{ldap_uri}"  -D "{ADMIN_DN}" -w "{ADMIN_PW}" -b "{BASE_DN}"')
+        print(f'{env_vars} ldapsearch -LLL -H "{ldap_uri}"  -D "{ADMIN_DN}" -w "{ADMIN_PW}" -b "{BASE_DN}" -ZZ')
+        print(f'{env_vars} ldapsearch -LLL -H "{ldaps_uri}" -D "{ADMIN_DN}" -w "{ADMIN_PW}" -b "{BASE_DN}"')
+        print(f'LDAP_URI={ldap_uri!r} PYTHONPATH=src/ python3 -i')
+        while True:
+            try:
+                time.sleep(600)
+            except KeyboardInterrupt:
+                print('\nShutting down.')
+                break

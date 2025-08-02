@@ -172,7 +172,13 @@ def wait_for_ssl_if_marked(request, ldap_server):
 
 
 @pytest.fixture(scope='session')
-def ldap_server(request):
+def ldap_server():
+    with _ldap_server() as s:
+        yield s
+
+
+@contextlib.contextmanager
+def _ldap_server():
     global container  # noqa: PLW0603
     for logname in ('docker.utils.config', 'docker.auth', 'urllib3.connectionpool'):
         logging.getLogger(logname).setLevel(logging.WARNING)
