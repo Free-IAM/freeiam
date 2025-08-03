@@ -28,6 +28,9 @@ format:
 changelog:
 	semantic-release version --no-push --skip-build --changelog
 
+preview-changelog:
+	semantic-release version --no-push --skip-build --changelog --no-tag
+
 publish:
 	semantic-release publish
 
