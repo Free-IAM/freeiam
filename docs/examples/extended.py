@@ -22,7 +22,11 @@ async def ldap_extended_stuff_example():
         subschema = await conn.get_schema()
         print(subschema)
 
-        # If you know what you are doing and are an expert you can also perform LDAP extended operation
-        from ldap.extop import ExtendedRequest, ExtendedResponse  # use suitable subclasses
+        # If you know what you are doing and are an expert
+        # you can also perform LDAP extended operation
+        from ldap.extop import (
+            ExtendedRequest,
+            ExtendedResponse,
+        )  # use suitable subclasses
 
         await conn.extop(ExtendedRequest(), ExtendedResponse)

@@ -6,7 +6,8 @@ async def ldap_set_connection_options_example():
     """Set various connection options easily"""
 
     async with ldap.Connection('ldap://localhost:389') as conn:
-        # you can't remeber the constant names? or you don't want to type conn.set_option(Option.Foo, value)?
+        # you can't remeber the constant names?
+        # or you don't want to type `conn.set_option(Option.Foo, value)`?
 
         # Limit on waiting for any response, in seconds.
         conn.timelimit = 30

@@ -9,15 +9,21 @@ async def ldap_search_examples():
         search_base = 'dc=freeiam,dc=org'
 
         # search for DN and attrs
-        for entry in await conn.search(search_base, Scope.SUBTREE, '(&(uid=*)(objectClass=person))'):
+        for entry in await conn.search(
+            search_base, Scope.SUBTREE, '(&(uid=*)(objectClass=person))'
+        ):
             print(entry.dn, entry.attr)
 
         # search iterative for DN and attrs
-        async for entry in conn.search_iter(search_base, Scope.SUBTREE, '(&(uid=*)(objectClass=person))'):
+        async for entry in conn.search_iter(
+            search_base, Scope.SUBTREE, '(&(uid=*)(objectClass=person))'
+        ):
             print(entry.dn, entry.attr)
 
         # search for DN
-        async for entry in conn.search_dn(search_base, Scope.SUBTREE, '(&(uid=*)(objectClass=person))'):
+        async for entry in conn.search_dn(
+            search_base, Scope.SUBTREE, '(&(uid=*)(objectClass=person))'
+        ):
             print(entry.dn)
 
         # search paginated
