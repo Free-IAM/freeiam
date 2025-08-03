@@ -34,12 +34,12 @@ class DN:
         return cls(dn) if isinstance(dn, str) else dn
 
     @classmethod
-    def escape(cls, value: str):
+    def escape(cls, value: str) -> str:
         """Escape LDAP DN value."""
         return ldap.dn.escape_dn_chars(value)
 
     @classmethod
-    def compose(cls, *parts):
+    def compose(cls, *parts: DN | str | tuple[str, str] | tuple[str, str, int]) -> Self:
         """
         Compose a DN from different segments.
 
@@ -85,24 +85,82 @@ class DN:
         return {str(dn) for dn in dns}
 
     @property
-    def rdn(self) -> Self:
+    def rdn(self) -> tuple[str, str]:
         """
         Get attr and value of the first RDN component.
 
         >>> DN('cn=foo,cn=bar').rdn
         ('cn', 'foo')
         """
-        return self.multi_rdn[0]
+        try:
+            return self.multi_rdn[0]
+        except IndexError:
+            return ()
 
     @property
-    def multi_rdn(self) -> Self:
+    def attribute(self) -> str:
+        """
+        Get attribute name of the first RDN component.
+
+        >>> DN('cn=foo,cn=bar').attribute
+        'cn'
+        """
+        try:
+            return self.rdn[0]
+        except IndexError:
+            return ()
+
+    @property
+    def value(self) -> str:
+        """
+        Get value of the first RDN component.
+
+        >>> DN('cn=foo,cn=bar').value
+        'foo'
+        """
+        try:
+            return self.rdn[1]
+        except IndexError:
+            return ()
+
+    @property
+    def multi_rdn(self) -> tuple[tuple[str, str]]:
         """
         Get all attrs and values of the RDN.
 
         >>> DN('uid=1+cn=2,dc=3').rdn
         (('uid', '1'), ('cn', '2'))
         """
-        return tuple(tuple(rdn[:2]) for rdn in self._dn[0])
+        try:
+            return tuple(tuple(rdn[:2]) for rdn in self._dn[0])
+        except IndexError:
+            return ()
+
+    @property
+    def attributes(self) -> tuple[str]:
+        """
+        Get attribute name of the first RDN component.
+
+        >>> DN('uid=1+cn=2,dc=3').attributes
+        ('uid', 'cn')
+        """
+        try:
+            return tuple(rdn[0] for rdn in self._dn[0])
+        except IndexError:
+            return ()
+
+    @property
+    def values(self) -> tuple[str]:
+        """
+        Get value of the first RDN component.
+
+        >>> DN('uid=1+cn=2,dc=3').values
+        ('1', '2')
+        """
+        try:
+            return tuple(rdn[1] for rdn in self._dn[0])
+        except IndexError:
+            return ()
 
     @property
     def rdns(self) -> list[list[tuple[str, str, int]]]:
@@ -153,7 +211,7 @@ class DN:
 
     def endswith(self, other: Self | str) -> bool:
         """
-        Check if DN ends with another base DN.
+        Check if DN is descendant of another base DN.
 
         >>> DN('cn=foo,cn=bar').endswith('cn=bar')
         True

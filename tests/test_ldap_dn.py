@@ -25,15 +25,33 @@ def test_broken_samba_dn():
 
 
 def test_empty_dn():
-    assert str(DN('')) == ''  # noqa: PLC1901
+    empty = DN('')
+    assert str(empty) == ''  # noqa: PLC1901
+    assert not empty
+    assert not empty.rdn
+    assert not empty.multi_rdn
+    assert not empty.attribute
+    assert not empty.attributes
+    assert not empty.value
+    assert not empty.values
+    assert empty.parent is None
+    assert not empty.startswith('cn=foo')
+    assert not empty.endswith('cn=foo')
+    assert empty.startswith('')
+    assert empty.endswith('')
 
 
 def test_rdn(user_dn):
     assert user_dn.rdn == ('uid', 'Max.Mustermann')
+    assert user_dn.attribute == 'uid'
+    assert user_dn.value == 'Max.Mustermann'
 
 
 def test_multi_rdn():
-    assert DN('uid=1+cn=2,dc=3').multi_rdn == (('uid', '1'), ('cn', '2'))
+    multi_rdns = DN('uid=1+cn=2,dc=3')
+    assert multi_rdns.multi_rdn == (('uid', '1'), ('cn', '2'))
+    assert multi_rdns.attributes == ('uid', 'cn')
+    assert multi_rdns.values == ('1', '2')
 
 
 def test_rdns(user_dn):
@@ -156,3 +174,10 @@ def test_dn_compose():
 def test_dn_compose_invalid():
     with pytest.raises(TypeError):
         str(DN.compose(('cn',)))
+
+
+def test_contains(user_dn):
+    assert 'cn=users' in user_dn
+    assert DN('cn=users') in user_dn
+    assert 'cn=users,dc=freeiam' not in user_dn
+    assert DN('cn=users,dc=freeiam') not in user_dn
