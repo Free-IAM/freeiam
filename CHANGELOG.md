@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.3.0 (2025-08-04)
+
+### Documentation
+
+- **ldap**: Add section explaning how to handle LDAP Distinguished Names correctly
+  ([`eac7c4b`](https://github.com/Free-IAM/freeiam/commit/eac7c4bca6c80c1992f911ba204688eaed35e167))
+
+### Features
+
+- **ldap.dn**: Add `DN.compse()` method to construct DNs with automatic escaping of DN characters
+  ([`8514453`](https://github.com/Free-IAM/freeiam/commit/85144538d05ea8388fad2c416eb88b9b3460c366))
+
+- **ldap.dn**: Add more DN descriptors for common use cases
+  ([`b72a12d`](https://github.com/Free-IAM/freeiam/commit/b72a12d76a5aa25bcf80eb9803f20360f04b730a))
+
+
 ## v0.2.0 (2025-08-03)
 
 ### Bug Fixes

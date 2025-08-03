@@ -2,7 +2,7 @@
 name = "freeiam"
 description = "FreeIAM is a free and flexible Identity and Access Management solution."
 authors = [{ name = "Florian Best", email="contact@freeiam.org" }]
-version = "0.2.0"
+version = "0.3.0"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
