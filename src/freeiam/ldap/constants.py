@@ -140,7 +140,6 @@ class OptionValue(IntEnum):
 class TLSOption(IntEnum):
     """TLS Options."""
 
-    TLS = ldap.OPT_X_TLS  # Deprecated!
     CACertdir = ldap.OPT_X_TLS_CACERTDIR
     CACertfile = ldap.OPT_X_TLS_CACERTFILE
     Certfile = ldap.OPT_X_TLS_CERTFILE
@@ -148,7 +147,6 @@ class TLSOption(IntEnum):
     CipherSuite = ldap.OPT_X_TLS_CIPHER_SUITE
     CRLCheck = ldap.OPT_X_TLS_CRLCHECK
     CRLFile = ldap.OPT_X_TLS_CRLFILE
-    Context = ldap.OPT_X_TLS_CTX  # DO NOT USE!
     DHFile = ldap.OPT_X_TLS_DHFILE
     ECName = ldap.OPT_X_TLS_ECNAME
     Keyfile = ldap.OPT_X_TLS_KEYFILE
@@ -158,7 +156,6 @@ class TLSOption(IntEnum):
     PeerCert = ldap.OPT_X_TLS_PEERCERT
     ProtocolMax = ldap.OPT_X_TLS_PROTOCOL_MAX
     ProtocolMin = ldap.OPT_X_TLS_PROTOCOL_MIN
-    RandomFile = ldap.OPT_X_TLS_RANDOM_FILE  # DO NOT USE!
     RequireCert = ldap.OPT_X_TLS_REQUIRE_CERT
     RequireSAN = ldap.OPT_X_TLS_REQUIRE_SAN
     Version = ldap.OPT_X_TLS_VERSION
