@@ -10,6 +10,10 @@ from typing import Self
 import ldap.dn
 
 from freeiam.errors import InvalidDN
+from freeiam.ldap.constants import AVA, DNFormat
+
+
+__all__ = ('DN',)
 
 
 @functools.lru_cache
@@ -33,6 +37,25 @@ class DN:
     def escape(cls, value: str):
         """Escape LDAP DN value."""
         return ldap.dn.escape_dn_chars(value)
+
+    @classmethod
+    def compose(cls, *parts):
+        """
+        Compose a DN from different segments.
+
+        >>> base = DN('dc=freeiam,dc=org')
+        >>> str(DN.compose(('cn', 'admin'), 'ou=foo,ou=bar', base))
+        "cn=admin,ou=foo,ou=bar,dc=freeiam,dc=org"
+        """
+        rdns = []
+        for part in parts:
+            if isinstance(part, DN):
+                rdns.extend(part.rdns)
+            elif isinstance(part, str):
+                rdns.extend(cls(part).rdns)
+            elif isinstance(part, tuple):
+                rdns.append([[*part[:3], AVA.String][:3]])
+        return cls(*parts)
 
     @classmethod
     def normalize(cls, dn: Self | str) -> str:
@@ -96,7 +119,7 @@ class DN:
             return self[1:]
         return None
 
-    def __init__(self, dn: str, format=None) -> None:  # noqa: A002
+    def __init__(self, dn: str, format: DNFormat = None) -> None:  # noqa: A002
         self.dn = dn
         self._format = format
         self._cached_hash = None
