@@ -15,6 +15,7 @@ path = [
  "*.md",
  ".gitignore",
  "tox.ini",
+ "**/pyproject.toml",
  "pytest.ini",
  "pytest_benchmark.ini",
  "**/Makefile",

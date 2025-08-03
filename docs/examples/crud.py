@@ -47,7 +47,9 @@ async def ldap_modify_user_examples():
         # modify a entry from old and new state dict attributes definition
         dn = f'uid=max.mustermann,{base_dn}'
         obj = await conn.get(dn)
-        newattrs = obj.attrs.copy()  # or just use two dicts with a subset of these attributes
+        newattrs = (
+            obj.attrs.copy()
+        )  # or just use two dicts with a subset of these attributes
         newattrs.update(
             {
                 'givenName': [b'Erika'],  # change name
