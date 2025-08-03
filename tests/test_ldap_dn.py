@@ -146,3 +146,13 @@ def test_get_unique():
         'CN=Users,dc=freeiam,dc=org',
     ])) == 1  # fmt: skip
     assert DN.get_unique_str(DN.get_unique(['cn=foo', 'cn=bar']) - DN.get_unique(['cn = foo'])) == {'cn=bar'}
+
+
+def test_dn_compose():
+    base = DN('dc=freeiam,dc=org')
+    assert str(DN.compose(('cn', 'admin'), 'ou=foo,ou=bar', base)) == 'cn=admin,ou=foo,ou=bar,dc=freeiam,dc=org'
+
+
+def test_dn_compose_invalid():
+    with pytest.raises(TypeError):
+        str(DN.compose(('cn',)))

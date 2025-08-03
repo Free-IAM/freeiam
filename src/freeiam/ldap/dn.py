@@ -53,9 +53,11 @@ class DN:
                 rdns.extend(part.rdns)
             elif isinstance(part, str):
                 rdns.extend(cls(part).rdns)
-            elif isinstance(part, tuple):
+            elif isinstance(part, tuple) and len(part) > 1:
                 rdns.append([[*part[:3], AVA.String][:3]])
-        return cls(*parts)
+            else:
+                raise TypeError(part)
+        return cls(ldap.dn.dn2str(rdns))
 
     @classmethod
     def normalize(cls, dn: Self | str) -> str:
