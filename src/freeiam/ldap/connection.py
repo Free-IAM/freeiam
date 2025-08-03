@@ -440,6 +440,7 @@ class Connection:
                 timeout=self.timeout,
                 sizelimit=sizelimit or OptionValue.NoLimit,
             ):
+                Result.set_controls(response, controls)
                 results = [Result.from_response(dn, attributes, controls, response) for dn, attributes in response.data]
                 all_results.extend(results)
                 if unique and len(all_results) > 1:
@@ -447,8 +448,6 @@ class Connection:
                 try:
                     for result in results:
                         yield result
-                    if response.ctrls:
-                        yield Result.from_response(None, None, controls, response)
                 except GeneratorExit as exc:
                     with contextlib.suppress(errors.NoSuchOperation):
                         # await self.cancel(response.msgid)  # better do it immediately
@@ -493,6 +492,7 @@ class Connection:
                 timeout=self.timeout,
                 sizelimit=sizelimit or OptionValue.NoLimit,
             )
+            Result.set_controls(response, controls)
             results = [Result.from_response(dn, attributes, controls, response) for dn, attributes in response.data]
             all_results.extend(results)
             if unique and len(all_results) > 1:
@@ -545,16 +545,15 @@ class Connection:
                 entry_number += 1
                 result.page = SimplePage(page=page, entry=entry_number, page_size=page_size)
                 current = result
-                if result.dn is not None:
-                    yield result
+                yield result
 
-            if current is None:  # pragma: no cover
+            if current is None:  # no search results
                 break
-            control = current.controls.get(pagination)
+            control = controls.get(pagination)
             if not control:  # pragma: no cover
                 break  # Server doesn't support pagination
 
-            pagination.cookie = control.cookie
+            pagination.cookie = controls.get(pagination).cookie
             if not pagination.cookie:
                 break
 

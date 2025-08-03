@@ -104,8 +104,14 @@ class Result:
         return cls(dn, attr, cls._control_response(controls, response.ctrls), response, **kwargs)
 
     @classmethod
-    def _control_response(cls, controls, response):
+    def set_controls(cls, response: _Response, controls: Controls | None):
         if controls is None:
-            return Controls(None, None, response)
+            return
+        controls.response = response.ctrls
 
-        return Controls(controls.server and controls.server.copy(), controls.client and controls.client.copy(), response)
+    @classmethod
+    def _control_response(cls, controls, response_ctrls):
+        if controls is None:
+            return Controls(None, None, response_ctrls)
+
+        return Controls(controls.server and controls.server.copy(), controls.client and controls.client.copy(), response_ctrls)
