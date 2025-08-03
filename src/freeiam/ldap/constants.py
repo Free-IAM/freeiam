@@ -221,7 +221,7 @@ class DNFormat(IntEnum):
 
 
 class AVA(IntEnum):
-    """Attribute Value Assertion."""
+    """Attribute Value Assertion formats."""
 
     Binary = ldap.AVA_BINARY
     NonPrintable = ldap.AVA_NONPRINTABLE

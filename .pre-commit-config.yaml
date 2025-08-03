@@ -15,6 +15,7 @@ repos:
         - --autofix
         - --no-ensure-ascii
     - id: trailing-whitespace
+      exclude: "^docs/.*[.]rst$|^.*[.]md$"
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
     hooks:
