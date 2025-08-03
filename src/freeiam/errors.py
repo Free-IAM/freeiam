@@ -462,7 +462,7 @@ class ProtocolError(LdapError):
 class ProxiedAuthorizationDenied(LdapError):
     """Proxied authorization was denied."""
 
-    exc_class = ldap.PROXIED_AUTHORIZATION_DENIED
+    exc_class = getattr(ldap, 'PROXIED_AUTHORIZATION_DENIED', object())
 
 
 class Referral(LdapError):

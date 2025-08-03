@@ -10,6 +10,10 @@ from typing import TypeAlias
 import ldap
 
 
+def _getoptional(name, default):
+    return getattr(ldap, name, default)
+
+
 class Scope(IntEnum):
     """All possible search scopes."""
 
@@ -21,6 +25,8 @@ class Scope(IntEnum):
 
     Subtree = ldap.SCOPE_SUBTREE
     """Whole subtree scope"""
+
+    Subordinate = _getoptional('SCOPE_SUBORDINATE', 3)
 
     One = Onelevel
     Sub = Subtree
@@ -69,10 +75,10 @@ class Option(IntEnum):
     ApiFeatureInfo = ldap.OPT_API_FEATURE_INFO
     ApiInfo = ldap.OPT_API_INFO
     ClientControls = ldap.OPT_CLIENT_CONTROLS
-    ConnectAsync = ldap.OPT_CONNECT_ASYNC
+    ConnectAsync = _getoptional('OPT_CONNECT_ASYNC', 20496)
     DebugLevel = ldap.OPT_DEBUG_LEVEL
     """Sets the debug level within the underlying OpenLDAP C lib. libldap sends the log messages to stderr."""
-    Defbase = ldap.OPT_DEFBASE
+    Defbase = _getoptional('OPT_DEFBASE', 20489)
     Dereference = ldap.OPT_DEREF
     """Specifies how alias dereferencing is done within the underlying LDAP C lib."""
     Desc = ldap.OPT_DESC
@@ -87,14 +93,14 @@ class Option(IntEnum):
     """Network timeout. A timeout of -1 or None resets timeout to infinity."""
     ProtocolVersion = ldap.OPT_PROTOCOL_VERSION
     """Sets the LDAP protocol version used for a connection."""
-    Referrals = ldap.OPT_REFERRALS
+    Referrals = _getoptional('OPT_REFERRALS', 8)
     """Specifies whether referrals should be automatically chased within the underlying LDAP C lib."""
     Refhoplimit = ldap.OPT_REFHOPLIMIT
     Restart = ldap.OPT_RESTART
     ResultCode = ldap.OPT_RESULT_CODE
     ServerControls = ldap.OPT_SERVER_CONTROLS
     Sizelimit = ldap.OPT_SIZELIMIT
-    TCPUserTimeout = ldap.OPT_TCP_USER_TIMEOUT
+    TCPUserTimeout = _getoptional('OPT_TCP_USER_TIMEOUT', 20501)
     Timelimit = ldap.OPT_TIMELIMIT
     Timeout = ldap.OPT_TIMEOUT
     """Timeout. A timeout of -1 or None resets timeout to infinity."""
@@ -107,7 +113,7 @@ class SASLOption(IntEnum):
     AuthCID = ldap.OPT_X_SASL_AUTHCID
     AuthZID = ldap.OPT_X_SASL_AUTHZID
     Mechanism = ldap.OPT_X_SASL_MECH
-    NoCanonicalization = ldap.OPT_X_SASL_NOCANON
+    NoCanonicalization = _getoptional('OPT_X_SASL_NOCANON', 24843)
     """If set to zero, SASL host name canonicalization is disabled."""
     Realm = ldap.OPT_X_SASL_REALM
     Secprops = ldap.OPT_X_SASL_SECPROPS
@@ -118,7 +124,7 @@ class SASLOption(IntEnum):
     """Maximum Security Strength Factor"""
     SSFMin = ldap.OPT_X_SASL_SSF_MIN
     """Minimum Security Strength Factor"""
-    Username = ldap.OPT_X_SASL_USERNAME
+    Username = _getoptional('OPT_X_SASL_USERNAME', 24844)
     """SASL Username"""
 
 
@@ -130,9 +136,9 @@ class OptionValue(IntEnum):
     Success = ldap.OPT_SUCCESS
 
     # X-Keep-Alive
-    KeepAliveIdle = ldap.OPT_X_KEEPALIVE_IDLE
-    KeepAliveInterval = ldap.OPT_X_KEEPALIVE_INTERVAL
-    KeepAliveProbes = ldap.OPT_X_KEEPALIVE_PROBES
+    KeepAliveIdle = _getoptional('OPT_X_KEEPALIVE_IDLE', 25344)
+    KeepAliveInterval = _getoptional('OPT_X_KEEPALIVE_INTERVAL', 25346)
+    KeepAliveProbes = _getoptional('OPT_X_KEEPALIVE_PROBES', 25345)
 
     NoLimit = ldap.NO_LIMIT
 
@@ -143,22 +149,22 @@ class TLSOption(IntEnum):
     CACertdir = ldap.OPT_X_TLS_CACERTDIR
     CACertfile = ldap.OPT_X_TLS_CACERTFILE
     Certfile = ldap.OPT_X_TLS_CERTFILE
-    Cipher = ldap.OPT_X_TLS_CIPHER
+    Cipher = _getoptional('OPT_X_TLS_CIPHER', 24596)
     CipherSuite = ldap.OPT_X_TLS_CIPHER_SUITE
-    CRLCheck = ldap.OPT_X_TLS_CRLCHECK
-    CRLFile = ldap.OPT_X_TLS_CRLFILE
+    CRLCheck = _getoptional('OPT_X_TLS_CRLCHECK', 24587)
+    CRLFile = _getoptional('OPT_X_TLS_CRLFILE', 24592)
     DHFile = ldap.OPT_X_TLS_DHFILE
-    ECName = ldap.OPT_X_TLS_ECNAME
+    ECName = _getoptional('OPT_X_TLS_ECNAME', 24594)
     Keyfile = ldap.OPT_X_TLS_KEYFILE
-    NewContext = ldap.OPT_X_TLS_NEWCTX
+    NewContext = _getoptional('OPT_X_TLS_NEWCTX', 24591)
     """libldap does not materialize all TLS settings immediately. You must use OPT_X_TLS_NEWCTX with value 0 to instruct libldap to apply pending TLS settings and create a new internal TLS context"""  # noqa: E501
-    Package = ldap.OPT_X_TLS_PACKAGE
-    PeerCert = ldap.OPT_X_TLS_PEERCERT
-    ProtocolMax = ldap.OPT_X_TLS_PROTOCOL_MAX
-    ProtocolMin = ldap.OPT_X_TLS_PROTOCOL_MIN
+    Package = _getoptional('OPT_X_TLS_PACKAGE', 24593)
+    PeerCert = _getoptional('OPT_X_TLS_PEERCERT', 0x6015)
+    ProtocolMax = _getoptional('OPT_X_TLS_PROTOCOL_MAX', 24603)
+    ProtocolMin = _getoptional('OPT_X_TLS_PROTOCOL_MIN', 24583)
     RequireCert = ldap.OPT_X_TLS_REQUIRE_CERT
-    RequireSAN = ldap.OPT_X_TLS_REQUIRE_SAN
-    Version = ldap.OPT_X_TLS_VERSION
+    RequireSAN = _getoptional('OPT_X_TLS_REQUIRE_SAN', 24602)
+    Version = _getoptional('OPT_X_TLS_VERSION', 24595)
 
 
 class TLSOptionValue(IntEnum):
@@ -177,11 +183,11 @@ class TLSOptionValue(IntEnum):
     Hard = ldap.OPT_X_TLS_HARD
 
     # for OPT_X_TLS_PROTOCOL_MIN / OPT_X_TLS_PROTOCOL_MAX
-    ProtocolSSL3 = ldap.OPT_X_TLS_PROTOCOL_SSL3
-    ProtocolTLS10 = ldap.OPT_X_TLS_PROTOCOL_TLS1_0
-    ProtocolTLS11 = ldap.OPT_X_TLS_PROTOCOL_TLS1_1
-    ProtocolTLS12 = ldap.OPT_X_TLS_PROTOCOL_TLS1_2
-    ProtocolTLS13 = ldap.OPT_X_TLS_PROTOCOL_TLS1_3
+    ProtocolSSL3 = _getoptional('OPT_X_TLS_PROTOCOL_SSL3', 0x300)
+    ProtocolTLS10 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_0', 0x301)
+    ProtocolTLS11 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_1', 0x302)
+    ProtocolTLS12 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_2', 0x303)
+    ProtocolTLS13 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_3', 0x304)
 
 
 class Dereference(IntEnum):
