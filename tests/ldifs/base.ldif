@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: 2025 Florian Best
+# SPDX-License-Identifier: CC0-1.0
+
+dn: dc=freeiam,dc=org
+objectClass: dcObject
+objectClass: organization
+dc: freeiam
+o: example
+
+dn: ou=users,dc=freeiam,dc=org
+objectClass: organizationalUnit
+ou: users
+
+dn: cn=user01,ou=users,dc=freeiam,dc=org
+cn: User1
+cn: user01
+sn: Bar1
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+userPassword:: aWFtZnJlZTE=
+uid: user01
+uidNumber: 1000
+gidNumber: 1000
+homeDirectory: /home/user01
+
+dn: cn=user02,ou=users,dc=freeiam,dc=org
+cn: User2
+cn: user02
+sn: Bar2
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+userPassword:: aWFtZnJlZTI=
+uid: user02
+uidNumber: 1001
+gidNumber: 1001
+homeDirectory: /home/user02
+
+dn: cn=readers,ou=users,dc=freeiam,dc=org
+cn: readers
+objectClass: groupOfNames
+member: cn=user01,ou=users,dc=freeiam,dc=org
+member: cn=user02,ou=users,dc=freeiam,dc=org
+

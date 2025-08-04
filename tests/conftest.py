@@ -230,6 +230,7 @@ def _ldap_server():
         .with_env('LDAP_TLS_DH_PARAMS_FILE', '/opt/bitnami/openldap/certs/dhparam.pem')
         .with_env('LDAP_TLS_VERIFY_CLIENT', 'never')
         .with_volume_mapping(str(cert_dir_copy), '/opt/bitnami/openldap/certs', mode='rw')
+        .with_volume_mapping(str(Path.cwd() / 'tests/ldifs/'), '/ldifs/', mode='ro')
         .with_volume_mapping(str(Path.cwd() / 'tests/entrypoint/'), '/docker-entrypoint-initdb.d/', mode='ro')
     )
     container_.start()

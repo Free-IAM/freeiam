@@ -1,0 +1,135 @@
+# SPDX-FileCopyrightText: 2025 Florian Best
+# SPDX-License-Identifier: CC0-1.0
+
+dn: cn=myuser19,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser19
+cn: myuser19
+sn: User
+mail: myuser19@freeiam.org
+
+dn: cn=myuser18,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser18
+cn: myuser18
+sn: User
+mail: myuser18@freeiam.org
+
+dn: cn=myuser17,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser17
+cn: myuser17
+sn: User
+mail: myuser17@freeiam.org
+
+dn: cn=myuser16,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser16
+cn: myuser16
+sn: User
+mail: myuser16@freeiam.org
+
+dn: cn=myuser15,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser15
+cn: myuser15
+sn: User
+mail: myuser15@freeiam.org
+
+dn: cn=myuser14,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser14
+cn: myuser14
+sn: User
+mail: myuser14@freeiam.org
+
+dn: cn=myuser13,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser13
+cn: myuser13
+sn: User
+mail: myuser13@freeiam.org
+
+dn: cn=myuser12,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser12
+cn: myuser12
+sn: User
+mail: myuser12@freeiam.org
+
+dn: cn=myuser11,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser11
+cn: myuser11
+sn: User
+mail: myuser11@freeiam.org
+
+dn: cn=myuser10,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser10
+cn: myuser10
+sn: User
+mail: myuser10@freeiam.org
+
+dn: cn=myuser9,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser9
+cn: myuser9
+sn: User
+mail: myuser9@freeiam.org
+
+dn: cn=myuser8,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser8
+cn: myuser8
+sn: User
+mail: myuser8@freeiam.org
+
+dn: cn=myuser7,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser7
+cn: myuser7
+sn: User
+mail: myuser7@freeiam.org
+
+dn: cn=myuser6,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser6
+cn: myuser6
+sn: User
+mail: myuser6@freeiam.org
+
+dn: cn=myuser5,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser5
+cn: myuser5
+sn: User
+mail: myuser5@freeiam.org
+
+dn: cn=myuser4,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser4
+cn: myuser4
+sn: User
+mail: myuser4@freeiam.org
+
+dn: cn=myuser3,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser3
+cn: myuser3
+sn: User
+mail: myuser3@freeiam.org
+
+dn: cn=myuser2,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser2
+cn: myuser2
+sn: User
+mail: myuser2@freeiam.org
+
+dn: cn=myuser1,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+uid: myuser1
+cn: myuser1
+sn: User
+mail: myuser1@freeiam.org
