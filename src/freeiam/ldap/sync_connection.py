@@ -4,6 +4,7 @@
 
 import contextlib
 import logging
+import math
 import time
 from collections.abc import AsyncGenerator, Callable, Generator
 from typing import Any, Self, TypeAlias
@@ -14,10 +15,10 @@ import ldap.sasl
 from ldap.schema import SCHEMA_ATTRS
 
 from freeiam import errors
-from freeiam.ldap._wrapper import Controls, Result, SimplePage, _Response
+from freeiam.ldap._wrapper import Controls, Page, Result, _Response
 from freeiam.ldap.attr import Attributes
 from freeiam.ldap.constants import AnyOption, AnyOptionValue, Option, OptionValue, ResponseType, Scope, TLSOption, TLSOptionValue, Version
-from freeiam.ldap.controls import simple_paged_results
+from freeiam.ldap.controls import server_side_sorting, simple_paged_results, virtual_list_view, virtual_list_view_response
 from freeiam.ldap.dn import DN
 from freeiam.ldap.schema import Schema
 
@@ -29,6 +30,7 @@ log = logging.getLogger(__name__)
 LDAPObject: TypeAlias = ldap.ldapobject.SimpleLDAPObject
 LDAPAddList: TypeAlias = list[tuple[str, list[bytes]]]
 LDAPModList: TypeAlias = list[tuple[int, str, list[bytes] | None]]
+Sorting: TypeAlias = list[str | tuple[str, str | None, bool]]
 
 
 class Connection:
@@ -390,12 +392,15 @@ class Connection:
         *,
         unique: bool = False,
         sizelimit: bool | None = None,
+        sorting: Sorting | None = None,
         controls: Controls | None = None,
         _attrsonly: bool = False,
     ) -> AsyncGenerator[Result, None]:
         """Search iterative for DN and Attributes of LDAP objects."""
         conn = self.conn
         all_results = []
+        if sorting:
+            controls = Controls.set_server(controls, server_side_sorting(*sorting, criticality=True))
         # sizelimit = 1 if unique else sizelimit
         try:
             for response in self._execute_iter(
@@ -442,12 +447,15 @@ class Connection:
         *,
         unique: bool = False,
         sizelimit: bool | None = None,
+        sorting: Sorting | None = None,
         controls: Controls | None = None,
         _attrsonly: bool = False,
     ) -> AsyncGenerator[Result, None]:
         """Search for DN and Attributes of LDAP objects."""
         conn = self.conn
         all_results = []
+        if sorting:
+            controls = Controls.set_server(controls, server_side_sorting(*sorting))
         try:
             response = self._execute(
                 conn,
@@ -482,15 +490,83 @@ class Connection:
         *,
         unique: bool = False,
         sizelimit: bool | None = None,
+        sorting: Sorting | None = None,
         controls: Controls | None = None,
     ) -> AsyncGenerator[DN, None]:
         """Search for DNs of LDAP objects."""
         # FIXME: the following hangs forever as the iterative search is unfinished while the FD reader is replaced
-        # for result in self.search(base, scope, filter_expr, ['1.1'], unique=unique, sizelimit=sizelimit, controls=controls, _attrsonly=True):
-        for result in self.search(base, scope, filter_expr, [], unique=unique, sizelimit=sizelimit, controls=controls, _attrsonly=True):
+        # for result in self.search(
+        #     base, scope, filter_expr, ['1.1'], unique=unique, sizelimit=sizelimit, sorting=sorting, controls=controls, _attrsonly=True
+        # ):
+        for result in self.search(
+            base, scope, filter_expr, [], unique=unique, sizelimit=sizelimit, sorting=sorting, controls=controls, _attrsonly=True
+        ):
             yield result.dn
 
     def search_paginated(
+        self,
+        base: DN | str = '',
+        scope: Scope = Scope.SUBTREE,
+        filter_expr: str = '(objectClass=*)',
+        attrs: list[str] | None = None,
+        *,
+        page_size: int = 100,
+        sorting: Sorting,
+        unique: bool = False,
+        sizelimit: bool | None = None,
+        controls: Controls | None = None,
+    ) -> AsyncGenerator[Result, None]:
+        """Search paginated using Virtual List View control."""
+        controls = Controls.set_server(controls, server_side_sorting(*sorting))
+
+        res_vlv = virtual_list_view_response()
+        context_id = None
+        length = None
+        last_page = None
+        page = 1
+        while True:
+            offset = ((page or 1) - 1) * page_size
+            pagination = virtual_list_view(
+                before_count=0,
+                after_count=page_size - 1,
+                offset=offset + 1,
+                content_count=0,
+                greater_than_or_equal=None,
+                context_id=context_id,
+                criticality=True,
+            )
+            controls = Controls.set_server(controls, pagination)
+            if length is not None and offset > length:
+                break  # end reached
+
+            vlv = None
+            current = None
+            for entry_number, result in enumerate(
+                self.search(base, scope, filter_expr, attrs, unique=unique, sizelimit=sizelimit, controls=controls), 1
+            ):
+                if last_page is None:
+                    vlv = controls.get(res_vlv)
+                    length = vlv.contentCount
+                    last_page = math.ceil(length / (page_size or length))
+                result.page = Page(
+                    page=page,
+                    entry=entry_number,
+                    page_size=page_size,
+                    results=length,
+                    last_page=last_page,
+                )
+                current = result
+                yield result
+
+            if current is None:  # no search results
+                break
+
+            page += 1
+            vlv = controls.get(res_vlv)
+            context_id = vlv.context_id
+            length = vlv.contentCount
+
+    def search_paged(
         self,
         base: DN | str = '',
         scope: Scope = Scope.SUBTREE,
@@ -500,11 +576,14 @@ class Connection:
         *,
         unique: bool = False,
         sizelimit: bool | None = None,
+        sorting: Sorting | None = None,
         controls: Controls | None = None,
     ) -> AsyncGenerator[Result, None]:
         """Search paginated using SimplePagedResults control."""
-        pagination = simple_paged_results(criticality=True, size=page_size, cookie='')
+        pagination = simple_paged_results(size=page_size, cookie='', criticality=True)
         controls = Controls.append_server(controls, pagination)
+        if sorting:
+            controls = Controls.set_server(controls, server_side_sorting(*sorting))
         page = 0
         while True:
             current = None
@@ -512,7 +591,7 @@ class Connection:
             entry_number = 0
             for result in self.search_iter(base, scope, filter_expr, attrs, unique=unique, sizelimit=sizelimit, controls=controls):
                 entry_number += 1  # noqa: SIM113
-                result.page = SimplePage(page=page, entry=entry_number, page_size=page_size)
+                result.page = Page(page=page, entry=entry_number, page_size=page_size)
                 current = result
                 yield result
 

@@ -42,6 +42,12 @@ class Controls:
         controls.server.append(control)
         return controls
 
+    @classmethod
+    def set_server(cls, controls, control):
+        controls = Controls([]) if controls is None else controls
+        controls.server = [ctrl for ctrl in controls.server if ctrl.controlType != control.controlType] + [control]
+        return controls
+
 
 @dataclass
 class _Response:
@@ -60,7 +66,7 @@ class _Response:
 
 
 @dataclass
-class SimplePage:
+class Page:
     """A page of a paginated search result."""
 
     page: int
@@ -71,6 +77,12 @@ class SimplePage:
 
     page_size: int
     """The number of entries per page."""
+
+    results: int | None = None
+    """The total number of search results."""
+
+    last_page: int | None = None
+    """The last page of all search results."""
 
     @property
     def is_last_in_page(self) -> bool:
@@ -94,7 +106,7 @@ class Result:
     _response: _Response
     """The raw LDAP result."""
 
-    page: SimplePage | None = None
+    page: Page | None = None
     """The page of a paginated search result."""
 
     @classmethod

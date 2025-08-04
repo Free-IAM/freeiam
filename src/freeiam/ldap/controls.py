@@ -5,7 +5,7 @@
 from ldap.controls import DecodeControlTuples, ResponseControl
 from ldap.controls.pagedresults import SimplePagedResultsControl
 from ldap.controls.sss import SSSRequestControl
-from ldap.controls.vlv import VLVRequestControl
+from ldap.controls.vlv import VLVRequestControl, VLVResponseControl
 
 
 __all__ = ('simple_paged_results',)
@@ -47,3 +47,7 @@ def virtual_list_view(
 ):
     """Virtual List View."""
     return VLVRequestControl(criticality, before_count, after_count, offset, content_count, greater_than_or_equal, context_id)
+
+
+def virtual_list_view_response():
+    return VLVResponseControl()
