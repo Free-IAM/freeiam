@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import inspect
 import logging
+import math
 import pickle
 
 import ldap as _ldap
@@ -9,7 +10,9 @@ import pytest
 import pytest_asyncio
 
 from freeiam import errors, ldap
+from freeiam.ldap._wrapper import Controls  # noqa: PLC2701
 from freeiam.ldap.constants import Dereference, Option, OptionValue, Scope, TLSOptionValue, Version
+from freeiam.ldap.controls import virtual_list_view, virtual_list_view_response
 
 
 log = logging.getLogger(__name__)
@@ -265,6 +268,23 @@ async def test_search(conn, testuser, base_dn):
 
 
 @pytest.mark.asyncio
+async def test_sorting_search(conn, testuser, base_dn):
+    filter_s = f'(cn={TESTUSERNAME}*)'
+    result = list(reversed([entry async for entry in conn.search_dn(base_dn, Scope.SUBTREE, filter_s)]))
+    sresult = [entry.dn async for entry in conn.search_iter(base_dn, Scope.SUBTREE, filter_s, sorting=[('cn', 'caseIgnoreOrderingMatch', True)])]
+    assert result == sresult
+
+    sresult2 = [entry.dn for entry in await conn.search(base_dn, Scope.SUBTREE, filter_s, sorting=[('cn', 'caseIgnoreOrderingMatch', True)])]
+    assert result == sresult2
+
+    sresult3 = [entry async for entry in conn.search_dn(base_dn, Scope.SUBTREE, filter_s, sorting=['-cn:caseIgnoreOrderingMatch'])]
+    assert result == sresult3
+
+    sresult4 = [entry.dn async for entry in conn.search_paged(base_dn, Scope.SUBTREE, filter_s, sorting=[('cn', 'caseIgnoreOrderingMatch', True)])]
+    assert result == sresult4
+
+
+@pytest.mark.asyncio
 async def test_modify(conn, testuser):
     dn, attrs = testuser
 
@@ -401,16 +421,10 @@ async def test_duplicated_unbind(conn):
     assert not (await conn.whoami())
 
 
-@pytest.mark.asyncio
-async def test_paginated_search_expect_nothing(conn, base_dn):
-    async for entry in conn.search_paginated(base_dn, Scope.SUBTREE, '(cn=doesnotexists)', page_size=5):
-        pytest.fail(f'Got {entry}')
-
-
 @pytest_asyncio.fixture(scope='session')
 async def page_users(sess_conn, base_dn):
     results = []
-    for i in range(1, NUM_PAGEUSERS):
+    for i in range(1, NUM_PAGEUSERS + 1):
         dn = f'cn={PAGEPREFIX}user{i},{base_dn}'
         await create_user(sess_conn, dn, sn='User')
         results.append(dn)
@@ -419,17 +433,22 @@ async def page_users(sess_conn, base_dn):
 
 @pytest.mark.asyncio
 async def test_paginated_search(conn, page_users, base_dn):
-    results = list(page_users)
-    page_size = 5
+    results = sorted(page_users)
+    page_size = 6
+    total_pages = math.ceil(len(results) / page_size)
     total_entries = 0
     cur_entry_on_page = 1
-    async for entry in conn.search_paginated(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', page_size=page_size):
+    async for entry in conn.search_paginated(
+        base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', page_size=page_size, sorting=[('cn', 'caseIgnoreOrderingMatch', False)]
+    ):
         assert results.pop(0) == entry.dn
 
         assert entry.page.page_size == page_size
         assert entry.page.page == (1 + total_entries // page_size)
         assert entry.page.is_last_in_page == (page_size == entry.page.entry)
         assert entry.page.entry == cur_entry_on_page
+        assert entry.page.results == NUM_PAGEUSERS
+        assert entry.page.last_page is total_pages
 
         total_entries += 1
         cur_entry_on_page += 1
@@ -437,7 +456,67 @@ async def test_paginated_search(conn, page_users, base_dn):
             cur_entry_on_page = 1
 
     assert not results, results
-    assert total_entries + 1 == NUM_PAGEUSERS
+    assert total_entries == NUM_PAGEUSERS
+
+
+@pytest.mark.asyncio
+async def test_paginated_error_search(conn, page_users, base_dn):
+    pagination = virtual_list_view(
+        before_count=0,
+        after_count=100,
+        offset=0,
+        content_count=0,
+        greater_than_or_equal=None,
+        context_id=None,
+        criticality=True,
+    )
+    controls = Controls.set_server(None, pagination)
+    await conn.search(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', sorting=[('cn', 'caseIgnoreOrderingMatch', False)], controls=controls)
+    res = controls.get(virtual_list_view_response())
+    pagination.context_id = res.context_id
+    pagination.offset = res.contentCount + 1
+    with pytest.raises(errors.VLVError) as exc:
+        await conn.search(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', sorting=[('cn', 'caseIgnoreOrderingMatch', False)], controls=controls)
+    assert exc.value.controls[0].result == 77  # noqa: PLR2004
+
+
+@pytest.mark.asyncio
+async def test_paginated_search_expect_nothing(conn, base_dn):
+    async for entry in conn.search_paginated(
+        base_dn, Scope.SUBTREE, '(cn=doesnotexists)', page_size=5, sorting=[('cn', 'caseIgnoreOrderingMatch', False)]
+    ):
+        pytest.fail(f'Got {entry}')
+
+
+@pytest.mark.asyncio
+async def test_paged_search(conn, page_users, base_dn):
+    results = list(page_users)
+    page_size = 5
+    total_entries = 0
+    cur_entry_on_page = 1
+    async for entry in conn.search_paged(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', page_size=page_size):
+        assert results.pop(0) == entry.dn
+
+        assert entry.page.page_size == page_size
+        assert entry.page.page == (1 + total_entries // page_size)
+        assert entry.page.is_last_in_page == (page_size == entry.page.entry)
+        assert entry.page.entry == cur_entry_on_page
+        assert entry.page.results is None
+        assert entry.page.last_page is None
+
+        total_entries += 1
+        cur_entry_on_page += 1
+        if entry.page.is_last_in_page:
+            cur_entry_on_page = 1
+
+    assert not results, results
+    assert total_entries == NUM_PAGEUSERS
+
+
+@pytest.mark.asyncio
+async def test_paged_search_expect_nothing(conn, base_dn):
+    async for entry in conn.search_paged(base_dn, Scope.SUBTREE, '(cn=doesnotexists)', page_size=5):
+        pytest.fail(f'Got {entry}')
 
 
 @pytest.mark.asyncio
@@ -596,7 +675,20 @@ async def test_change_password(ldap_server, conn, base_dn):
 
 @pytest.mark.asyncio
 async def test_paginated_search_close(conn, page_users, base_dn):
-    gen = conn.search_paginated(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', page_size=1)
+    gen = conn.search_paginated(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', page_size=1, sorting=[('uid', 'caseIgnoreOrderingMatch', False)])
+
+    result = await anext(gen)
+    assert result is not None
+
+    await gen.aclose()
+
+    with pytest.raises(StopAsyncIteration):
+        await anext(gen)
+
+
+@pytest.mark.asyncio
+async def test_paged_search_close(conn, page_users, base_dn):
+    gen = conn.search_paged(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', page_size=1)
 
     result = await anext(gen)
     assert result is not None
