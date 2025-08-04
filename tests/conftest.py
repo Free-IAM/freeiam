@@ -205,7 +205,22 @@ def _ldap_server():
         .with_env('LDAP_CONFIG_ADMIN_ENABLED', 'yes')
         .with_env('LDAP_CONFIG_PASSWORD', CONFIG_ADMIN_PW)
         .with_env('LDAP_PASSWORDS', 'iamfree1,iamfree2')
-        .with_env('LDAP_LOGLEVEL', '245')
+        # 1      (0x1 trace) trace function calls
+        # 2      (0x2 packets) debug packet handling
+        # 4      (0x4 args) heavy trace debugging (function args)
+        # 8      (0x8 conns) connection management
+        # 16     (0x10 BER) print out packets sent and received
+        # 32     (0x20 filter) search filter processing
+        # 64     (0x40 config) configuration file processing
+        # 128    (0x80 ACL) access control list processing
+        # 256    (0x100 stats) connections, LDAP operations, results (recommended)
+        # 512    (0x200 stats2) stats2 log entries sent
+        # 1024   (0x400 shell) print communication with shell backends
+        # 2048   (0x800 parse) entry parsing
+        # 16384  (0x4000 sync) LDAPSync replication
+        # 32768  (0x8000 none) only messages that get logged whatever log level is set
+        # .with_env('LDAP_LOGLEVEL', str(0x1 | 0x4 | 0x100 | 0x200))  # stats stats2 args trace
+        .with_env('LDAP_LOGLEVEL', '256')
         .with_env('LDAP_PASSWORD_HASH', '{CRYPT}')
         .with_env('LDAP_CONFIGURE_PPOLICY', 'yes')
         .with_env('LDAP_ENABLE_TLS', 'yes')
