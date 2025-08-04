@@ -534,7 +534,7 @@ class Connection:
         controls: Controls | None = None,
     ) -> AsyncGenerator[Result, None]:
         """Search paginated using SimplePagedResults control."""
-        pagination = simple_paged_results(criticality=True, size=page_size, cookie='')
+        pagination = simple_paged_results(size=page_size, cookie='', criticality=True)
         controls = Controls.append_server(controls, pagination)
         page = 0
         while True:
