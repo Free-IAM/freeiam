@@ -29,7 +29,9 @@ changelog:
 	semantic-release version --no-push --skip-build --changelog
 
 preview-changelog:
-	semantic-release version --no-push --skip-build --changelog --no-tag
+	semantic-release changelog
+	git diff CHANGELOG.md
+	git checkout CHANGELOG.md
 
 publish:
 	semantic-release publish
