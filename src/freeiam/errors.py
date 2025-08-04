@@ -66,9 +66,13 @@ class LdapError(Error):
         return self._errno
 
     @property
-    def controls(self) -> None:
+    def controls(self) -> list | None:
         """List of LDAP Control instances attached to the error."""
-        return self._controls
+        if self._controls_decoded is None:
+            from freeiam.ldap.controls import decode  # noqa: PLC0415
+
+            self._controls_decoded = decode(self._controls)
+        return self._controls_decoded
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -83,6 +87,7 @@ class LdapError(Error):
         self._matched = args.get('matched')
         self._errno = args.get('errno')
         self._controls = args.get('ctrls')
+        self._controls_decoded = None
         super().__init__()
 
     def __str__(self):
