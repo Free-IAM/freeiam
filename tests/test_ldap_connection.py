@@ -10,9 +10,8 @@ import pytest
 import pytest_asyncio
 
 from freeiam import errors, ldap
-from freeiam.ldap._wrapper import Controls  # noqa: PLC2701
 from freeiam.ldap.constants import Dereference, Option, OptionValue, Scope, TLSOptionValue, Version
-from freeiam.ldap.controls import virtual_list_view, virtual_list_view_response
+from freeiam.ldap.controls import Controls, virtual_list_view
 
 
 log = logging.getLogger(__name__)
@@ -156,6 +155,14 @@ def test_get_and_set_option(conn):
     stats = 256
     conn.set_global_option(Option.DebugLevel, stats)
     assert conn.get_global_option(Option.DebugLevel) == stats
+
+    conn.set_controls(Controls(None, []))
+    assert conn.get_option(Option.ServerControls) == []
+    assert conn.get_option(Option.ClientControls) == []
+
+    conn.set_controls(Controls([], None))
+    assert conn.get_option(Option.ServerControls) == []
+    assert conn.get_option(Option.ClientControls) == []
 
 
 def test_error_wrap():
@@ -472,7 +479,7 @@ async def test_paginated_error_search(conn, page_users, base_dn):
     )
     controls = Controls.set_server(None, pagination)
     await conn.search(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', sorting=[('cn', 'caseIgnoreOrderingMatch', False)], controls=controls)
-    res = controls.get(virtual_list_view_response())
+    res = controls.get(virtual_list_view.response())
     pagination.context_id = res.context_id
     pagination.offset = res.contentCount + 1
     with pytest.raises(errors.VLVError) as exc:
