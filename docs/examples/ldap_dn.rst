@@ -91,5 +91,4 @@ FreeIAM provides the following mechanisms to safely and reliably work with LDAP 
 
 .. literalinclude:: dn.py
    :language: python
-   :linenos:
    :caption: LDAP DN handling

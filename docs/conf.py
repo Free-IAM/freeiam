@@ -27,3 +27,8 @@ exclude_patterns = []
 
 html_theme = 'furo'  # 'sphinx_rtd_theme'
 html_static_path = ['_static']
+
+html_theme_options = {
+    # 'navigation_depth': 4,
+    'sidebar_hide_name': False,
+}

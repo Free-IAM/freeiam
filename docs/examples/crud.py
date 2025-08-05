@@ -9,6 +9,7 @@ async def ldap_create_user_examples():
     async with ldap.Connection('ldap://localhost:389') as conn:
         ...  # do bind()
 
+        # start CREATE
         # create a entry from dict attributes definition
         dn = f'uid=max.mustermann,{base_dn}'
         attrs = {
@@ -38,12 +39,14 @@ async def ldap_create_user_examples():
             print(result.dn, result.attrs)
         except errors.AlreadyExists:
             ...  # handle errors, you might want to modify?
+        # end CREATE
 
 
 async def ldap_modify_user_examples():
     async with ldap.Connection('ldap://localhost:389') as conn:
         ...  # do bind()
 
+        # start MODIFY
         # modify a entry from old and new state dict attributes definition
         dn = f'uid=max.mustermann,{base_dn}'
         obj = await conn.get(dn)
@@ -73,12 +76,14 @@ async def ldap_modify_user_examples():
             (Mod.Add, 'title', [b'Dr.']),
         ]
         await conn.modify_ml(dn, ml)
+        # end MODIFY
 
 
 async def ldap_move_and_rename_user_examples():
     async with ldap.Connection('ldap://localhost:389') as conn:
         ...  # do bind()
 
+        # start MOVE
         dn = f'uid=max.mustermann,{base_dn}'
 
         # rename a user via modify RDN
@@ -105,17 +110,26 @@ async def ldap_move_and_rename_user_examples():
         new_position = f'ou=FreeIAM,{base_dn}'
         obj = await conn.move(dn, new_position)
         print(obj.dn)
+        # end MOVE
 
 
 async def ldap_remove_user_example():
     async with ldap.Connection('ldap://localhost:389') as conn:
         ...  # do bind()
+        # start REMOVE
         dn = f'uid=max.mustermann,{base_dn}'
-        await conn.delete(dn)
+        try:
+            await conn.delete(dn)
+        except errors.AllowedOnNonleaf:
+            ...  # sub objects exists
+            ...  # you have to remove recusively
+        # end REMOVE
 
 
 async def ldap_remove_subtree_recursively_example():
     async with ldap.Connection('ldap://localhost:389') as conn:
         ...  # do bind()
+        # start RECURSIVE REMOVE
         dn = f'ou=users,{base_dn}'
         await conn.delete_recursive(dn)
+        # end RECURSIVE REMOVE

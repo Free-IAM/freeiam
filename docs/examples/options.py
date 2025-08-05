@@ -1,5 +1,5 @@
 from freeiam import ldap
-from freeiam.ldap.constants import Version
+from freeiam.ldap.constants import Dereference, Version
 
 
 async def ldap_set_connection_options_example():
@@ -18,6 +18,7 @@ async def ldap_set_connection_options_example():
         conn.follow_referrals = True
 
         # Controls whether aliases are automatically dereferenced.
+        conn.dereference = Dereference.Always
 
         # Set the protocol version
         assert conn.protocol_version == Version.LDAPV3

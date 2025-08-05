@@ -9,6 +9,7 @@ Free IAM
 
    examples/ldap_connection
    examples/ldap_options
+   examples/ldap_information
    examples/ldap_authentication
    examples/ldap_synchronous
    examples/ldap_search
