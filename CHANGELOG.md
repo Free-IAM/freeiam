@@ -2,6 +2,22 @@
 
 <!-- version list -->
 
+## v0.4.0 (2025-08-05)
+
+### Documentation
+
+- **ldap**: Document paginated search using Virtual List View and Server Side Sorting
+  ([`6899609`](https://github.com/Free-IAM/freeiam/commit/6899609f8b3857420a8577923414b256b40d8f75))
+
+### Features
+
+- **ldap**: Add paginated search using Virtual List View and Server Side Sorting
+  ([`2b3045e`](https://github.com/Free-IAM/freeiam/commit/2b3045ed8e7715797ed9b165faaf90befda0a010))
+
+- **ldap**: Add Server Side Search and Virtual List View (SSS+VLV) control
+  ([`d4cff5f`](https://github.com/Free-IAM/freeiam/commit/d4cff5f51c82fd1a3bf2633498c49b21b4187da2))
+
+
 ## v0.3.0 (2025-08-04)
 
 ### Documentation
