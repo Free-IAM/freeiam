@@ -245,3 +245,12 @@ class ResponseType(IntEnum):
     SearchReference = ldap.RES_SEARCH_REFERENCE
     SearchResult = ldap.RES_SEARCH_RESULT
     Unsolicited = ldap.RES_UNSOLICITED
+
+
+class LDAPChangeType(IntEnum):
+    """LPAP change type for PersistentSearchControl conrol."""
+
+    Add = 1
+    Delete = 2
+    Modify = 4
+    ModifyDN = 8
