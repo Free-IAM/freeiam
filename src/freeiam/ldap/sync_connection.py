@@ -15,10 +15,10 @@ import ldap.sasl
 from ldap.schema import SCHEMA_ATTRS
 
 from freeiam import errors
-from freeiam.ldap._wrapper import Controls, Page, Result, _Response
+from freeiam.ldap._wrapper import Page, Result, _Response
 from freeiam.ldap.attr import Attributes
 from freeiam.ldap.constants import AnyOption, AnyOptionValue, Option, OptionValue, ResponseType, Scope, TLSOption, TLSOptionValue, Version
-from freeiam.ldap.controls import server_side_sorting, simple_paged_results, virtual_list_view, virtual_list_view_response
+from freeiam.ldap.controls import Controls, server_side_sorting, simple_paged_results, virtual_list_view
 from freeiam.ldap.dn import DN
 from freeiam.ldap.schema import Schema
 
@@ -126,6 +126,13 @@ class Connection:
             self._options.append((option, value))
         with errors.LdapError.wrap(self._hide_parent_exception):
             return self.conn.set_option(option, value)
+
+    def set_controls(self, controls: Controls):
+        """Set LDAP controls for all operations on this connection."""
+        if controls.server is not None:
+            self.set_option(Option.ServerControls, controls.server)
+        if controls.client is not None:
+            self.set_option(Option.ClientControls, controls.client)
 
     @property
     def protocol_version(self) -> Version:
@@ -519,7 +526,7 @@ class Connection:
         """Search paginated using Virtual List View control."""
         controls = Controls.set_server(controls, server_side_sorting(*sorting))
 
-        res_vlv = virtual_list_view_response()
+        res_vlv = virtual_list_view.response()
         context_id = None
         length = None
         last_page = None
