@@ -7,6 +7,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "python-ldap",
+    "lark",
 ]
 
 [project.urls]
@@ -44,6 +45,7 @@ test = [
     "testcontainers[docker]",
 ]
 docs = [
+    "lark",
     "sphinx",
     "furo",
 ]
@@ -83,11 +85,6 @@ exclude_lines = [
 omit = [
     "src/freeiam/_version.py",
     "src/freeiam/ldap/schema.py",
-    "src/freeiam/ldap/filter.py",
-    "src/freeiam/authorization/*.py",
-    "src/freeiam/i18n/*.py",
-    "src/freeiam/objects/*.py",
-    "src/freeiam/web/*.py",
 ]
 [tool.coverage.html]
 skip_empty = true
