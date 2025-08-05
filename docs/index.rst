@@ -7,7 +7,15 @@ Free IAM
    :maxdepth: 2
    :caption: Example LDAP usage
 
-   ldap_examples
+   examples/ldap_connection
+   examples/ldap_options
+   examples/ldap_authentication
+   examples/ldap_synchronous
+   examples/ldap_search
+   examples/ldap_crud
+   examples/ldap_dn
+   examples/ldap_controls
+   examples/ldap_extended
 
 .. toctree::
    :maxdepth: 2
