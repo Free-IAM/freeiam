@@ -1,32 +1,16 @@
 from freeiam import ldap
 
 
-TIMEOUT = 30  # set a usefull default timeout!
+async def ldap_extended_operation_example():
+    """Extended operation"""
 
-
-async def ldap_extended_stuff_example():
-    """Extended stuff"""
-
-    async with ldap.Connection('ldap://localhost:389', timeout=TIMEOUT) as conn:
+    async with ldap.Connection('ldap://localhost:389', timeout=30) as conn:
         ...  # bind
 
-        # Get Root DSE (Directory Server Entry)
-        result = await conn.get_root_dse()
-        print(result.attr)
-
-        # Get all LDAP databases
-        bases = await conn.get_naming_contexts()
-        print(bases)
-
-        # Get SubSchema
-        subschema = await conn.get_schema()
-        print(subschema)
-
-        # If you know what you are doing and are an expert
+        # If you know what you are doing
         # you can also perform LDAP extended operation
-        from ldap.extop import (
-            ExtendedRequest,
-            ExtendedResponse,
-        )  # use suitable subclasses
+        from ldap.extop import ExtendedRequest, ExtendedResponse
+        # but you have to implement it yourself
+        # by creating a suitable subclasses of the above
 
         await conn.extop(ExtendedRequest(), ExtendedResponse)

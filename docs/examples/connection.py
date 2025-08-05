@@ -1,3 +1,4 @@
+# start regular
 from freeiam import ldap
 from freeiam.ldap.constants import TLSOptionValue
 
@@ -21,8 +22,10 @@ async def ldap_connection_example():
 
     # and disconnect
     connection.disconnect()
+    # end regular
 
 
+# start STARTTLS
 async def ldap_start_tls_connection_example():
     """A connection to the LDAP server using StartTLS (bound to the admin account)"""
 
@@ -37,8 +40,10 @@ async def ldap_start_tls_connection_example():
         await conn.bind('cn=admin,dc=freeiam,dc=org', 'iamfree')
 
         ...
+    # end STARTTLS
 
 
+# start TLS
 async def ldaps_secure_connection_example():
     """A connection to the LDAP server using TLS (bound to the admin account)"""
 
@@ -52,8 +57,10 @@ async def ldaps_secure_connection_example():
         await conn.bind('cn=admin,dc=freeiam,dc=org', 'iamfree')
 
         ...
+    # end TLS
 
 
+# start plain
 async def ldap_plaintext_connection_example():
     """A connection to the LDAP server using plaintext (bound to the admin account)"""
 
@@ -62,3 +69,4 @@ async def ldap_plaintext_connection_example():
         await conn.bind('cn=admin,dc=freeiam,dc=org', 'iamfree')
 
         ...
+    # end plain

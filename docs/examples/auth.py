@@ -1,3 +1,4 @@
+# start AUTH
 import sys
 
 from freeiam import errors, ldap
@@ -16,6 +17,9 @@ async def ldap_authenticate_example():
         conn.set_tls(ca_certfile='/path/to/ca.crt', require_cert=TLSOptionValue.Hard)
         await conn.start_tls()
 
+        ...  # see next
+
+        # start SIMPLE
         # perform a simple bind
         try:
             await conn.bind('cn=admin,dc=freeiam,dc=org', 'iamfree')
@@ -23,20 +27,38 @@ async def ldap_authenticate_example():
             # don't forge to handle errors on wrong password!
             sys.exit(str(exc))
             ...
+        # end SIMPLE
 
+        # start GSSAPI
         # perform a GSSAPI SASL if you have a valid ticket
-        await conn.bind_gssapi()
+        try:
+            await conn.bind_gssapi()
+        except errors.LocalError:
+            print(
+                'SASL(-1): generic failure: GSSAPI Error:'
+                'Miscellaneous failure (see text)'
+                '(unable to reach any KDC in realm FREEIAM.ORG)'
+            )
+            ...
+        # end GSSAPI
 
+        # start OAUTHBEARER
         # perform SASL OAUTHBEARER authentication using OAuth 2.0 access token (JWT)
         authzid = None
         token = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'  # noqa: S105,E501
         await conn.bind_oauthbearer(authzid, token)
+        # end OAUTHBEARER
 
+        # start WHOAMI
         dn = await conn.whoami()  # check who you are
+        # end WHOAMI
 
+        # start PASSWD
         # if your server supports it you can also change your password
-        await conn.change_password(dn, 'iamfree', 'noiamunfree')
+        await conn.change_password(dn, 'iamfree', 'no-i-am-unfree')
+        # end PASSWD
 
+    # start EXTERNAL
     # perform SASL EXTERNAL authentication using local UNIX socket
     async with ldap.Connection('ldapi:///path/to/unix/socket') as conn:
         # you might want to set certain options
@@ -46,3 +68,4 @@ async def ldap_authenticate_example():
         await conn.bind_external()
 
         await conn.whoami()  # check who you are
+    # end EXTERNAL
