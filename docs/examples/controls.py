@@ -1,6 +1,7 @@
 from ldap.controls.readentry import PostReadControl
 
 from freeiam import ldap
+from freeiam.ldap._wrapper import Controls  # noqa: PLC2701
 
 
 base_dn = 'dc=freeiam,dc=org'
@@ -21,6 +22,7 @@ async def ldap_create_user_examples():
                 '+',  # every operational attribute (metadata)
             ],
         )
+        controls = Controls([post_read_control])
         # receive the e.g. entryUUID directly after creations
         dn = f'uid=max.mustermann,{base_dn}'
         attrs = {
@@ -31,7 +33,7 @@ async def ldap_create_user_examples():
             'sn': [b'Mustermann'],
             'mail': [b'max.mustermann@freeiam.org'],
         }
-        result = await conn.add(dn, attrs, controls=[post_read_control])
+        result = await conn.add(dn, attrs, controls=controls)
         print(result.dn, result.attrs)
 
         entry = result.controls.get(post_read_control).entry
