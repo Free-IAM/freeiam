@@ -51,12 +51,22 @@ async def main():
         async for entry in conn.search_dn(search_base, Scope.Subtree, '(&(uid=*)(objectClass=person))'):
             print(entry.dn)
 
-        # search paginated
+        # search paginated via SimplePagedResult
+        async for entry in conn.search_paged(
+            search_base,
+            Scope.Subtree,
+            '(&(uid=*)(objectClass=person))',
+            page_size=10,
+        ):
+            print(entry.dn, entry.attr, entry.page)
+
+        # search paginated via VirtualListView + ServerSideSorting
         async for entry in conn.search_paginated(
             search_base,
             Scope.Subtree,
             '(&(uid=*)(objectClass=person))',
             page_size=10,
+            sorting=[('uid', 'caseIgnoreOrderingMatch', False)]
         ):
             print(entry.dn, entry.attr, entry.page)
 

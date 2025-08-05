@@ -26,14 +26,33 @@ async def ldap_search_examples():
         ):
             print(entry.dn)
 
-        # search paginated
-        async for entry in conn.search_paginated(
+        # search paginated via SimplePagedResult
+        async for entry in conn.search_paged(
             search_base,
-            Scope.SUBTREE,
+            Scope.Subtree,
             '(&(uid=*)(objectClass=person))',
             page_size=10,
         ):
+            print(entry.dn, entry.attr, entry.page)
+
+        # all of the previous searches allow specifying the ServerSideSorting control:
+        for entry in await conn.search(
+            search_base,
+            Scope.SUBTREE,
+            '(&(uid=*)(objectClass=person))',
+            sorting=[('uid', 'caseIgnoreOrderingMatch', False)],
+        ):
             print(entry.dn, entry.attr)
+
+        # search paginated via VirtualListView + ServerSideSorting
+        async for entry in conn.search_paginated(
+            search_base,
+            Scope.Subtree,
+            '(&(uid=*)(objectClass=person))',
+            page_size=10,
+            sorting=[('uid', 'caseIgnoreOrderingMatch', False)],
+        ):
+            print(entry.dn, entry.attr, entry.page)
 
         # get a certain object, and use its attributes
         obj = await conn.get('uid=max.mustermann,dc=freeiam,dc=org')
