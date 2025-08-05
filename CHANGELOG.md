@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v0.5.0 (2025-08-06)
+
+### Documentation
+
+- **examples**: Re-structure chapters into single pages
+  ([`4cbecd2`](https://github.com/Free-IAM/freeiam/commit/4cbecd2ded63bf91155a9152eb29cf5aeefd4fec))
+
+- **examples**: Split example files into sections for each use case
+  ([`133e11e`](https://github.com/Free-IAM/freeiam/commit/133e11e36f11267a4bc7d0da4e9be53501e0bc7d))
+
+- **ldap.controls**: Add example code for usage of all LDAP controls
+  ([`679ec1b`](https://github.com/Free-IAM/freeiam/commit/679ec1b8c7d60c28edbfe26c916c663d3f84ada9))
+
+### Features
+
+- **ldap.controls**: Add support for all LDAP controls available in python-ldap
+  ([`e75981e`](https://github.com/Free-IAM/freeiam/commit/e75981e3cff87819ce0950980330ccbec02aa946))
+
+
 ## v0.4.0 (2025-08-05)
 
 ### Documentation

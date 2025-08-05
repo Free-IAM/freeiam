@@ -2,7 +2,7 @@
 name = "freeiam"
 description = "FreeIAM is a free and flexible Identity and Access Management solution."
 authors = [{ name = "Florian Best", email="contact@freeiam.org" }]
-version = "0.4.0"
+version = "0.5.0"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -237,7 +237,7 @@ lines-after-imports = 2
 [tool.semantic_release]
 assets = []
 build_command_env = []
-commit_message = "chore(release): publish {version}"
+commit_message = "chore(release): publish {version}\n\n[create-release!]"
 commit_parser = "conventional"
 logging_use_named_masks = false
 major_on_zero = true
