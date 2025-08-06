@@ -258,14 +258,16 @@ prerelease = false
 
 [tool.semantic_release.changelog]
 exclude_commit_patterns = [
-    '''chore(?:\([^)]*?\))?: .+''',
-    '''ci(?:\([^)]*?\))?: .+''',
-    '''refactor(?:\([^)]*?\))?: .+''',
-    '''style(?:\([^)]*?\))?: .+''',
-    '''test(?:\([^)]*?\))?: .+''',
-    '''build\((?!deps\): .+)''',
-    '''docs\(readthedocs\): .+''',
-    '''feat: initial source code structure.*''',
+    '''^chore(?:\([^)]*?\))?: .+''',
+    '''^ci(?:\([^)]*?\))?: .+''',
+    '''^refactor(?:\([^)]*?\))?: .+''',
+    '''^style(?:\([^)]*?\))?: .+''',
+    '''^test(?:\([^)]*?\))?: .+''',
+    '''^build\((?!deps\): .+)''',
+    '''^docs\(readthedocs\): .+''',
+    '''^feat: initial source code structure.*''',
+    '''\[skip-changelog\]''',
+    '''[\S\s]*\[skip-changelog\]''',
 ]
 mode = "update"
 insertion_flag = "<!-- version list -->"
