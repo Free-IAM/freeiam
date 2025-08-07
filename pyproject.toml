@@ -157,6 +157,7 @@ task-tags = ["TODO", "FIXME"]
  "ARG001",
  "S403",
  "S301",
+ "PLR2004",
 ]
 "benchmarks/*" = [
  "D",
