@@ -39,7 +39,7 @@ class Connection:
 
     :ivar str uri: The LDAP URI.
     :ivar int timelimit: The global timelimit.
-    :ivar bool automatic_reconnect: Wheather automatic reconnection is enabled.
+    :ivar bool automatic_reconnect: Whether automatic reconnection is enabled.
     :ivar int max_connection_attempts: number of connection attempt on connection loss.
     :ivar float retry_delay: The retry delay (in seconds) between the reconnection attempts.
     """
@@ -76,12 +76,12 @@ class Connection:
 
     @property
     def connected(self) -> bool:
-        """Wheather the connection is established."""
+        """Whether the connection is established."""
         return self.fileno != -1
 
     def __init__(
         self,
-        uri: str = '',
+        uri: str | None = '',
         *,
         start_tls: bool = False,
         timeout: int = -1,
