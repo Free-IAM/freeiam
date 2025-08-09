@@ -15,6 +15,7 @@ Free IAM
    examples/ldap_search
    examples/ldap_crud
    examples/ldap_dn
+   examples/ldap_filter
    examples/ldap_controls
    examples/ldap_extended
 
