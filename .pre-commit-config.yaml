@@ -35,7 +35,7 @@ repos:
         alias: "ruff"
       - id: ruff-format
         alias: "ruff-format-check"
-        args: ["--check"]
+        args: ["--check", "--diff"]
       - id: ruff-check
         alias: "ruff-fix"
         stages: [ manual ]
