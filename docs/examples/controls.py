@@ -1,27 +1,6 @@
 from freeiam import errors
 from freeiam.ldap.constants import LDAPChangeType, Mod, Scope
 
-# control imports
-from freeiam.ldap.controls import (
-    Controls,
-    assertion,
-    authorization_identity,
-    dereference,
-    get_effective_rights,
-    manage_dsa_information_tree,
-    matched_values,
-    persistent_search,
-    post_read,
-    pre_read,
-    proxy_authorization,
-    relax_rules,
-    session_tracking,
-)
-from freeiam.ldap.dn import DN
-
-
-# end control imports
-
 
 base_dn = 'dc=freeiam,dc=org'
 
@@ -30,8 +9,10 @@ def decode(self, values, encoding='UTF-8'):
     return values[0].decode(encoding)
 
 
-async def example_ldap_pre_and_post_read_controls(conn):
+async def example_ldap_post_read_controls(conn):
     # use PostRead Control
+    from freeiam.ldap.controls import Controls, post_read
+
     post_read_control = post_read(
         [
             '*',  # every regular attribute
@@ -66,6 +47,8 @@ async def example_ldap_pre_and_post_read_controls(conn):
 
 async def example_ldap_pre_read_control(conn, base_dn):
     # use PreRead Control
+    from freeiam.ldap.controls import Controls, pre_read
+
     pre_read_control = pre_read(
         [
             '*',  # every regular attribute
@@ -85,6 +68,8 @@ async def example_ldap_pre_read_control(conn, base_dn):
 def example_set_connection_server_controls(conn, base_dn):
     # use connection wide control
     # set controls for every operation on the connection
+    from freeiam.ldap.controls import Controls, pre_read
+
     dn = f'cn=user02,ou=users,{base_dn}'
     ctrl = pre_read(['givenName'], criticality=True)
     conn.set_controls(Controls([ctrl]))
@@ -114,6 +99,8 @@ def example_error_handling(conn, base_dn):
 
 def example_assertion_control(conn, base_dn):
     # use Assertion Control
+    from freeiam.ldap.controls import Controls, assertion
+
     dn = f'cn=user01,ou=users,{base_dn}'
     ctrl = assertion('(sn=Bar1)', criticality=True)
     conn.modify_ml(dn, [(Mod.Replace, 'sn', b'Foo1')], controls=Controls([ctrl]))
@@ -129,6 +116,8 @@ def example_assertion_control(conn, base_dn):
 
 def example_get_effective_rights(conn, base_dn):
     # use GetEffectiveRights Control
+    from freeiam.ldap.controls import Controls, get_effective_rights
+
     ctrl = get_effective_rights(conn.whoami(), criticality=True)
     result = conn.get(f'cn=user02,ou=users,{base_dn}', controls=Controls([ctrl]))
     print(result.attr['entryLevelRights'])
@@ -138,6 +127,9 @@ def example_get_effective_rights(conn, base_dn):
 
 def example_authorization_identity(conn, base_dn):
     # use Authorization Identity Control
+    from freeiam.ldap.controls import Controls, authorization_identity
+    from freeiam.ldap.dn import DN
+
     ctrl = authorization_identity(criticality=True)
     result = conn.bind(
         f'uid=testuser,ou=users,{base_dn}', 'secret', controls=Controls([ctrl])
@@ -151,6 +143,8 @@ def example_authorization_identity(conn, base_dn):
 
 def example_dereference(conn, base_dn):
     # use Dereference Control (not supported by OpenLDAP)
+    from freeiam.ldap.controls import Controls, dereference
+
     ctrl = dereference({'member': 'cn'}, criticality=True)
     conn.search(
         f'ou=groups,{base_dn}',
@@ -163,6 +157,8 @@ def example_dereference(conn, base_dn):
 
 def example_matched_values(conn, base_dn):
     # use MatchedValues Control
+    from freeiam.ldap.controls import Controls, matched_values
+
     ctrl = matched_values('(sn=Muster*)', criticality=True)
     results = conn.search(
         f'ou=users,{base_dn}',
@@ -176,6 +172,8 @@ def example_matched_values(conn, base_dn):
 
 def example_persistent_search(conn, base_dn):
     # use PersistentSearch Control (not supported by OpenLDAP)
+    from freeiam.ldap.controls import Controls, persistent_search
+
     ctrl = persistent_search(
         [LDAPChangeType.Modify],
         changes_only=True,
@@ -194,6 +192,8 @@ def example_persistent_search(conn, base_dn):
 
 def example_session_tracking(conn, base_dn):
     # use SessionTrackingControl (not supported by OpenLDAP)
+    from freeiam.ldap.controls import Controls, session_tracking
+
     ctrl = session_tracking(
         '127.0.0.1', 'test-client', '1.3.6.1.4.1.1466.115.121.1.15', 'Max.Mustermann'
     )
@@ -203,6 +203,8 @@ def example_session_tracking(conn, base_dn):
 
 def example_manage_dsa_information_tree(conn, base_dn):
     # use ManageDSAITControl
+    from freeiam.ldap.controls import Controls, manage_dsa_information_tree
+
     ctrl = manage_dsa_information_tree(criticality=True)
     conn.search(f'{base_dn}', Scope.Base, '(objectClass=*)', controls=Controls([ctrl]))
     # end use ManageDSAITControl
@@ -210,6 +212,8 @@ def example_manage_dsa_information_tree(conn, base_dn):
 
 def example_relax_rules(conn, base_dn):
     # use RelaxRules Control
+    from freeiam.ldap.controls import Controls, relax_rules
+
     ctrl = relax_rules(criticality=True)
     custom_entry_uuid = b'00000000-0000-0000-0000-000000000000'
     conn.modify_ml(
@@ -225,6 +229,9 @@ def example_relax_rules(conn, base_dn):
 
 def example_proxy_authorization(conn, base_dn):
     # use ProxyAuthz Control
+    from freeiam.ldap.controls import Controls, proxy_authorization
+    from freeiam.ldap.dn import DN
+
     ctrl = proxy_authorization(DN(f'cn=admin,{base_dn}'), criticality=True)
     conn.search(f'{base_dn}', Scope.Base, '(objectClass=*)', controls=Controls([ctrl]))
     # end use ProxyAuthz Control

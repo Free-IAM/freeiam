@@ -392,21 +392,21 @@ class Operator(Group):
 
 
 class AND(Operator):
-    """A group of AND conjunction expressions (&(...)(...))."""
+    """A group of AND conjunction expressions ``(&(...)(...))``."""
 
     operator = operator.and_
     expression = '&'
 
 
 class OR(Operator):
-    """A group of OR disjunction expressions (|(...)(...))."""
+    """A group of OR disjunction expressions ``(|(...)(...))``."""
 
     operator = operator.or_
     expression = '|'
 
 
 class NOT(Operator):
-    """A group of NOT negation expressions (!( ... ))."""
+    """A group of NOT negation expressions ``(!( ... ))``."""
 
     operator = operator.not_
     expression = '!'

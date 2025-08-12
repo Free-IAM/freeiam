@@ -1,7 +1,30 @@
+Search and pagination
+=====================
 .. _search-examples:
 
-Search and Pagination
-=====================
+Searching is one of the most common LDAP operations. It allows clients
+to retrieve directory entries matching specific criteria, optionally
+returning only selected attributes. This section demonstrates a variety
+of search techniques and server-side features for controlling result
+sets.
+
+The examples below cover:
+
+* **Basic searches** -- retrieving entries and attributes within a
+  specified subtree or scope.
+* **Iterative searches** -- streaming results as they arrive.
+* **Specialized searches** -- retrieving only the distinguished names,
+  single attributes, or asserting result uniqueness.
+* **Pagination** -- splitting large result sets into manageable chunks
+  using either the Simple Paged Results control or the Virtual List View
+  control.
+* **Sorting** -- requesting server-side ordering of results.
+* **Existence checks** -- quickly verifying whether an entry exists.
+* **Error handling** -- dealing with missing search bases or other
+  exceptional conditions.
+
+These techniques can be combined to efficiently retrieve exactly the
+data you need from large or complex directory structures.
 
 Search and receive objects and attributes
 -----------------------------------------

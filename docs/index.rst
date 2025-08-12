@@ -8,7 +8,6 @@ Free IAM
    :caption: Example LDAP usage
 
    examples/ldap_connection
-   examples/ldap_options
    examples/ldap_information
    examples/ldap_authentication
    examples/ldap_synchronous
@@ -23,4 +22,9 @@ Free IAM
    :maxdepth: 2
    :caption: LDAP API documentation
 
-   modules/ldap
+   modules/ldap_connection
+   modules/ldap_dn
+   modules/errors
+   modules/ldap_constants
+   modules/ldap_filter
+   modules/ldap_controls
