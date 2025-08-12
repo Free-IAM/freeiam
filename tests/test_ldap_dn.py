@@ -109,7 +109,7 @@ def test_repr():
 
 
 def test_len(user_dn):
-    assert len(user_dn) == 4  # noqa: PLR2004
+    assert len(user_dn) == 4
 
 
 def test_equal():

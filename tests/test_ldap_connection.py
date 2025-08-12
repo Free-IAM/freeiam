@@ -136,7 +136,7 @@ def test_get_and_set_option(conn):
 
     assert conn.network_timeout is None
     conn.network_timeout = 50
-    assert conn.network_timeout == 50  # noqa: PLR2004
+    assert conn.network_timeout == 50
 
     assert conn.timelimit == OptionValue.NoLimit
     conn.timelimit = 20
@@ -180,11 +180,11 @@ async def test_error_handling_no_object(conn, testuser):
     assert exc.matched == 'dc=freeiam,dc=org'
     assert exc.info is None
     assert exc.errno is None
-    assert exc.result == 32  # noqa: PLR2004
+    assert exc.result == 32
     assert exc.controls == []
     assert repr(exc).startswith("NoSuchObject(description='No such object', info=None, matched='dc=freeiam,dc=org', result=32, errno=None, base_dn=")
 
-    assert conn.get_option(Option.ErrorNumber) == 32  # noqa: PLR2004
+    assert conn.get_option(Option.ErrorNumber) == 32
     assert not conn.get_option(Option.ErrorString)
     assert conn.get_option(Option.MatchedDN) == 'dc=freeiam,dc=org'
 
@@ -484,7 +484,7 @@ async def test_paginated_error_search(conn, page_users, base_dn):
     pagination.offset = res.contentCount + 1
     with pytest.raises(errors.VLVError) as exc:
         await conn.search(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', sorting=[('cn', 'caseIgnoreOrderingMatch', False)], controls=controls)
-    assert exc.value.controls[0].result == 77  # noqa: PLR2004
+    assert exc.value.controls[0].result == 77
 
 
 @pytest.mark.asyncio
