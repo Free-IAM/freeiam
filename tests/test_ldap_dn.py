@@ -105,7 +105,7 @@ def test_str(user_dn):
 
 
 def test_repr():
-    assert repr(DN('foo=1,bar=2')) == '<DN foo=1,bar=2>'
+    assert repr(DN('foo=1,bar=2')) == "DN('foo=1,bar=2')"
 
 
 def test_len(user_dn):
