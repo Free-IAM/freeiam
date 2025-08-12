@@ -271,10 +271,10 @@ class DN:
         """
         Get a representation.
 
-        >>> repr(DN('cn=foo,cn=bar')) == "<DN 'cn=foo,cn=bar'>"
+        >>> repr(DN('cn=foo,cn=bar')) == "DN('cn=foo,cn=bar')"
         True
         """
-        return f'<{type(self).__name__} {self}>'
+        return f'{type(self).__name__}({str(self)!r})'
 
     def __len__(self) -> int:
         """Return number of components of the DN."""
