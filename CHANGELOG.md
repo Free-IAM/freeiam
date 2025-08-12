@@ -2,6 +2,26 @@
 
 <!-- version list -->
 
+## v0.6.0 (2025-08-12)
+
+### Documentation
+
+- Add chapter about receiving server information
+  ([`8e59b24`](https://github.com/Free-IAM/freeiam/commit/8e59b246844cc97ab976d9b16667492b97a242d9))
+
+- **ldap.filter**: Describe LDAP filter escaping, traversing, transformation, handling,
+  pretty-printing
+  ([`bd3b519`](https://github.com/Free-IAM/freeiam/commit/bd3b51943d908163393ab0c423b08d4251275b34))
+
+### Features
+
+- **ldap**: Allow to pass uri=None to Connection, which reads LDAP URI from ldap.conf file
+  ([`f3c940b`](https://github.com/Free-IAM/freeiam/commit/f3c940bab8e9474d6b3ecf41e9a702007b94327a))
+
+- **ldap.filter**: Add `Filter` class to parse, compose, escape, unescape LDAP filters
+  ([`6f45956`](https://github.com/Free-IAM/freeiam/commit/6f459564322508b43f2e5651e093b29adc2dffe7))
+
+
 ## v0.5.0 (2025-08-06)
 
 ### Documentation
