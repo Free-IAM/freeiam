@@ -1,8 +1,6 @@
 # start AUTH
-import sys
-
 from freeiam import errors, ldap
-from freeiam.ldap.constants import Option, TLSOptionValue
+from freeiam.ldap.constants import TLSOptionValue
 
 
 async def ldap_authenticate_example():
@@ -21,6 +19,8 @@ async def ldap_authenticate_example():
 
         # start SIMPLE
         # perform a simple bind
+        import sys
+
         try:
             await conn.bind('cn=admin,dc=freeiam,dc=org', 'iamfree')
         except errors.InvalidCredentials as exc:
@@ -62,6 +62,8 @@ async def ldap_authenticate_example():
     # perform SASL EXTERNAL authentication using local UNIX socket
     async with ldap.Connection('ldapi:///path/to/unix/socket') as conn:
         # you might want to set certain options
+        from freeiam.ldap.constants import Option
+
         conn.set_option(Option.Referrals, 0)
 
         # perform SASL EXTERNAL auth

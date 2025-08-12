@@ -10,14 +10,6 @@ Controls can be passed explicitly with each operation, or applied globally to al
    :start-after: use connection wide control
    :end-before: end use connection wide control
 
-The following example shows how to import the available controls:
-
-.. literalinclude:: controls.py
-   :language: python
-   :caption: Importing LDAP server controls
-   :start-after: control imports
-   :end-before: end control imports
-
 Simple Paged Results, Virtual List View, and Server-Side Sorting Controls
 -------------------------------------------------------------------------
 

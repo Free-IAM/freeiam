@@ -122,7 +122,7 @@ async def ldap_remove_user_example():
             await conn.delete(dn)
         except errors.AllowedOnNonleaf:
             ...  # sub objects exists
-            ...  # you have to remove recusively
+            ...  # you have to remove recursively
         # end REMOVE
 
 

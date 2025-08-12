@@ -71,7 +71,7 @@ Correct approach: Always escape user input before inserting it into an LDAP filt
 
 You can use raw escaping methods to safely handle special characters in user input:
 
-.. code:: python
+.. code:: pycon
 
     >>> from freeiam.ldap.filter import EscapeMode, Filter
     >>> user_input = ' hello (my friend), i am attacking * with \x00 or \\XX'
@@ -84,7 +84,7 @@ You can use raw escaping methods to safely handle special characters in user inp
 
 Alternatively, automatic escaping makes filter construction easier and safer:
 
-.. code:: python
+.. code:: pycon
 
     >>> def print_expr(expression):
     ...     print(expression, ' #', repr(expression))
@@ -131,7 +131,7 @@ Alternatively, automatic escaping makes filter construction easier and safer:
 
 Or by using explicit method calls:
 
-.. code:: python
+.. code:: pycon
 
     >>> Filter.get_pres('cn')
     PresenceMatch(cn=*escape(''))
@@ -166,7 +166,7 @@ In this form, the filter no longer strictly conforms to the LDAP standard syntax
 
 To generate this representation, simply call:
 
-.. code:: python
+.. code:: pycon
 
     >>> print(Filter(filter_expression).pretty())
     (&

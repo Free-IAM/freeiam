@@ -18,6 +18,7 @@ version = '.'.join(version.split('.')[:2])
 
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.doctest',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
 ]
