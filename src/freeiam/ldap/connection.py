@@ -18,7 +18,19 @@ from ldap.schema import SCHEMA_ATTRS
 from freeiam import errors
 from freeiam.ldap._wrapper import Page, Result, _Response
 from freeiam.ldap.attr import Attributes
-from freeiam.ldap.constants import AnyOption, AnyOptionValue, Option, OptionValue, ResponseType, Scope, TLSOption, TLSOptionValue, Version
+from freeiam.ldap.constants import (
+    AnyOption,
+    AnyOptionValue,
+    Option,
+    OptionValue,
+    ResponseType,
+    Scope,
+    TLSCRLCheck,
+    TLSOption,
+    TLSProtocol,
+    TLSRequireCert,
+    Version,
+)
 from freeiam.ldap.controls import Controls, server_side_sorting, simple_paged_results, virtual_list_view
 from freeiam.ldap.dn import DN
 from freeiam.ldap.schema import Schema
@@ -224,13 +236,37 @@ class Connection:
         return self.set_option(Option.Sizelimit, value)
 
     @classmethod
-    def set_tls(cls, *, certfile: str | None = None, ca_certfile: str | None = None, require_cert: int = TLSOptionValue.Demand) -> None:
+    def set_tls(
+        cls,
+        *,
+        ca_certfile: str | None = None,
+        ca_certdir: str | None = None,
+        certfile: str | None = None,
+        keyfile: str | None = None,
+        require_cert: TLSRequireCert = TLSRequireCert.Demand,
+        require_san: TLSRequireCert | None = None,
+        minimum_protocol: TLSProtocol | None = None,
+        cipher_suite: str | None = None,
+        crlfile: None = None,
+        crl_check: TLSCRLCheck | None = None,
+    ) -> None:
         """Set the TLS certificate settings globally."""
-        cls.set_global_option(TLSOption.CACertfile, ca_certfile)
-        cls.set_global_option(TLSOption.RequireCert, require_cert)
-        if certfile:  # pragma: no cover
-            cls.set_global_option(TLSOption.Certfile, certfile)
-        # instruct to apply the pending TLS settings, create new context:
+        for option, value in (
+            (TLSOption.CACertfile, ca_certfile),
+            (TLSOption.CACertdir, ca_certdir),
+            (TLSOption.Certfile, certfile),
+            (TLSOption.Keyfile, keyfile),
+            (TLSOption.ProtocolMin, minimum_protocol),
+            (TLSOption.CipherSuite, cipher_suite),
+            (TLSOption.RequireCert, require_cert),
+            (TLSOption.RequireSAN, require_san),
+            (TLSOption.CRLFile, crlfile),
+            (TLSOption.CRLCheck, crl_check),
+        ):
+            if value is not None:
+                cls.set_global_option(option, value)
+
+        # apply the pending TLS settings, create new context:
         cls.set_global_option(TLSOption.NewContext, 0)
 
     @classmethod

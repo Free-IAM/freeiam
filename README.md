@@ -33,7 +33,7 @@ from freeiam import ldap
 async def main():
     async with ldap.Connection('ldap://localhost:389', timeout=30) as conn:
         # TLS
-        conn.set_tls(ca_certfile='/path/to/ca.crt', require_cert=TLSOptionValue.Hard)
+        conn.set_tls(ca_certfile='/path/to/ca.crt', require_cert=TLSRequireCert.Hard)
         await conn.start_tls()
 
         # authenticate
@@ -90,7 +90,7 @@ from freeiam import ldap
 
 with ldap.Connection('ldap://localhost:389', timeout=30) as conn:
     # TLS
-    conn.set_tls(ca_certfile='/path/to/ca.crt', require_cert=TLSOptionValue.Hard)
+    conn.set_tls(ca_certfile='/path/to/ca.crt', require_cert=TLSRequireCert.Hard)
     conn.start_tls()
 
     # authenticate

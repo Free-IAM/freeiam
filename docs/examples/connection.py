@@ -1,6 +1,6 @@
 # start regular
 from freeiam import ldap
-from freeiam.ldap.constants import TLSOptionValue
+from freeiam.ldap.constants import TLSRequireCert
 
 
 TIMEOUT = 30  # set a usefull default timeout!
@@ -34,7 +34,7 @@ async def ldap_start_tls_connection_example():
         conn.set_tls(
             ca_certfile='/path/to/ca.crt',
             certfile='/path/to/cert.crt',
-            require_cert=TLSOptionValue.Hard,  # allow no self signed? be strict?!
+            require_cert=TLSRequireCert.Hard,  # allow no self signed? be strict?!
         )
         await conn.start_tls()
         await conn.bind('cn=admin,dc=freeiam,dc=org', 'iamfree')
@@ -52,7 +52,7 @@ async def ldaps_secure_connection_example():
         conn.set_tls(
             ca_certfile='/path/to/ca.crt',
             certfile='/path/to/cert.crt',
-            require_cert=TLSOptionValue.Never,  # be unstrict (verify=False)
+            require_cert=TLSRequireCert.Never,  # be unstrict (verify=False)
         )
         await conn.bind('cn=admin,dc=freeiam,dc=org', 'iamfree')
 

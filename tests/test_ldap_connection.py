@@ -10,7 +10,7 @@ import pytest
 import pytest_asyncio
 
 from freeiam import errors, ldap
-from freeiam.ldap.constants import Dereference, Option, OptionValue, Scope, TLSOptionValue, Version
+from freeiam.ldap.constants import Dereference, Option, OptionValue, Scope, TLSRequireCert, Version
 from freeiam.ldap.controls import Controls, virtual_list_view
 
 
@@ -623,7 +623,7 @@ async def test_ldap_plaintext(ldap_server, base_dn):
 @pytest.mark.tls
 @pytest.mark.asyncio
 async def test_starttls_explicit(ldap_server, base_dn):
-    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSOptionValue.Allow)
+    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     conn = ldap.Connection(ldap_server['ldap_uri'])
     conn.connect()
     conn.start_tls()
@@ -635,7 +635,7 @@ async def test_starttls_explicit(ldap_server, base_dn):
 @pytest.mark.tls
 @pytest.mark.asyncio
 async def test_starttls_reconnect(ldap_server, base_dn):
-    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSOptionValue.Allow)
+    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     conn = ldap.Connection(ldap_server['ldap_uri'], start_tls=True)
     conn.connect()
     await conn.bind(f'cn=admin,{base_dn}', 'iamfree')
@@ -649,7 +649,7 @@ async def test_starttls_reconnect(ldap_server, base_dn):
 @pytest.mark.tls
 @pytest.mark.asyncio
 async def test_starttls(ldap_server, base_dn):
-    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSOptionValue.Allow)
+    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     conn = ldap.Connection(ldap_server['ldap_uri'], start_tls=True)
     conn.connect()
     await conn.bind(f'cn=admin,{base_dn}', 'iamfree')
@@ -660,7 +660,7 @@ async def test_starttls(ldap_server, base_dn):
 @pytest.mark.tls
 @pytest.mark.asyncio
 async def test_ldaps(ldap_server, base_dn):
-    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSOptionValue.Allow)
+    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     conn = ldap.Connection(ldap_server['ldaps_uri'], timeout=5)
     conn.connect()
     await conn.bind(f'cn=admin,{base_dn}', 'iamfree')

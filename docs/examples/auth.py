@@ -1,6 +1,6 @@
 # start AUTH
 from freeiam import errors, ldap
-from freeiam.ldap.constants import TLSOptionValue
+from freeiam.ldap.constants import TLSRequireCert
 
 
 async def ldap_authenticate_example():
@@ -12,7 +12,7 @@ async def ldap_authenticate_example():
     """
 
     async with ldap.Connection('ldap://localhost:389') as conn:
-        conn.set_tls(ca_certfile='/path/to/ca.crt', require_cert=TLSOptionValue.Hard)
+        conn.set_tls(ca_certfile='/path/to/ca.crt', require_cert=TLSRequireCert.Hard)
         await conn.start_tls()
 
         ...  # see next
