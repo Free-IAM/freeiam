@@ -72,39 +72,95 @@ class Version(IntEnum):
 class Option(IntEnum):
     """LDAP Options."""
 
+    # API / Info
     ApiFeatureInfo = ldap.OPT_API_FEATURE_INFO
+    """Returns API feature information (`int`)."""
+
     ApiInfo = ldap.OPT_API_INFO
-    ClientControls = ldap.OPT_CLIENT_CONTROLS
-    ConnectAsync = _getoptional('OPT_CONNECT_ASYNC', 20496)
+    """Returns API information (`int`)."""
+
+    # Debug / Diagnostics
     DebugLevel = ldap.OPT_DEBUG_LEVEL
-    """Sets the debug level within the underlying OpenLDAP C lib. libldap sends the log messages to stderr."""
-    Defbase = _getoptional('OPT_DEFBASE', 20489)
-    Dereference = ldap.OPT_DEREF
-    """Specifies how alias dereferencing is done within the underlying LDAP C lib."""
-    Desc = ldap.OPT_DESC
+    """Sets the debug level within the underlying OpenLDAP C library (`int`).
+
+    libldap sends the log messages to stderr.
+    """
+
     DiagnosticMessage = ldap.OPT_DIAGNOSTIC_MESSAGE
+    """Gets the diagnostic message of the last operation (`str`)."""
+
     ErrorNumber = ldap.OPT_ERROR_NUMBER
-    """Get the errno of the last occurred error."""
+    """Gets the error number of the last occurred error (`int`)."""
+
     ErrorString = ldap.OPT_ERROR_STRING
-    """Get the errno string of the last occurred error."""
+    """Gets the error string corresponding to the last occurred error (`str`)."""
+
+    # Connection / Network
+    FileDescriptor = ldap.OPT_DESC
+    """Gets the file descriptor of the LDAP connection (`int`)."""
+
+    ConnectAsync = _getoptional('OPT_CONNECT_ASYNC', 20496)
+    """Enables asynchronous connect mode (`int`)."""
+
     HostName = ldap.OPT_HOST_NAME
-    MatchedDN = ldap.OPT_MATCHED_DN
+    """The hostname used for the connection (`str`)."""
+
     NetworkTimeout = ldap.OPT_NETWORK_TIMEOUT
-    """Network timeout. A timeout of -1 or None resets timeout to infinity."""
-    ProtocolVersion = ldap.OPT_PROTOCOL_VERSION
-    """Sets the LDAP protocol version used for a connection."""
-    Referrals = _getoptional('OPT_REFERRALS', 8)
-    """Specifies whether referrals should be automatically chased within the underlying LDAP C lib."""
-    Refhoplimit = ldap.OPT_REFHOPLIMIT
-    Restart = ldap.OPT_RESTART
-    ResultCode = ldap.OPT_RESULT_CODE
-    ServerControls = ldap.OPT_SERVER_CONTROLS
-    Sizelimit = ldap.OPT_SIZELIMIT
+    """Network timeout in seconds (`int`).
+
+    A timeout of -1 or None resets the timeout to infinity.
+    """
+
     TCPUserTimeout = _getoptional('OPT_TCP_USER_TIMEOUT', 20501)
-    Timelimit = ldap.OPT_TIMELIMIT
+    """TCP user timeout in milliseconds (`int`)."""
+
     Timeout = ldap.OPT_TIMEOUT
-    """Timeout. A timeout of -1 or None resets timeout to infinity."""
+    """Operation timeout in seconds (`int`).
+
+    A timeout of -1 or None resets the timeout to infinity.
+    """
+
+    # LDAP behavior
+    ProtocolVersion = ldap.OPT_PROTOCOL_VERSION
+    """LDAP protocol version to use for the connection (`Version`)."""
+
+    Dereference = ldap.OPT_DEREF
+    """Specifies how alias dereferencing is performed (`Dereference`)."""
+
+    Referrals = _getoptional('OPT_REFERRALS', 8)
+    """Specifies whether referrals should be automatically chased (`int`)."""
+
+    Refhoplimit = ldap.OPT_REFHOPLIMIT
+    """Maximum number of referral hops (`int`)."""
+
+    Restart = ldap.OPT_RESTART
+    """Specifies whether operations are automatically restarted (`int`)."""
+
+    DefaultBase = _getoptional('OPT_DEFBASE', 20489)
+    """Default search base DN for operations (`str`)."""
+
     URI = ldap.OPT_URI
+    """LDAP URI(s) for the connection (`str`)."""
+
+    # Result / Limits
+    ResultCode = ldap.OPT_RESULT_CODE
+    """Gets the result code of the last operation (`int`)."""
+
+    MatchedDN = ldap.OPT_MATCHED_DN
+    """Gets the matched distinguished name from the last operation (`str`)."""
+
+    Sizelimit = ldap.OPT_SIZELIMIT
+    """Specifies the maximum number of entries to return for a search (`int`)."""
+
+    Timelimit = ldap.OPT_TIMELIMIT
+    """Specifies the maximum time in seconds a search may run (`int`)."""
+
+    # Controls
+    ClientControls = ldap.OPT_CLIENT_CONTROLS
+    """List of LDAP client controls (`list`)."""
+
+    ServerControls = ldap.OPT_SERVER_CONTROLS
+    """List of LDAP server controls (`list`)."""
 
 
 class SASLOption(IntEnum):
@@ -135,59 +191,111 @@ class OptionValue(IntEnum):
     On = ldap.OPT_ON
     Success = ldap.OPT_SUCCESS
 
-    # X-Keep-Alive
-    KeepAliveIdle = _getoptional('OPT_X_KEEPALIVE_IDLE', 25344)
-    KeepAliveInterval = _getoptional('OPT_X_KEEPALIVE_INTERVAL', 25346)
-    KeepAliveProbes = _getoptional('OPT_X_KEEPALIVE_PROBES', 25345)
-
     NoLimit = ldap.NO_LIMIT
+
+
+class KeepAlive(IntEnum):
+    """Keep Alive Option values."""
+
+    Idle = _getoptional('OPT_X_KEEPALIVE_IDLE', 25344)
+    Interval = _getoptional('OPT_X_KEEPALIVE_INTERVAL', 25346)
+    Probes = _getoptional('OPT_X_KEEPALIVE_PROBES', 25345)
 
 
 class TLSOption(IntEnum):
     """TLS Options."""
 
+    # Certificate files and directories
     CACertdir = ldap.OPT_X_TLS_CACERTDIR
+    """Path to a directory containing CA certificates (`str`)."""
+
     CACertfile = ldap.OPT_X_TLS_CACERTFILE
+    """Path to a CA certificate file (`str`)."""
+
     Certfile = ldap.OPT_X_TLS_CERTFILE
-    Cipher = _getoptional('OPT_X_TLS_CIPHER', 24596)
-    CipherSuite = ldap.OPT_X_TLS_CIPHER_SUITE
-    CRLCheck = _getoptional('OPT_X_TLS_CRLCHECK', 24587)
-    CRLFile = _getoptional('OPT_X_TLS_CRLFILE', 24592)
-    DHFile = ldap.OPT_X_TLS_DHFILE
-    ECName = _getoptional('OPT_X_TLS_ECNAME', 24594)
+    """Path to the client/server certificate file (`str`)."""
+
     Keyfile = ldap.OPT_X_TLS_KEYFILE
-    NewContext = _getoptional('OPT_X_TLS_NEWCTX', 24591)
-    """libldap does not materialize all TLS settings immediately. You must use OPT_X_TLS_NEWCTX with value 0 to instruct libldap to apply pending TLS settings and create a new internal TLS context"""  # noqa: E501
-    Package = _getoptional('OPT_X_TLS_PACKAGE', 24593)
-    PeerCert = _getoptional('OPT_X_TLS_PEERCERT', 0x6015)
-    ProtocolMax = _getoptional('OPT_X_TLS_PROTOCOL_MAX', 24603)
-    ProtocolMin = _getoptional('OPT_X_TLS_PROTOCOL_MIN', 24583)
+    """Path to the private key file corresponding to the certificate (`str`)."""
+
+    DHFile = ldap.OPT_X_TLS_DHFILE
+    """Path to the Diffie-Hellman parameters file (`str`)."""
+
+    ECName = _getoptional('OPT_X_TLS_ECNAME', 24594)
+    """Name of the elliptic curve to use (`str`)."""
+
+    # Certificate verification
+    CRLCheck = _getoptional('OPT_X_TLS_CRLCHECK', 24587)
+    """Certificate Revocation List check policy (`TLSCRLCheck`)."""
+
+    CRLFile = _getoptional('OPT_X_TLS_CRLFILE', 24592)
+    """Path to a CRL file (`str`)."""
+
     RequireCert = ldap.OPT_X_TLS_REQUIRE_CERT
+    """Certificate requirement level (`TLSRequireCert`)."""
+
     RequireSAN = _getoptional('OPT_X_TLS_REQUIRE_SAN', 24602)
+    """Requirement for Subject Alternative Name (`TLSRequireCert`)."""
+
+    PeerCert = _getoptional('OPT_X_TLS_PEERCERT', 24597)
+    """Path to the peer certificate file (`str`)."""
+
+    # Protocol and version settings
+    ProtocolMin = _getoptional('OPT_X_TLS_PROTOCOL_MIN', 24583)
+    """Minimum allowed TLS protocol (`TLSProtocol`)."""
+
+    ProtocolMax = _getoptional('OPT_X_TLS_PROTOCOL_MAX', 24603)
+    """Maximum allowed TLS protocol (`TLSProtocol`)."""
+
     Version = _getoptional('OPT_X_TLS_VERSION', 24595)
+    """TLS library version (`str`)."""
+
+    # Cipher settings
+    Cipher = _getoptional('OPT_X_TLS_CIPHER', 24596)
+    """Cipher specification (`str`)."""
+
+    CipherSuite = ldap.OPT_X_TLS_CIPHER_SUITE
+    """Cipher suite selection (`str`)."""
+
+    # Misc / control
+    Package = _getoptional('OPT_X_TLS_PACKAGE', 24593)
+    """TLS package to use (`str`)."""
+
+    NewContext = _getoptional('OPT_X_TLS_NEWCTX', 24591)
+    """Create a new internal TLS context (`int`).
+
+    libldap does not apply all TLS settings immediately.
+    Use this option with value 0 to instruct libldap to apply
+    pending TLS settings and create a new internal TLS context.
+    """
 
 
-class TLSOptionValue(IntEnum):
-    """TLS Option values."""
+class TLSCRLCheck(IntEnum):
+    """Values for Certificate Revocation List checks (TLSOption.CRLCheck)."""
 
-    # for OPT_X_TLS_CRLCHECK
-    CrlNone = ldap.OPT_X_TLS_CRL_NONE
-    CrlPeer = ldap.OPT_X_TLS_CRL_PEER
-    CrlAll = ldap.OPT_X_TLS_CRL_ALL
+    None_ = ldap.OPT_X_TLS_CRL_NONE
+    Peer = ldap.OPT_X_TLS_CRL_PEER
+    All = ldap.OPT_X_TLS_CRL_ALL
 
-    # for OPT_X_TLS_REQUIRE_CERT / OPT_X_TLS_REQUIRE_SAN
+
+class TLSRequireCert(IntEnum):
+    """Values for Certificate requirement or Subject Alternative Name (TLSOption.RequireCert and TLSOption.RequireSAN)."""
+
     Never = ldap.OPT_X_TLS_NEVER
     Allow = ldap.OPT_X_TLS_ALLOW
     Try = ldap.OPT_X_TLS_TRY
     Demand = ldap.OPT_X_TLS_DEMAND
     Hard = ldap.OPT_X_TLS_HARD
 
-    # for OPT_X_TLS_PROTOCOL_MIN / OPT_X_TLS_PROTOCOL_MAX
-    ProtocolSSL3 = _getoptional('OPT_X_TLS_PROTOCOL_SSL3', 0x300)
-    ProtocolTLS10 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_0', 0x301)
-    ProtocolTLS11 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_1', 0x302)
-    ProtocolTLS12 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_2', 0x303)
-    ProtocolTLS13 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_3', 0x304)
+
+class TLSProtocol(IntEnum):
+    """Values for TLSOption.ProtocolMin / TLSOption.ProtocolMax."""
+
+    SSL3 = _getoptional('OPT_X_TLS_PROTOCOL_SSL3', 0x300)
+    TLS10 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_0', 0x301)
+    TLS11 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_1', 0x302)
+    TLS12 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_2', 0x303)
+    TLS13 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_3', 0x304)
 
 
 class Dereference(IntEnum):
@@ -200,7 +308,7 @@ class Dereference(IntEnum):
 
 
 AnyOption: TypeAlias = Option | SASLOption | TLSOption | int
-AnyOptionValue: TypeAlias = OptionValue | TLSOptionValue | Dereference | int | str
+AnyOptionValue: TypeAlias = OptionValue | TLSCRLCheck | TLSRequireCert | TLSProtocol | KeepAlive | Dereference | int | str
 
 
 class DNFormat(IntEnum):
@@ -230,7 +338,7 @@ class AVA(IntEnum):
 
 
 class ResponseType(IntEnum):
-    """LDAP Respons types."""
+    """LDAP Response types."""
 
     Add = ldap.RES_ADD
     Any = ldap.RES_ANY
@@ -248,7 +356,7 @@ class ResponseType(IntEnum):
 
 
 class LDAPChangeType(IntEnum):
-    """LPAP change type for PersistentSearchControl conrol."""
+    """LDAP change type for PersistentSearchControl control."""
 
     Add = 1
     Delete = 2
