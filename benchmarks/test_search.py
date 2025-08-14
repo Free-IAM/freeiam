@@ -65,6 +65,17 @@ class LDAPClient(Client):
     def search_s(self, *args, **kwargs):
         return self.conn.search_s(*args, **kwargs)
 
+    def search_iter_s(self, *args, **kwargs):
+        import ldap as _ldap
+
+        msgid = self.conn.search_ext(*args, **kwargs)
+        result = []
+        rtype = None
+        while rtype != _ldap.RES_SEARCH_RESULT:
+            rtype, data, msgid, _ctrls, _name, _value = self.conn.result4(msgid, all=1, timeout=30)
+            result.extend(data)
+        return result
+
 
 class LDAP3Client(Client):
     """ldap3"""
