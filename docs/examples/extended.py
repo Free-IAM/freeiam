@@ -13,4 +13,4 @@ async def ldap_extended_operation_example():
         # but you have to implement it yourself
         # by creating a suitable subclasses of the above
 
-        await conn.extop(ExtendedRequest(), ExtendedResponse)
+        await conn.extended(ExtendedRequest(), ExtendedResponse)

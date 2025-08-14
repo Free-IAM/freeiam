@@ -1,7 +1,23 @@
 Using LDAP Controls
 ===================
 
-LDAP operations can be extended using LDAP controls, which provide additional features and behaviors.
+LDAP **controls** are optional extensions that modify the behavior of
+standard operations. They are sent alongside requests to the server and
+can influence how the operation is processed or how results are returned.
+
+Controls can be used to request additional information, enforce certain
+server-side policies, or enable features such as pagination and sorting.
+
+This section demonstrates how to:
+
+* Send controls with search and modification requests.
+* Interpret and handle response controls returned by the server.
+
+Controls are a powerful way to adapt LDAP operations to specific
+application requirements without changing the protocol's core commands.
+
+Apply controls to all operations of the connection
+--------------------------------------------------
 
 Controls can be passed explicitly with each operation, or applied globally to all operations via the connection object, as shown below:
 
