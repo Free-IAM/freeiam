@@ -343,11 +343,11 @@ def _validate_filter(expr):
     try:
         lo.search_ext_s('', ldap.SCOPE_BASE, expr)
     except ldap.FILTER_ERROR as exc:
-        raise FilterError(exc) from None
+        raise FilterError.from_ldap_exception(exc) from None
     except ValueError as exc:
         if str(exc) != 'embedded null character':
             raise
-        raise FilterError(ldap.FILTER_ERROR()) from None
+        raise FilterError({}) from None
     except ldap.SERVER_DOWN:
         pass
     finally:

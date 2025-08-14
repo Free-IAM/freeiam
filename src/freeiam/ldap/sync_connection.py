@@ -854,13 +854,24 @@ class Connection:
         else:  # pragma: no cover
             return True
 
-    def extop(self, extreq: ldap.extop.ExtendedRequest, extop_resp_class=None, *, controls: Controls | None = None) -> Result | Any:
+    def refresh_ttl(self, dn: DN | str, ttl: int):
+        """Perform Refresh extended operation."""
+        from ldap.extop.dds import RefreshRequest, RefreshResponse  # noqa: PLC0415
+
+        req = RefreshRequest(RefreshRequest.requestName, str(dn), ttl)
+        req.requestValue = b''  # req.encodedRequestValue()
+        self.extended(req, RefreshResponse)
+
+    def extended(self, request: ldap.extop.ExtendedRequest, response_class=None, *, controls: Controls | None = None) -> Result | Any:
         """Perform extended operation."""
         conn = self.conn
-        response = self._execute(conn, conn.extop, extreq, **Controls.expand(controls))
+        response = self._execute(conn, conn.extop, request, **Controls.expand(controls))
 
-        if extop_resp_class:  # pragma: no cover
-            return extop_resp_class(response.name, response.value)
+        if response_class:
+            with errors.LdapError.wrap(self._hide_parent_exception):
+                if response_class.responseName == response.name:  # pragma: no cover
+                    return response_class(response.name, response.value)
+                raise errors.ProtocolError({'desc': 'OID in extended response does not match response class.'})
         return Result.from_response(None, None, controls, response)  # pragma: no cover
 
     def __getstate__(self) -> dict:

@@ -467,7 +467,7 @@ class Filter:
 
     def error(self) -> errors.FilterError:
         """Get FilterError."""
-        return errors.FilterError(ldap.FILTER_ERROR({'result': -7, 'desc': 'Bad search filter', 'info': str(self.filter_expr), 'ctrls': []}))
+        return errors.FilterError({'result': -7, 'desc': 'Bad search filter', 'info': str(self.filter_expr), 'ctrls': []})
 
     def pretty(self, indent: int = 0) -> str:
         """Transform into a pretty presentation."""
