@@ -45,7 +45,7 @@ def test_result_control_empty():
 
 
 def test_exception_controls():
-    exc = errors.VLVError(
+    exc = errors.VLVError.from_ldap_exception(
         _ldap.VLV_ERROR(
             {
                 'msgtype': 101,

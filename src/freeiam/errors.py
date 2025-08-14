@@ -78,9 +78,8 @@ class LdapError(Error):
         super().__init_subclass__(**kwargs)
         cls._MAP[cls.exc_class] = cls
 
-    def __init__(self, exc):
-        self.exc = exc
-        args = exc.args[0] if exc.args and isinstance(exc.args[0], dict) else {}
+    def __init__(self, args: dict | None = None):
+        args = args or {}
         self._result = args.get('result')
         self._description = args.get('desc')
         self._info = args.get('info')
@@ -88,7 +87,7 @@ class LdapError(Error):
         self._errno = args.get('errno')
         self._controls = args.get('ctrls')
         self._controls_decoded = None
-        super().__init__()
+        super().__init__(args)
 
     def __str__(self):
         msg = f'{self.description or ""}: {self.info or ""}'.removesuffix(': ')
@@ -106,7 +105,8 @@ class LdapError(Error):
     def from_ldap_exception(cls, exc):
         """Get instance from the correct child exception."""
         error = cls._MAP.get(type(exc), cls)
-        return error(exc)
+        args = exc.args[0] if exc and exc.args and isinstance(exc.args[0], dict) else {}
+        return error(args)
 
     @classmethod
     def wrap(cls, hide_parent_exception: bool = True):
