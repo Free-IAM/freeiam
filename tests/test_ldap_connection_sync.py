@@ -535,6 +535,7 @@ def test_root_dse(conn):
     dse = conn.get_root_dse()
     assert set(dse.attr.keys()) == {
         'configContext',
+        'dynamicSubtrees',
         'entryDN',
         'monitorContext',
         'namingContexts',
@@ -698,14 +699,20 @@ def test_abandon_iter(conn, page_users, base_dn):
 #        conn.get(result.dn)
 
 
-@pytest.mark.xfail(raises=errors.ProtocolError, match='unsupported extended operation', reason='LDAP Test setup')
+@pytest.mark.xfail(
+    raises=errors.ProtocolError, match='OID in extended response does not match response class.', reason='Server does not send response data'
+)
 @pytest.mark.timeout(5)
-def test_extop(conn, base_dn):
-    from ldap.extop.dds import RefreshRequest, RefreshResponse
-
-    req = RefreshRequest(RefreshRequest.requestName, base_dn, RefreshRequest.defaultRequestTtl)
-    req.requestValue = b''
-    conn.extop(req, RefreshResponse)
+def test_extended_operation(conn, base_dn):
+    attrs = {
+        'objectClass': [b'inetOrgPerson', b'dynamicObject'],
+        # 'entryTtl': [b'20'],
+        'uid': [f'dynamic1{TESTUSERNAME}'.encode()],
+        'cn': [b'dynamic1'],
+        'sn': [b'dynamic1'],
+    }
+    result = conn.add(f'uid=dynamic1{TESTUSERNAME},{base_dn}', attrs)
+    conn.refresh_ttl(result.dn, 20)
 
 
 def test_sync_methods_exists():
