@@ -22,7 +22,7 @@ __all__ = (
     'NOT',
     'OR',
     'ApproximateMatch',
-    'Comparision',
+    'Comparison',
     'EqualityMatch',
     'ExtensibleMatch',
     'Filter',
@@ -36,18 +36,18 @@ __all__ = (
 
 LDAP_FILTER_GRAMMAR = r"""
 start: _group | bare
-bare: comparision
+bare: comparison
 _group: ws? (operator | expression) ws?
 
 ?operator: and | or | not
 
-expression: "(" ows comparision ows ")"
+expression: "(" ows comparison ows ")"
 and: "(" ows "&" ows groups ows ")"
 or:  "(" ows "|" ows groups ows ")"
 not: "(" ows "!" ows _group  ows ")"
 ?groups: _group* -> groups
 
-?comparision: attr "=*"                         -> presence
+?comparison: attr "=*"                         -> presence
      | attr "="  value                          -> equality
      | attr "="  substrings                     -> substring
      | attr ">=" value                          -> ge
@@ -193,8 +193,8 @@ class Expression:
         return Filter.get_not(self)
 
 
-class Comparision(Expression):
-    """Base class for comparision operators."""
+class Comparison(Expression):
+    """Base class for comparison operators."""
 
     __slots__ = ('_end', '_extra', '_lead', '_mid', '_trail', 'attr', 'is_escaped', 'raw_value')
     operator = None
@@ -246,39 +246,39 @@ class Comparision(Expression):
         return hash((self.expression, self.attr, self.value))
 
     def __eq__(self, other):
-        if isinstance(other, Comparision):
+        if isinstance(other, Comparison):
             return (self.expression, self.attr, self.value) == (other.expression, other.attr, other.value)
         return NotImplemented
 
 
-class EqualityMatch(Comparision):
+class EqualityMatch(Comparison):
     """Compare for equality (attr=value)."""
 
     operator = operator.eq
     expression = '='
 
 
-class GreaterOrEqual(Comparision):
+class GreaterOrEqual(Comparison):
     """Compare for greater or equals (attr>=value)."""
 
     operator = operator.ge
     expression = '>='
 
 
-class LessOrEqual(Comparision):
+class LessOrEqual(Comparison):
     """Compare for less than or equals (attr<=value)."""
 
     operator = operator.le
     expression = '<='
 
 
-class ApproximateMatch(Comparision):
+class ApproximateMatch(Comparison):
     """Compare approximately (attr~=value)."""
 
     expression = '~='
 
 
-class SubstringMatch(Comparision):
+class SubstringMatch(Comparison):
     """Compare substring match (attr=val*)."""
 
     operator = operator.contains
@@ -290,17 +290,17 @@ class SubstringMatch(Comparision):
         return tuple(self.value.split('*'))
 
 
-class PresenceMatch(Comparision):
+class PresenceMatch(Comparison):
     """Compare for presence (attr=*)."""
 
     expression = '=*'
 
 
-class ExtensibleMatch(Comparision):
+class ExtensibleMatch(Comparison):
     """Compare with extensible match (attr:dn:rule:=value, optional: dn / Matching Rule OID)."""
 
     expression = ':='
-    __slots__ = (*Comparision.__slots__, 'dn', 'matchingrule')
+    __slots__ = (*Comparison.__slots__, 'dn', 'matchingrule')
 
     def copy(self) -> Self:
         """Copy the object (without preserving optional whitespace)."""
@@ -331,14 +331,14 @@ class Container(Expression):
         return tuple(op for op in self._expressions if isinstance(op, (AND, OR, NOT)))
 
     @property
-    def comparisions(self) -> tuple[Comparision]:
-        """Get all comparision expressions."""
-        return tuple(op for op in self._expressions if isinstance(op, Comparision))
+    def comparisons(self) -> tuple[Comparison]:
+        """Get all comparison expressions."""
+        return tuple(op for op in self._expressions if isinstance(op, Comparison))
 
     @property
-    def expressions(self) -> tuple[Comparision | Self]:
-        """Get all comparision or operator expressions."""
-        return tuple(op for op in self._expressions if isinstance(op, (Comparision, AND, OR, NOT)))
+    def expressions(self) -> tuple[Comparison | Self]:
+        """Get all comparison or operator expressions."""
+        return tuple(op for op in self._expressions if isinstance(op, (Comparison, AND, OR, NOT)))
 
     def __init__(self, /, expressions: Sequence[Expression], *, sep: Token | None = None):
         self._expressions = expressions
@@ -383,7 +383,7 @@ class Group(Container):
 
     def __str__(self):
         sep = self._sep or ''
-        groups = ''.join(f'({expr})' if isinstance(expr, Comparision) else str(expr) for expr in self._expressions)
+        groups = ''.join(f'({expr})' if isinstance(expr, Comparison) else str(expr) for expr in self._expressions)
         return f'({self.expression}{sep}{groups})' if self.expression else groups
 
 
@@ -459,7 +459,7 @@ class Filter:
             self.walk(self._disallow_whitespace, self._disallow_whitespace)
 
     def _disallow_whitespace(self, fil: Self, parent: Expression, expr: Expression):  # noqa: ARG002
-        if isinstance(expr, Comparision):
+        if isinstance(expr, Comparison):
             if expr._mid or expr._lead or expr._trail or expr._end:
                 raise self.error()
         elif isinstance(expr, Operator) and expr._sep:  # pragma: no cover
@@ -474,7 +474,7 @@ class Filter:
 
         def _pretty(expr, level):
             pad = '  ' * level
-            if isinstance(expr, Comparision):
+            if isinstance(expr, Comparison):
                 return f'{pad}({expr})'
             if isinstance(expr, (AND, OR)):
                 head = f'{pad}({expr.expression}'
@@ -494,7 +494,7 @@ class Filter:
 
     @classmethod
     def attr(cls, attr: str, dn: str | None = None, matchingrule: str | None = None) -> Attribute:
-        """Get attribute for comparision."""
+        """Get attribute for comparison."""
         return Attribute(attr, dn, matchingrule)
 
     @classmethod
@@ -596,7 +596,7 @@ class Filter:
         while stack:
             parent, expression, is_pre_visit = stack.pop()
 
-            if isinstance(expression, Comparision):
+            if isinstance(expression, Comparison):
                 if comparison_callback:
                     comparison_callback(self, parent, expression)
             elif isinstance(expression, (Operator, Group, Container)):
@@ -637,7 +637,7 @@ class _FilterTransformer(Transformer):
         super().__init__()
 
     def start(self, value):  # noqa: PLR6301
-        if isinstance(value, Comparision):
+        if isinstance(value, Comparison):
             return Group([value])
         if isinstance(value, Container):
             return value

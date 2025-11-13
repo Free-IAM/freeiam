@@ -8,7 +8,7 @@ from freeiam.ldap.filter import (
     OR,
     ApproximateMatch,
     Attribute,
-    Comparision,
+    Comparison,
     Container,
     EqualityMatch,
     EscapeMode,
@@ -364,7 +364,7 @@ def validate_filter(expr):
 
 def get_filter_root(filter_expr):
     for expr in Filter(filter_expr, _debug=True).root.expressions:
-        if isinstance(expr, (AND, OR, NOT, Comparision)):
+        if isinstance(expr, (AND, OR, NOT, Comparison)):
             return expr
     return None
 
@@ -508,7 +508,7 @@ def test_unescape(expr, value, unescape):
     assert fil.value == unescape
 
 
-def test_comparision_unescape():
+def test_comparison_unescape():
     assert EqualityMatch('cn', r'foo\20bar', is_escaped=True).value == 'foo bar'
     assert EqualityMatch('cn', r' foobar ', is_escaped=False).escaped == r'\20foobar\20'
     assert EqualityMatch('cn', r' foobar ', is_escaped=False).value == ' foobar '
@@ -714,7 +714,7 @@ def test_walk_func():
 def test_walk_replace():
     fil = Filter('(&(append=1)(|(replace=not)(remove=1)(insert=1)(replace=or)(replace=exp)))')
 
-    def comparision_callback(filter_, parent, expression):
+    def comparison_callback(filter_, parent, expression):
         if expression.attr == 'append':
             parent.append(EqualityMatch('action', 'append'))
         elif expression.attr == 'insert':
@@ -730,7 +730,7 @@ def test_walk_replace():
                 new = EqualityMatch('action', 'replace')
             parent.replace(expression, new)
 
-    fil.walk(comparision_callback, None)
+    fil.walk(comparison_callback, None)
     assert str(fil) == '(&(append=1)(|(action=insert)(!(replace=not))(insert=1)(|(to=be)(not=to be))(action=replace))(action=append))'
 
 
@@ -767,7 +767,7 @@ FILTER_EXPRESSION = """
 """.strip()
 
 
-def comparision_callback(filter_, parent, expression):
+def comparison_callback(filter_, parent, expression):
     a = Attribute
 
     if expression.attr == 'surName':
@@ -834,26 +834,26 @@ def operator_callback(filter_, parent, expression):
     if any(
         expr.attr.lower() == 'objectClass'.lower() and expr.value.lower() == 'inetOrgPerson'.lower()
         for expr in expression.expressions
-        if isinstance(expr, Comparision)
+        if isinstance(expr, Comparison)
     ):
         # ``(&(objectClass=top)(objectClass=person)(objectClass=inetOrgPerson))`` → ``(objectClass=inetOrgPerson)``
-        for expr in expression.comparisions:
+        for expr in expression.comparisons:
             if expr.attr.lower() == 'objectClass'.lower() and expr.value.lower() in {'top', 'person'}:
                 expression.remove(expr)
 
-    for expr in expression.comparisions:
+    for expr in expression.comparisons:
         # ``(|(uid=alice)(uid=alice))`` → ``(|(uid=alice))``
         if expression.expressions.count(expr) > 1:
             expression.remove(expr)
 
-    if (len(expression.comparisions) + len(expression.operators)) == 1 and not isinstance(expression, NOT):
+    if (len(expression.comparisons) + len(expression.operators)) == 1 and not isinstance(expression, NOT):
         # ``(|(uid=alice))`` → ``(uid=alice)``
         parent.replace(expression, expression.expressions[0])
 
 
 def test_example_walk_replace():
     fil = Filter(FILTER_EXPRESSION)
-    fil.walk(comparision_callback, operator_callback, WalkStrategy.POST)
+    fil.walk(comparison_callback, operator_callback, WalkStrategy.POST)
     result = r"""
 (&
   (sn=Smith)
