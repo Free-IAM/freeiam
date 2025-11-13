@@ -8,17 +8,54 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: 3.11
+          - os: ubuntu-latest
+            python: 3.12
+          - os: ubuntu-latest
+            python: 3.13
+          - os: ubuntu-latest
+            python: 3.14
+          #- os: macos-latest
+          #  python: 3.11
+          #- os: windows-latest
+          #  python: 3.11
+    runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libldap2-dev libsasl2-dev libssl-dev build-essential
+      - name: Install system dependencies (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libldap2-dev libsasl2-dev libssl-dev build-essential
+
+      # - name: Install system dependencies (macOS only)
+      #   if: runner.os == 'macOS'
+      #   run: |
+      #     brew update
+      #     brew install openldap
+      #     brew install colima docker
+      #     colima start
+
+      # - name: Install system dependencies (Windows only)
+      #   if: runner.os == 'Windows'
+      #   run: |
+      #     git clone https://github.com/microsoft/vcpkg
+      #     .\vcpkg\bootstrap-vcpkg.bat
+      #     .\vcpkg\vcpkg install openldap:x64-windows
+      #     echo "INCLUDE=%CD%\vcpkg\installed\x64-windows\include" >> $env:GITHUB_ENV
+      #     echo "LIB=%CD%\vcpkg\installed\x64-windows\lib" >> $env:GITHUB_ENV
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python }}
 
       - name: Install Python dependencies
         run: pip install .[test] coverage pytest-cov codecov
