@@ -91,6 +91,9 @@ skip_empty = true
 
 [tool.ruff]
 target-version = "py311"
+output-format = "concise"
+unsafe-fixes = true
+preview = true
 
 namespace-packages = ["freeiam", "freeiam.ldap"]
 line-length = 150

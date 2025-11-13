@@ -302,12 +302,12 @@ def base_dn():
 
 
 @pytest.fixture(scope='session')
-def ldap_uri(ldap_server):  # noqa: FURB118
+def ldap_uri(ldap_server):
     return ldap_server['ldap_uri']
 
 
 @pytest.fixture(scope='session')
-def ldaps_uri(ldap_server):  # noqa: FURB118
+def ldaps_uri(ldap_server):
     return ldap_server['ldaps_uri']
 
 
