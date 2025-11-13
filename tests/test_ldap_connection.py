@@ -757,10 +757,10 @@ async def test_abandon_iter(conn, page_users, base_dn):
 #        await conn.get(result.dn)
 
 
-@pytest.mark.xfail(
-    raises=errors.ProtocolError, match='OID in extended response does not match response class.', reason='Server does not send response data'
-)
-@pytest.mark.timeout(5)
+# @pytest.mark.xfail(
+#    raises=errors.ProtocolError, match='OID in extended response does not match response class.', reason='Server does not send response data'
+# )
+# @pytest.mark.timeout(5)
 @pytest.mark.asyncio
 async def test_dds_extended_operation(conn, base_dn):
     attrs = {
@@ -774,10 +774,10 @@ async def test_dds_extended_operation(conn, base_dn):
     await conn.refresh_ttl(result.dn, 20)
 
 
-@pytest.mark.xfail(
-    raises=errors.ProtocolError, match='OID in extended response does not match response class.', reason='Server does not send response data'
-)
-@pytest.mark.timeout(5)
+# @pytest.mark.xfail(
+#    raises=errors.ProtocolError, match='OID in extended response does not match response class.', reason='Server does not send response data'
+# )
+# @pytest.mark.timeout(5)
 @pytest.mark.asyncio
 async def test_txn_extended_operation(conn, base_dn):
     conn._hide_parent_exception = False
