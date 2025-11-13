@@ -32,6 +32,7 @@ from freeiam.ldap.constants import (
 )
 from freeiam.ldap.controls import Controls, server_side_sorting, simple_paged_results, virtual_list_view
 from freeiam.ldap.dn import DN
+from freeiam.ldap.extended_operations import ExtendedRequest, ExtendedResponse, refresh_ttl
 from freeiam.ldap.schema import Schema
 
 
@@ -854,25 +855,29 @@ class Connection:
         else:  # pragma: no cover
             return True
 
-    def refresh_ttl(self, dn: DN | str, ttl: int):
+    def refresh_ttl(self, dn: DN | str, ttl: int) -> Result:
         """Perform Refresh extended operation."""
-        from ldap.extop.dds import RefreshRequest, RefreshResponse  # noqa: PLC0415
+        req = refresh_ttl(dn, ttl)
+        result = self.extended(req, refresh_ttl.response)
+        result.dn = DN.get(dn)
+        return result
 
-        req = RefreshRequest(RefreshRequest.requestName, str(dn), ttl)
-        req.requestValue = b''  # req.encodedRequestValue()
-        self.extended(req, RefreshResponse)
-
-    def extended(self, request: ldap.extop.ExtendedRequest, response_class=None, *, controls: Controls | None = None) -> Result | Any:
+    def extended(self, request: ExtendedRequest, response_class: ExtendedResponse | None = None, *, controls: Controls | None = None) -> Result:
         """Perform extended operation."""
         conn = self.conn
         response = self._execute(conn, conn.extop, request, **Controls.expand(controls))
 
+        decoded_value = None
         if response_class:
             with errors.LdapError.wrap(self._hide_parent_exception):
-                if response_class.responseName == response.name:  # pragma: no cover
-                    return response_class(response.name, response.value)
-                raise errors.ProtocolError({'desc': 'OID in extended response does not match response class.'})
-        return Result.from_response(None, None, controls, response)  # pragma: no cover
+                if response_class.responseName != response.name:
+                    raise errors.ProtocolError({
+                        'desc': 'OID in extended response does not match response class.',
+                        'info': f'expected: {response_class.responseName}; got: {response.name}',
+                    })
+                if response.value:
+                    decoded_value = response_class(response.name, response.value).responseValue
+        return Result.from_response(None, None, controls, response, extended_value=decoded_value)
 
     def __getstate__(self) -> dict:
         """Return state for pickle."""
@@ -913,7 +918,7 @@ class Connection:
         log.debug('result(%r, timeout=%r)', msgid, timeout, extra={'MSGID': msgid, 'ALL': _all, 'TIMEOUT': timeout, 'FUNC': 'result'})
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
-                response = _Response(*conn.result4(msgid, all=_all, timeout=timeout))
+                response = _Response(*conn.result4(msgid, all=_all, timeout=timeout, add_extop=1))
         except (errors.LdapError, OSError) as exc:
             log.debug('result(%r) -> raised %r', msgid, exc, extra={'MSGID': msgid, 'OPERATION': 'result', 'EXCEPTION': str(exc)})
             raise

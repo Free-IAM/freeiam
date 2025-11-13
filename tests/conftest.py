@@ -242,7 +242,7 @@ def _ldap_server():  # noqa: PLR0915,PLR0914
         # 2048   (0x800 parse) entry parsing
         # 16384  (0x4000 sync) LDAPSync replication
         # 32768  (0x8000 none) only messages that get logged whatever log level is set
-        # .with_env('LDAP_LOGLEVEL', str(0x1 | 0x4 | 0x100 | 0x200))  # stats stats2 args trace
+        # .with_env('LDAP_LOGLEVEL', str(0x1 | 0x4 | 0x16 | 0x100 | 0x200))  # trace args BER stats stats2
         .with_env('LDAP_LOGLEVEL', '256')
         .with_env('LDAP_PASSWORD_HASH', '{CRYPT}')
         .with_env('LDAP_CONFIGURE_PPOLICY', 'yes')

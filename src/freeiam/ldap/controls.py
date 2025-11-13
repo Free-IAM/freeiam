@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """LDAP Server and Client controls."""
 
-from ldap.controls import DecodeControlTuples, ResponseControl
+from ldap.controls import DecodeControlTuples, RequestControl, ResponseControl
 from ldap.controls.deref import DereferenceControl
 from ldap.controls.libldap import AssertionControl, MatchedValuesControl
 from ldap.controls.pagedresults import SimplePagedResultsControl
@@ -162,3 +162,15 @@ def proxy_authorization(authz_id: str | DN, *, criticality: bool = False):
     """ProxyAuthz control."""
     authz_id = f'dn:{authz_id}' if isinstance(authz_id, DN) else authz_id
     return ProxyAuthzControl(criticality, authz_id.encode('UTF-8'))
+
+
+def transaction(transaction_id: bytes | None = None, *, criticality: bool = True):
+    """TransactionSpecification control."""
+    return TransactionSpecificationControl(criticality, transaction_id)
+
+
+class TransactionSpecificationControl(RequestControl):
+    controlType = '1.3.6.1.1.21.2'  # noqa: N815
+
+    def __init__(self, criticality: bool = True, txn_id: bytes | None = None):
+        super().__init__(self.controlType, criticality, txn_id or b'')

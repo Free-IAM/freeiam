@@ -3,7 +3,7 @@
 """Data wrapper."""
 
 from dataclasses import dataclass
-from typing import Any, TypeAlias
+from typing import Any, Self, TypeAlias
 
 import ldap.controls
 
@@ -23,7 +23,7 @@ class Controls:
     client: LDAPControlList | None = None
     response: LDAPControlList | None = None
 
-    def get(self, control):
+    def get(self, control: ldap.controls.LDAPControl):
         """Get the control from the list of response controls."""
         for ctrl in self.response or []:
             if ctrl.controlType == control.controlType:
@@ -31,19 +31,19 @@ class Controls:
         return None
 
     @classmethod
-    def expand(cls, controls):
+    def expand(cls, controls: Self) -> dict[str, LDAPControlList]:
         if controls is None:
             return {}
         return {'serverctrls': controls.server, 'clientctrls': controls.client}
 
     @classmethod
-    def append_server(cls, controls, control):
+    def append_server(cls, controls: Self | None, control: ldap.controls.LDAPControl) -> Self:
         controls = Controls([]) if controls is None else controls
         controls.server.append(control)
         return controls
 
     @classmethod
-    def set_server(cls, controls, control):
+    def set_server(cls, controls: Self | None, control: ldap.controls.LDAPControl) -> Self:
         controls = Controls([]) if controls is None else controls
         controls.server = [ctrl for ctrl in controls.server if ctrl.controlType != control.controlType] + [control]
         return controls
@@ -54,13 +54,24 @@ class _Response:
     """The raw response of ldapobject.result4()."""
 
     type: ResponseType | None
-    data: list | None
-    msgid: int | None
-    ctrls: list[Any] | None
-    name: Any
-    value: Any
+    """The response protocol operation."""
 
-    def __post_init__(self):
+    data: list | None
+    """The response data for the corresponding operation."""
+
+    msgid: int | None
+    """The unique message ID."""
+
+    ctrls: LDAPControlList | None
+    """The list of python-ldap decoded response controls."""
+
+    name: str | None = None
+    """The OID (responseName) of a extended operation response."""
+
+    value: bytes | None = None
+    """The raw ASN.1 encoded reponseValue of an extended operation response."""
+
+    def __post_init__(self) -> None:
         if not isinstance(self.type, ResponseType | None):
             self.type = ResponseType(self.type)
 
@@ -109,20 +120,23 @@ class Result:
     page: Page | None = None
     """The page of a paginated search result."""
 
+    extended_value: Any = None
+    """The decoded response value of an extended response."""
+
     @classmethod
-    def from_response(cls, dn, attr, controls, response, **kwargs):
+    def from_response(cls, dn: DN | None, attr: dict, controls: LDAPControlList, response: _Response, **kwargs: Any) -> Self:
         dn = dn if dn is None else DN.get(dn)
         attr = attr if attr is None else Attributes(attr)
         return cls(dn, attr, cls._control_response(controls, response.ctrls), response, **kwargs)
 
     @classmethod
-    def set_controls(cls, response: _Response, controls: Controls | None):
+    def set_controls(cls, response: _Response, controls: Controls | None) -> None:
         if controls is None:
             return
         controls.response = response.ctrls
 
     @classmethod
-    def _control_response(cls, controls, response_ctrls):
+    def _control_response(cls, controls: Controls | None, response_ctrls: LDAPControlList) -> Controls:
         if controls is None:
             return Controls(None, None, response_ctrls)
 
