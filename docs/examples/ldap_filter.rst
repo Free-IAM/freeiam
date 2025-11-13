@@ -324,6 +324,7 @@ Possible transformation steps
 10. **Expand wildcards or patterns**
 
     Replace a filter containing a broad wildcard with explicit value alternatives, or the other way around.
+    Some attributes don't provide a substring matching rule.
 
     Example: ``(cn=app*)`` →
 
@@ -348,6 +349,15 @@ Possible transformation steps
           (sambaAcctFlags=[ULD       ])
         )
       )
+
+12. **Replace a ASCII representation to a binary attribute filter**
+
+    For attributes with a binary blob syntax, support for string representations could be achieved:
+
+    Example: ``(objectGUID=efbee1fe-ef4d-edac-dead-c0de87ea1337)`` → ``(objectGUID=\fe\e1\be\ef\4d\ef\ac\ed\de\ad\c0\de\87\ea\13\37)``
+
+    (not included below, due to redundancy. Suitable Python code for the transformation could be):
+    ``samba.ndr.ndr_pack(samba.dcerpc.misc.GUID('efbee1fe-ef4d-edac-dead-c0de87ea1337')).decode('ISO8859-1')``
 
 Transformation implementation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
