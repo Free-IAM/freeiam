@@ -117,8 +117,8 @@ isinstance(DN.get('uid=foo'), DN)
 isinstance(DN.get(DN('uid=foo')), DN)
 
 
-# Comparisions
-# Comparisions can be done, please respect the notes above about the limits of comparing
+# Comparisons
+# Comparisons can be done, please respect the notes above about the limits of comparing
 DN('cn=foo,dc=freeiam,dc=org') == DN('cn=foo,dc=freeiam,dc=org')
 DN('cn=foo,dc=freeiam,dc=org') != DN('cn=bar,dc=freeiam,dc=org')
 DN('CN=foo,dc=freeiam,dc=org') == DN('cn=foo,dc=freeiam,dc=org')

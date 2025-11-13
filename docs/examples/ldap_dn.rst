@@ -281,7 +281,7 @@ Utility methods
 Comparisons
 -----------
 
-Comparisions can be done, please respect the notes above about the limits of comparing.
+Comparisons can be done, please respect the notes above about the limits of comparing.
 
 .. code-block:: pycon
 

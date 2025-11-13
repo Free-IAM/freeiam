@@ -57,7 +57,7 @@ Filter.get_not(Filter.get_eq('cn', user_input))
 from freeiam.ldap.filter import (
     NOT,
     Attribute,
-    Comparision,
+    Comparison,
     EqualityMatch,
     Filter,
     SubstringMatch,
@@ -65,7 +65,7 @@ from freeiam.ldap.filter import (
 )
 
 
-def comparision_callback(filter_, parent, expression):
+def comparison_callback(filter_, parent, expression):
     a = Attribute
 
     if expression.attr == 'surName':
@@ -155,24 +155,24 @@ def operator_callback(filter_, parent, expression):
         expr.attr.lower() == 'objectClass'.lower()
         and expr.value.lower() == 'inetOrgPerson'.lower()
         for expr in expression.expressions
-        if isinstance(expr, Comparision)
+        if isinstance(expr, Comparison)
     ):
         # ``(&(objectClass=top)(objectClass=person)(objectClass=inetOrgPerson))``
         # → ``(objectClass=inetOrgPerson)``
-        for expr in expression.comparisions:
+        for expr in expression.comparisons:
             if expr.attr.lower() == 'objectClass'.lower() and expr.value.lower() in {
                 'top',
                 'person',
             }:
                 expression.remove(expr)
 
-    for expr in expression.comparisions:
+    for expr in expression.comparisons:
         # ``(|(uid=alice)(uid=alice))`` → ``(|(uid=alice))``
         if expression.expressions.count(expr) > 1:
             expression.remove(expr)
 
     if (
-        len(expression.comparisions) + len(expression.operators)
+        len(expression.comparisons) + len(expression.operators)
     ) == 1 and not isinstance(expression, NOT):
         # ``(|(uid=alice))`` → ``(uid=alice)``
         parent.replace(expression, expression.expressions[0])
@@ -180,6 +180,6 @@ def operator_callback(filter_, parent, expression):
 
 FILTER_EXPRESSION: str = ...
 fil = Filter(FILTER_EXPRESSION)
-fil.walk(comparision_callback, operator_callback, WalkStrategy.POST)
+fil.walk(comparison_callback, operator_callback, WalkStrategy.POST)
 print(fil.pretty())
 # end FILTER TRANSFORMATIONS
