@@ -197,7 +197,7 @@ def _ldap_server():
     shutil.copytree(cert_dir, cert_dir_copy)
 
     container_ = (
-        DockerContainer('bitnami/openldap:2.4')
+        DockerContainer('bitnamilegacy/openldap:2.4')
         .with_exposed_ports(1389, 1636)
         .with_env('LDAP_ORGANISATION', ORGANISATION)
         .with_env('LDAP_ROOT', BASE_DN)
