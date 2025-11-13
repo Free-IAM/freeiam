@@ -5,18 +5,22 @@
 set -e
 
 cat > /tmp/dds-overlay.ldif << 'EOF'
-dn: cn=module{1},cn=config
+dn: cn=module{3},cn=config
 objectClass: olcModuleList
 cn: module{1}
 olcModuleLoad: dds
 
 dn: olcOverlay=dds,olcDatabase={2}mdb,cn=config
 objectClass: olcOverlayConfig
-objectClass: olcDDSconfig
+objectClass: olcDDSConfig
 olcOverlay: dds
 olcDDSMaxTTL: 31536000
 olcDDSMinTTL: 10
 olcDDSDefaultTTL: 86400
+# olcDDSstate
+# olcDDSinterval
+# olcDDStolerance
+# olcDDSmaxDynamicObjects
 EOF
 
 echo "Enabling dds overlay in OpenLDAP configuration..."
@@ -26,7 +30,8 @@ then
     exit 0
 else
     slapadd -F /opt/bitnami/openldap/etc/slapd.d -b cn=config -l /tmp/dds-overlay.ldif || {
-        echo "NOTICE: slapadd failed to load dds overlay. Check the cn=module{N} with \"slapcat -F /opt/bitnami/openldap/etc/slapd.d -b cn=config |grep 'cn=module'\""
+        echo "NOTICE: slapadd failed to load dds overlay. Check the cn=module{N}"
+        slapcat -F /opt/bitnami/openldap/etc/slapd.d -b cn=config | grep cn=module
         exit 1
     }
 fi

@@ -4,9 +4,7 @@
 import contextlib
 import datetime
 import io
-import json
 import logging
-import os
 import shutil
 import sys
 import tempfile
@@ -79,18 +77,9 @@ class ExtraFormatter(logging.Formatter):
         return super().format(record)
 
 
-def patch_docker_config_env():
-    temp_config = tempfile.TemporaryDirectory()
-    config_path = Path(temp_config.name) / 'config.json'
-    with config_path.open('w') as fd:
-        json.dump({'ipv6': False}, fd)
-    os.environ['DOCKER_CONFIG'] = temp_config.name
-    return temp_config
-
-
-def wait_for_ldap(ldap_uri, binddn, bindpw):
+def wait_for_ldap(ldap_uri, binddn, bindpw, count=10):
     log.info('Connecting to %s', ldap_uri)
-    for _ in range(10):
+    for _ in range(count):
         try:
             print('.', end='')
             sys.stdout.buffer.flush()
@@ -98,6 +87,8 @@ def wait_for_ldap(ldap_uri, binddn, bindpw):
             conn.simple_bind_s(binddn, bindpw)
             conn.unbind_s()
             break
+        except ldap.INVALID_CREDENTIALS:
+            time.sleep(0.5)  # set up sometimes takes some time to create initial users
         except ldap.SERVER_DOWN:
             time.sleep(1)
     else:
@@ -171,6 +162,31 @@ def wait_for_ssl_if_marked(request, ldap_server):
         pytest.fail('LDAP TLS setup start failed')
 
 
+def get_exposed_port(container, container_port: int, ipv4: bool = True) -> int:
+    """
+    Return the host-mapped port for a given container port.
+    Works with dual-stack (IPv4 + IPv6) bindings.
+    """
+    client = docker.from_env()
+    cid = container._container.id
+    info = client.api.inspect_container(cid)
+    port_bindings = info['NetworkSettings']['Ports']
+
+    key = f'{container_port}/tcp'
+    if key not in port_bindings or not port_bindings[key]:
+        msg = f'Container port {container_port} not exposed'
+        raise RuntimeError(msg)
+
+    for binding in port_bindings[key]:
+        if ipv4 and binding['HostIp'] == '0.0.0.0':  # noqa: S104
+            return int(binding['HostPort'])
+        if not ipv4 and binding['HostIp'] == '::':
+            return int(binding['HostPort'])
+
+    msg = f'No binding found for container port {container_port}'
+    raise RuntimeError(msg)
+
+
 @pytest.fixture(scope='session')
 def ldap_server():
     with _ldap_server() as s:
@@ -178,12 +194,10 @@ def ldap_server():
 
 
 @contextlib.contextmanager
-def _ldap_server():
+def _ldap_server():  # noqa: PLR0915,PLR0914
     global container  # noqa: PLW0603
     for logname in ('docker.utils.config', 'docker.auth', 'urllib3.connectionpool'):
         logging.getLogger(logname).setLevel(logging.WARNING)
-
-    docker_config = patch_docker_config_env()
 
     cert_dir = Path(tempfile.mkdtemp())
     if not (Path.cwd() / 'tests' / 'certs').exists():
@@ -195,11 +209,20 @@ def _ldap_server():
 
     cert_dir_copy = cert_dir.with_suffix('.copy')
     shutil.copytree(cert_dir, cert_dir_copy)
+    # 'HostConfig': {
+    #     'Sysctls': {
+    #         'net.ipv6.conf.all.disable_ipv6': '1',
+    #         'net.ipv6.conf.default.disable_ipv6': '1',
+    #         'net.ipv6.conf.lo.disable_ipv6': '1',
+    #     }
+    # }
 
     container_ = (
-        DockerContainer('bitnamilegacy/openldap:2.4')
+        DockerContainer('bitnamilegacy/openldap:2.6')
         .with_exposed_ports(1389, 1636)
         .with_env('LDAP_ORGANISATION', ORGANISATION)
+        .with_env('LDAP_PORT_NUMBER', '1389')
+        .with_env('LDAP_LDAPS_PORT_NUMBER', '1636')
         .with_env('LDAP_ROOT', BASE_DN)
         .with_env('LDAP_ADMIN_PASSWORD', ADMIN_PW)
         .with_env('LDAP_CONFIG_ADMIN_ENABLED', 'yes')
@@ -251,9 +274,11 @@ def _ldap_server():
     try:
         host = container.get_container_host_ip()
         port_ldap = int(container.get_exposed_port(1389))
-        port_ldaps = int(container.get_exposed_port(1636))
+        port_ldaps_ip4 = int(get_exposed_port(container, 1636, ipv4=True))
+        port_ldaps = int(get_exposed_port(container, 1636, ipv4=False))
         ldap_uri = f'ldap://localhost:{port_ldap}/'
         ldaps_uri = f'ldaps://localhost:{port_ldaps}/'
+        ldaps_uri_ip4 = f'ldaps://localhost:{port_ldaps_ip4}/'
         ca_cert = str(ca_path)
         printl = log.info
         printl(f'openssl x509 -in {ca_cert} -text -noout')
@@ -267,6 +292,13 @@ def _ldap_server():
         if not wait_for_ldap(ldap_uri, ADMIN_DN, ADMIN_PW):
             dump_logs(container)
             pytest.fail('LDAP Server start failed')
+
+        if not wait_for_ldap(ldaps_uri, ADMIN_DN, ADMIN_PW):
+            # since OL 2.6: 0.0.0.0:32898->1389/tcp, :::32897->1389/tcp, 0.0.0.0:32897->1636/tcp, :::32896->1636/tcp
+            # try the port from the other IP interface
+            port_ldaps = port_ldaps_ip4
+            ldaps_uri = ldaps_uri_ip4
+            print(f'Wrong ldaps port: trying {port_ldaps} {ldaps_uri}')
 
         enable_config(ldap_uri)
 
@@ -292,7 +324,6 @@ def _ldap_server():
         # breakpoint()
         container.stop()
         container = None
-        docker_config.cleanup()
         shutil.rmtree(cert_dir)
 
 
