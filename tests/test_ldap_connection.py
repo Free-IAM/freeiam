@@ -296,12 +296,10 @@ async def test_modify(conn, testuser):
     dn, attrs = testuser
 
     newattrs = attrs.copy()
-    newattrs.update(
-        {
-            'sn': [b'New User'],
-            'givenName': [b'Name'],
-        }
-    )
+    newattrs.update({
+        'sn': [b'New User'],
+        'givenName': [b'Name'],
+    })
     await conn.modify(dn, attrs, newattrs)
     result = await conn.get(dn)
     assert result.attr == newattrs, result.attr

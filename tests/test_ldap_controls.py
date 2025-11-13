@@ -46,15 +46,13 @@ def test_result_control_empty():
 
 def test_exception_controls():
     exc = errors.VLVError.from_ldap_exception(
-        _ldap.VLV_ERROR(
-            {
-                'msgtype': 101,
-                'msgid': 5,
-                'result': 76,
-                'desc': 'Virtual List View error',
-                'ctrls': [('2.16.840.1.113730.3.4.10', 0, b'0\x13\x02\x01\x00\x02\x01\x0b\n\x01M\x04\x08 ]\x10\x94\xad\x7f\x00\x00')],
-            }
-        )
+        _ldap.VLV_ERROR({
+            'msgtype': 101,
+            'msgid': 5,
+            'result': 76,
+            'desc': 'Virtual List View error',
+            'ctrls': [('2.16.840.1.113730.3.4.10', 0, b'0\x13\x02\x01\x00\x02\x01\x0b\n\x01M\x04\x08 ]\x10\x94\xad\x7f\x00\x00')],
+        })
     )
     ctrls = exc.controls
     assert ctrls

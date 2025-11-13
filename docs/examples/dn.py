@@ -133,14 +133,12 @@ DN('uid=bar+CN=foo,dc=freeiam,dc=org') == DN('cn=foo+UID=bar,dc=freeiam,dc=org')
 DN(r'cn=\66o\6f,dc=freeiam,dc=org') == DN(r'cn=foo,dc=freeiam,dc=org')
 
 # Removing duplicates
-DN.get_unique(
-    [
-        'CN=users,dc=freeiam,dc=org',
-        'cn=users,dc=freeiam,dc=org',
-        'cn = users,dc=freeiam,dc=org',
-        'CN=Users,dc=freeiam,dc=org',
-    ]
-)  # gives a set of unique DNs: {DN('CN=users,dc=freeiam,dc=org')}
+DN.get_unique([
+    'CN=users,dc=freeiam,dc=org',
+    'cn=users,dc=freeiam,dc=org',
+    'cn = users,dc=freeiam,dc=org',
+    'CN=Users,dc=freeiam,dc=org',
+])  # gives a set of unique DNs: {DN('CN=users,dc=freeiam,dc=org')}
 
 DN.get_unique_str(
     DN.get_unique(['cn=foo', 'cn=bar']) - DN.get_unique(['cn = foo'])

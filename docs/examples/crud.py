@@ -53,14 +53,12 @@ async def ldap_modify_user_examples():
         newattrs = (
             obj.attrs.copy()
         )  # or just use two dicts with a subset of these attributes
-        newattrs.update(
-            {
-                'givenName': [b'Erika'],  # change name
-                'sn': [b'Musterfrau'],
-                'mail': [],  # remove mail
-                'title': [b'Dr.'],  # add attribute
-            }
-        )
+        newattrs.update({
+            'givenName': [b'Erika'],  # change name
+            'sn': [b'Musterfrau'],
+            'mail': [],  # remove mail
+            'title': [b'Dr.'],  # add attribute
+        })
         await conn.modify(dn, obj.attrs, newattrs)
 
         # modify a entry from LDAP modlist definition
