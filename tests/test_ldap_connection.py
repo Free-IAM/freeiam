@@ -11,7 +11,15 @@ import pytest_asyncio
 
 from freeiam import errors, ldap
 from freeiam.ldap.constants import Dereference, Option, OptionValue, Scope, TLSRequireCert, Version
-from freeiam.ldap.controls import Controls, virtual_list_view
+from freeiam.ldap.controls import Controls, transaction, virtual_list_view
+from freeiam.ldap.extended_operations import (
+    AbortedTransactionNotice,
+    ExtendedRequest,
+    ExtendedResponse,
+    refresh_ttl,
+    transaction_commit,
+    transaction_start,
+)
 
 
 log = logging.getLogger(__name__)
@@ -756,12 +764,26 @@ async def test_abandon_iter(conn, page_users, base_dn):
 #        await conn.get(result.dn)
 
 
-@pytest.mark.xfail(
-    raises=errors.ProtocolError, match='OID in extended response does not match response class.', reason='Server does not send response data'
-)
-@pytest.mark.timeout(5)
 @pytest.mark.asyncio
-async def test_extended_operation(conn, base_dn):
+async def test_whoami_extended_operation(conn):
+    class WhoAmIRequest(ExtendedRequest):
+        requestName = '1.3.6.1.4.1.4203.1.11.3'  # noqa: N815
+
+        def __init__(self):
+            super().__init__(self.requestName, None)
+
+    class WhoAmIResponse(ExtendedResponse):
+        responseName = None  # noqa: N815
+
+    result = await conn.extended(WhoAmIRequest(), WhoAmIResponse)
+    assert result.extended_value == b'dn:cn=admin,dc=freeiam,dc=org'
+
+    with pytest.raises(errors.ProtocolError):
+        await conn.extended(WhoAmIRequest(), AbortedTransactionNotice)
+
+
+@pytest.mark.asyncio
+async def test_dds_extended_operation(conn, base_dn):
     attrs = {
         'objectClass': [b'inetOrgPerson', b'dynamicObject'],
         # 'entryTtl': [b'20'],
@@ -770,7 +792,42 @@ async def test_extended_operation(conn, base_dn):
         'sn': [b'dynamic1'],
     }
     result = await conn.add(f'uid=dynamic1{TESTUSERNAME},{base_dn}', attrs)
-    await conn.refresh_ttl(result.dn, 20)
+    res = await conn.refresh_ttl(result.dn, 20)
+    assert res.extended_value == 20
+
+    await conn.extended(refresh_ttl(result.dn, 20))
+
+
+@pytest.mark.asyncio
+async def test_txn_extended_operation(conn, base_dn):
+    conn._hide_parent_exception = False
+    result = await conn.extended(transaction_start(), transaction_start.response)
+    txn_id = result.extended_value
+    controls = Controls.set_server(None, transaction(txn_id, criticality=True))
+    attrs = {
+        'objectClass': [b'inetOrgPerson'],
+        'uid': [f'txn{TESTUSERNAME}'.encode()],
+        'cn': [b'CN'],
+        'sn': [b'SN'],
+    }
+    dn = f'uid=txn{TESTUSERNAME},{base_dn}'
+    await conn.add(dn, attrs, controls=controls)
+    await conn.extended(transaction_commit(txn_id, commit=False), transaction_commit.response)
+    assert not await conn.exists(dn)
+
+    result = await conn.extended(transaction_start(), transaction_start.response)
+    txn_id = result.extended_value
+    controls = Controls.set_server(None, transaction(txn_id, criticality=True))
+    attrs = {
+        'objectClass': [b'inetOrgPerson'],
+        'uid': [f'txn{TESTUSERNAME}'.encode()],
+        'cn': [b'CN'],
+        'sn': [b'SN'],
+    }
+    dn = f'uid=txn{TESTUSERNAME},{base_dn}'
+    await conn.add(dn, attrs, controls=controls)
+    await conn.extended(transaction_commit(txn_id, commit=True), transaction_commit.response)
+    assert await conn.exists(dn)
 
 
 def test_sync_methods_exists():

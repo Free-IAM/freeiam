@@ -338,7 +338,7 @@ class AVA(IntEnum):
 
 
 class ResponseType(IntEnum):
-    """LDAP Response types."""
+    """LDAP Response protocol operation."""
 
     Add = ldap.RES_ADD
     Any = ldap.RES_ANY
