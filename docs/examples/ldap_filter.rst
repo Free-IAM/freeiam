@@ -93,6 +93,8 @@ Alternatively, automatic escaping makes filter construction easier and safer:
     >>> user_input = 'foo (bar)*'  # example input with characters needing escaping
     >>> cn = Filter.attr('cn')
     >>> print_expr(cn == '')  # noqa: PLC1901
+    cn=  # EqualityMatch(cn=escape(''))
+    >>> print_expr(cn != None)  # noqa: E711
     cn=*  # PresenceMatch(cn=*escape(''))
     >>> print_expr(cn == user_input)
     cn=foo \28bar\29\2a  # EqualityMatch(cn=escape('foo (bar)*'))
