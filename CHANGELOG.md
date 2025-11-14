@@ -2,6 +2,48 @@
 
 <!-- version list -->
 
+## v0.7.0 (2025-11-14)
+
+### Bug Fixes
+
+- **ldap**: Fix typo in class name "Comparison"
+  ([`8526c3e`](https://github.com/Free-IAM/freeiam/commit/8526c3eab9addea356c560c66fbbd89f29fc2f3e))
+
+- **ldap.filter**: Enhance API to not give a presence match for comparision with empty strings
+  ([`57436a4`](https://github.com/Free-IAM/freeiam/commit/57436a4ae31753161271c781f91a5bdbc51c5273))
+
+- **ldap.filter**: Fix repr() of PresenceMatch to not include a empty value
+  ([`0241c15`](https://github.com/Free-IAM/freeiam/commit/0241c159d0371198dc9a56b4d3bffb787d51e3e4))
+
+### Documentation
+
+- Add introductions to each chapter
+  ([`6bc7ab6`](https://github.com/Free-IAM/freeiam/commit/6bc7ab61929154e3f362d96afbdfb85f0a0aae94))
+
+- Fix typo "comparison"
+  ([`bec78d3`](https://github.com/Free-IAM/freeiam/commit/bec78d3059702b7a43f66ece55177796b225511d))
+
+- **ldap**: Describe extended operations
+  ([`190381c`](https://github.com/Free-IAM/freeiam/commit/190381c6361410e9a1eb126de2fe040419429141))
+
+- **ldap.dn**: Split examples into sections
+  ([`dc28e9c`](https://github.com/Free-IAM/freeiam/commit/dc28e9c7cf117e6577e50e1d27de8468111cc726))
+
+- **ldap.filter**: Enhance example about filter transformation
+  ([`c5977da`](https://github.com/Free-IAM/freeiam/commit/c5977da9f10e2e9f0bc3a9881f227d224e400ed0))
+
+### Features
+
+- **ldap**: Add Refresh extended operation
+  ([`eced9f3`](https://github.com/Free-IAM/freeiam/commit/eced9f3437349fb6d823ef88b2276504fb2ed66d))
+
+- **ldap**: Allow setting multiple TLS settings and split TLS options into multiple enums
+  ([`f7cf8ef`](https://github.com/Free-IAM/freeiam/commit/f7cf8ef7cad1c273d59b1d802dbe5898df105d81))
+
+- **ldap.dn**: Change repr() of DN
+  ([`a3c8aa2`](https://github.com/Free-IAM/freeiam/commit/a3c8aa204d4e0dd1e699e283a27f8d0bfcb391cd))
+
+
 ## v0.6.0 (2025-08-12)
 
 ### Documentation
