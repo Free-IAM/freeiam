@@ -95,7 +95,7 @@ Alternatively, automatic escaping makes filter construction easier and safer:
     >>> print_expr(cn == '')  # noqa: PLC1901
     cn=  # EqualityMatch(cn=escape(''))
     >>> print_expr(cn != None)  # noqa: E711
-    cn=*  # PresenceMatch(cn=*escape(''))
+    cn=*  # PresenceMatch(cn=*)
     >>> print_expr(cn == user_input)
     cn=foo \28bar\29\2a  # EqualityMatch(cn=escape('foo (bar)*'))
     >>> print_expr(cn != user_input)
@@ -136,7 +136,7 @@ Or by using explicit method calls:
 .. code:: pycon
 
     >>> Filter.get_pres('cn')
-    PresenceMatch(cn=*escape(''))
+    PresenceMatch(cn=*)
     >>> Filter.get_eq('cn', user_input)
     EqualityMatch(cn=escape('foo (bar)*'))
     >>> Filter.get_approx('cn', user_input)

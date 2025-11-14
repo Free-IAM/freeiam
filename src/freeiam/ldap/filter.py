@@ -240,6 +240,8 @@ class Comparison(Expression):
 
     def __repr__(self):
         val = repr(self.raw_value) if self.is_escaped else f'escape({self.raw_value!r})'
+        if isinstance(self, PresenceMatch):
+            val = ''
         return f'{type(self).__name__}({self.attr}{self._extra}{self.expression}{val})'
 
     def __hash__(self):
