@@ -549,8 +549,11 @@ def test_escape_attribute():
     user_input = 'foo (bar)*'
     cn = Filter.attr('cn')
 
-    assert str(cn == '') == 'cn=*'  # noqa: PLC1901
-    assert repr(cn == '') == "PresenceMatch(cn=*escape(''))"  # noqa: PLC1901
+    assert str(cn == '') == 'cn='  # noqa: PLC1901
+    assert repr(cn == '') == "EqualityMatch(cn=escape(''))"  # noqa: PLC1901
+
+    assert str(cn != None) == 'cn=*'  # noqa: E711
+    assert repr(cn != None) == "PresenceMatch(cn=*escape(''))"  # noqa: E711
 
     assert str(cn == user_input) == r'cn=foo \28bar\29\2a'
     assert repr(cn == user_input) == "EqualityMatch(cn=escape('foo (bar)*'))"

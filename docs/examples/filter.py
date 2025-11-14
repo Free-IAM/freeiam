@@ -17,6 +17,7 @@ def print_expr(expression):
 user_input = 'foo (bar)*'  # example user input, using chars which require escaping
 cn = Filter.attr('cn')
 print_expr(cn == '')  # noqa: PLC1901
+print_expr(cn != None)  # noqa: E711
 print_expr(cn == user_input)
 print_expr(cn != user_input)
 print_expr(cn == ['', user_input, ''])  # prefix and suffix with *

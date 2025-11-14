@@ -146,13 +146,13 @@ class Attribute:
         return Filter.get_extensible(attr, self.dn, self.matchingrule, value)
 
     def __eq__(self, other: Sequence):
-        if not other:
-            return Filter.get_pres(self.attribute)
         if isinstance(other, (list, tuple)):
             return Filter.get_substring(self.attribute, *other)
         return self.eq(self.attribute, other)
 
-    def __ne__(self, other: Sequence):
+    def __ne__(self, other: Sequence | None):
+        if other is None:
+            return Filter.get_pres(self.attribute)
         return Filter.get_not(self == other)
 
     def __gt__(self, other: str | int):
