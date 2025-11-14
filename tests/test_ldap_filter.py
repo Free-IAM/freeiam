@@ -553,7 +553,7 @@ def test_escape_attribute():
     assert repr(cn == '') == "EqualityMatch(cn=escape(''))"  # noqa: PLC1901
 
     assert str(cn != None) == 'cn=*'  # noqa: E711
-    assert repr(cn != None) == "PresenceMatch(cn=*escape(''))"  # noqa: E711
+    assert repr(cn != None) == 'PresenceMatch(cn=*)'  # noqa: E711
 
     assert str(cn == user_input) == r'cn=foo \28bar\29\2a'
     assert repr(cn == user_input) == "EqualityMatch(cn=escape('foo (bar)*'))"
@@ -612,7 +612,7 @@ def test_escape_classic():
     ipv4 = '127.0.0.1'
     ipv6 = '::1'
 
-    assert repr(Filter.get_pres('cn')) == "PresenceMatch(cn=*escape(''))"
+    assert repr(Filter.get_pres('cn')) == 'PresenceMatch(cn=*)'
     assert repr(Filter.get_eq('cn', user_input)) == "EqualityMatch(cn=escape('foo (bar)*'))"
     assert repr(Filter.get_approx('cn', user_input)) == "ApproximateMatch(cn~=escape('foo (bar)*'))"
     assert repr(Filter.get_substring('cn', *user_input.split('*'))) == "SubstringMatch(cn=escape('foo (bar)'))"
