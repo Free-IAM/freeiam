@@ -900,8 +900,8 @@ class Connection:
 
         if response_class:
             with errors.LdapError.wrap(self._hide_parent_exception):
-                if response_class.responseName == response.name:  # pragma: no cover
-                    return response_class(response.name, response.value)
+                if response_class.responseName == response.name or response.name is None:  # pragma: no cover
+                    return response_class(response_class.responseName, response.value or b'')
                 raise errors.ProtocolError({
                     'desc': 'OID in extended response does not match response class.',
                     'info': f'expected: {response_class.responseName}; got: {response.name}',

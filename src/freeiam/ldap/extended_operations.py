@@ -34,14 +34,11 @@ class StartTransactionRequest(ExtendedRequest):
 class StartTransactionResponse(ExtendedResponse):
     responseName = '1.3.6.1.1.21.1'  # noqa: N815
 
-    def __init__(self, respdata=None):
-        self.txn_id = None
-        if respdata:
-            self.txn_id, _ = decoder.decode(respdata, asn1Spec=univ.OctetString())
-        super().__init__(self.responseName, respdata)
-
-    def txnID(self) -> bytes:  # noqa: N802
-        return bytes(self.txn_id)
+    def __init__(self, responseName, encodedResponseValue):  # noqa: N803
+        self.txn_id = b''
+        if encodedResponseValue:
+            self.txn_id, _ = decoder.decode(encodedResponseValue, asn1Spec=univ.OctetString())
+        super().__init__(responseName or self.responseName, encodedResponseValue)
 
 
 class EndTransactionRequest(ExtendedRequest):

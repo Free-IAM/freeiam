@@ -780,7 +780,9 @@ async def test_dds_extended_operation(conn, base_dn):
 @pytest.mark.timeout(5)
 @pytest.mark.asyncio
 async def test_txn_extended_operation(conn, base_dn):
-    txn_id = await conn.extended(transaction_start(), transaction_start.response)
+    conn._hide_parent_exception = False
+    txn = await conn.extended(transaction_start(), transaction_start.response)
+    txn_id = txn.txn_id
     try:
         attrs = {
             'objectClass': [b'inetOrgPerson'],
