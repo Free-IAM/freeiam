@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """LDAP Server and Client controls."""
 
-from ldap.controls import DecodeControlTuples, ResponseControl
+from ldap.controls import DecodeControlTuples, RequestControl, ResponseControl
 from ldap.controls.deref import DereferenceControl
 from ldap.controls.libldap import AssertionControl, MatchedValuesControl
 from ldap.controls.pagedresults import SimplePagedResultsControl
@@ -27,6 +27,8 @@ from ldap.controls.simple import (
 # from ldap.controls.libldap import SimplePagedResultsControl
 from ldap.controls.sss import SSSRequestControl
 from ldap.controls.vlv import VLVRequestControl, VLVResponseControl
+from pyasn1.codec.ber import decoder, encoder
+from pyasn1.type import univ
 
 from freeiam.ldap._wrapper import Controls
 from freeiam.ldap.constants import LDAPChangeType
@@ -162,3 +164,22 @@ def proxy_authorization(authz_id: str | DN, *, criticality: bool = False):
     """ProxyAuthz control."""
     authz_id = f'dn:{authz_id}' if isinstance(authz_id, DN) else authz_id
     return ProxyAuthzControl(criticality, authz_id.encode('UTF-8'))
+
+
+class TransactionSpecificationControl(RequestControl):
+    controlType = '1.3.6.1.1.21.2'  # noqA: N815
+
+    def __init__(self, criticality=False, txn_id=None):
+        super().__init__(self.controlType, criticality)
+        self.txn_id = txn_id
+
+    def encodeControlValue(self):  # noqa: N802
+        return encoder.encode(univ.OctetString(self.txn_id))
+
+    def decodeControlValue(self, encoded):  # noqa: N802
+        self.txn_id, _ = decoder.decode(encoded, asn1Spec=univ.OctetString())
+
+
+def transaction_specification(transaction_id: bytes | None = None, *, criticality: bool = False):
+    """TransactionSpecification control."""
+    return TransactionSpecificationControl(criticality, transaction_id)

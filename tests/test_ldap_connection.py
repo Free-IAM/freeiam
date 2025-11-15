@@ -11,7 +11,8 @@ import pytest_asyncio
 
 from freeiam import errors, ldap
 from freeiam.ldap.constants import Dereference, Option, OptionValue, Scope, TLSRequireCert, Version
-from freeiam.ldap.controls import Controls, virtual_list_view
+from freeiam.ldap.controls import Controls, transaction_specification, virtual_list_view
+from freeiam.ldap.extended_operations import transaction_commit, transaction_start
 
 
 log = logging.getLogger(__name__)
@@ -756,12 +757,12 @@ async def test_abandon_iter(conn, page_users, base_dn):
 #        await conn.get(result.dn)
 
 
-@pytest.mark.xfail(
-    raises=errors.ProtocolError, match='OID in extended response does not match response class.', reason='Server does not send response data'
-)
-@pytest.mark.timeout(5)
+# @pytest.mark.xfail(
+#    raises=errors.ProtocolError, match='OID in extended response does not match response class.', reason='Server does not send response data'
+# )
+# @pytest.mark.timeout(5)
 @pytest.mark.asyncio
-async def test_extended_operation(conn, base_dn):
+async def test_dds_extended_operation(conn, base_dn):
     attrs = {
         'objectClass': [b'inetOrgPerson', b'dynamicObject'],
         # 'entryTtl': [b'20'],
@@ -771,6 +772,28 @@ async def test_extended_operation(conn, base_dn):
     }
     result = await conn.add(f'uid=dynamic1{TESTUSERNAME},{base_dn}', attrs)
     await conn.refresh_ttl(result.dn, 20)
+
+
+# @pytest.mark.xfail(
+#    raises=errors.ProtocolError, match='OID in extended response does not match response class.', reason='Server does not send response data'
+# )
+# @pytest.mark.timeout(5)
+@pytest.mark.asyncio
+async def test_txn_extended_operation(conn, base_dn):
+    conn._hide_parent_exception = False
+    txn = await conn.extended(transaction_start(), transaction_start.response)
+    txn_id = txn.txn_id
+    try:
+        attrs = {
+            'objectClass': [b'inetOrgPerson'],
+            'uid': [f'dynamic1{TESTUSERNAME}'.encode()],
+            'cn': [b'dynamic1'],
+            'sn': [b'dynamic1'],
+        }
+        await conn.add(f'uid=dynamic1{TESTUSERNAME},{base_dn}', attrs)
+    finally:
+        controls = Controls.set_server(None, transaction_specification(txn_id))
+        await conn.extended(transaction_commit(commit=True), transaction_commit.response, controls=controls)
 
 
 def test_sync_methods_exists():

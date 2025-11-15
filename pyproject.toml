@@ -6,6 +6,7 @@ version = "0.7.0"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "pyasn1",
     "python-ldap",
     "lark",
 ]
