@@ -47,7 +47,7 @@ or:  "(" ows "|" ows groups ows ")"
 not: "(" ows "!" ows _group  ows ")"
 ?groups: _group* -> groups
 
-?comparison: attr "=*"                         -> presence
+?comparison: attr "=*"                          -> presence
      | attr "="  value                          -> equality
      | attr "="  substrings                     -> substring
      | attr ">=" value                          -> ge
