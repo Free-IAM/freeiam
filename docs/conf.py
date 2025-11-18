@@ -28,6 +28,7 @@ exclude_patterns = []
 
 html_theme = 'furo'  # 'sphinx_rtd_theme'
 html_static_path = ['_static']
+pygments_style = 'sphinx'
 
 html_theme_options = {
     # 'navigation_depth': 4,
