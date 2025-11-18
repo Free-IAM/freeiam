@@ -30,9 +30,9 @@ from freeiam.ldap.constants import (
     TLSRequireCert,
     Version,
 )
-from freeiam.ldap.controls import Controls, server_side_sorting, simple_paged_results, virtual_list_view
+from freeiam.ldap.controls import Controls, server_side_sorting, simple_paged_results, transaction, virtual_list_view
 from freeiam.ldap.dn import DN
-from freeiam.ldap.extended_operations import ExtendedRequest, ExtendedResponse, refresh_ttl
+from freeiam.ldap.extended_operations import ExtendedRequest, ExtendedResponse, refresh_ttl, transaction_commit, transaction_start
 from freeiam.ldap.schema import Schema
 
 
@@ -854,6 +854,26 @@ class Connection:
             return False
         else:  # pragma: no cover
             return True
+
+    @contextlib.contextmanager
+    def transaction(self, set_controls: bool = True):
+        """Context manager to make a transaction, which is aborted on errors."""
+        result = self.extended(transaction_start(), transaction_start.response)
+        txn_id = result.extended_value
+        if set_controls:
+            self.set_controls(Controls.set_server(None, transaction(txn_id, criticality=True)))
+        try:
+            yield txn_id
+        except BaseException:
+            self.set_option(Option.ServerControls, [])
+            self.extended(transaction_commit(txn_id, commit=False), transaction_commit.response)
+            raise
+        else:
+            self.set_option(Option.ServerControls, [])
+            try:
+                self.extended(transaction_commit(txn_id, commit=True), transaction_commit.response)
+            except errors.OperationsError as exc:
+                log.warning('Failure during commiting transaction', extra={'error': exc})
 
     def refresh_ttl(self, dn: DN | str, ttl: int) -> Result:
         """Perform Refresh extended operation."""

@@ -768,6 +768,57 @@ def test_txn_extended_operation(conn, base_dn):
     assert conn.exists(dn)
 
 
+def test_txn_extended_operation_context_manager_exception_abort(conn, base_dn):
+    with pytest.raises(KeyError):  # noqa: PT012, SIM117
+        with conn.transaction():
+            attrs = {
+                'objectClass': [b'inetOrgPerson'],
+                'uid': [f'txn2{TESTUSERNAME}'.encode()],
+                'cn': [b'CN'],
+                'sn': [b'SN'],
+            }
+            dn = f'uid=txn2{TESTUSERNAME},{base_dn}'
+            conn.add(dn, attrs)
+            raise KeyError()
+    assert not conn.exists(dn)
+
+
+def test_txn_extended_operation_context_manager_no_action(conn, base_dn):
+    with conn.transaction(set_controls=False):  # we don't set the connection wide transaction ID
+        attrs = {
+            'objectClass': [b'inetOrgPerson'],
+            'uid': [f'txn3{TESTUSERNAME}'.encode()],
+            'cn': [b'CN'],
+            'sn': [b'SN'],
+        }
+        dn = f'uid=txn3{TESTUSERNAME},{base_dn}'
+        # therefore the following is added always
+        conn.add(dn, attrs)
+        # and the transaction is commited without having anything as part of it
+    assert conn.exists(dn)
+
+
+def test_txn_extended_operation_context_manager_no_action_err(conn, base_dn):
+    with pytest.raises(KeyError):  # noqa: SIM117
+        with conn.transaction(set_controls=False) as txn_id:
+            raise KeyError()
+
+    assert txn_id is None
+
+
+def test_txn_extended_operation_context_manager(conn, base_dn):
+    with conn.transaction():
+        attrs = {
+            'objectClass': [b'inetOrgPerson'],
+            'uid': [f'txn2{TESTUSERNAME}'.encode()],
+            'cn': [b'CN'],
+            'sn': [b'SN'],
+        }
+        dn = f'uid=txn2{TESTUSERNAME},{base_dn}'
+        conn.add(dn, attrs)
+    assert conn.exists(dn)
+
+
 def test_sync_methods_exists():
     def methods(cls):
         return {name for name, member in inspect.getmembers(cls, predicate=inspect.isfunction) if not name.startswith('_')}
