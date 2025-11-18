@@ -19,6 +19,7 @@ s/async def /def /g;
 s/async for /for /g;
 s/async with /with /g;
 s/anext(/next(/g;
+s/asynccontextmanager/contextmanager/g;
 s/StopAsyncIteration/StopIteration/g;
 /^ *def __enter__(/,/^$/d
 /^ *def __exit__(/,/^$/d

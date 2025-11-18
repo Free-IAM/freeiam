@@ -830,6 +830,61 @@ async def test_txn_extended_operation(conn, base_dn):
     assert await conn.exists(dn)
 
 
+@pytest.mark.asyncio
+async def test_txn_extended_operation_context_manager_exception_abort(conn, base_dn):
+    with pytest.raises(KeyError):  # noqa: PT012
+        async with conn.transaction():
+            attrs = {
+                'objectClass': [b'inetOrgPerson'],
+                'uid': [f'txn2{TESTUSERNAME}'.encode()],
+                'cn': [b'CN'],
+                'sn': [b'SN'],
+            }
+            dn = f'uid=txn2{TESTUSERNAME},{base_dn}'
+            await conn.add(dn, attrs)
+            raise KeyError()
+    assert not await conn.exists(dn)
+
+
+@pytest.mark.asyncio
+async def test_txn_extended_operation_context_manager_no_action(conn, base_dn):
+    async with conn.transaction(set_controls=False):  # we don't set the connection wide transaction ID
+        attrs = {
+            'objectClass': [b'inetOrgPerson'],
+            'uid': [f'txn3{TESTUSERNAME}'.encode()],
+            'cn': [b'CN'],
+            'sn': [b'SN'],
+        }
+        dn = f'uid=txn3{TESTUSERNAME},{base_dn}'
+        # therefore the following is added always
+        await conn.add(dn, attrs)
+        # and the transaction is commited without having anything as part of it
+    assert await conn.exists(dn)
+
+
+@pytest.mark.asyncio
+async def test_txn_extended_operation_context_manager_no_action_err(conn, base_dn):
+    with pytest.raises(KeyError):
+        async with conn.transaction(set_controls=False) as txn_id:
+            raise KeyError()
+
+    assert txn_id is None
+
+
+@pytest.mark.asyncio
+async def test_txn_extended_operation_context_manager(conn, base_dn):
+    async with conn.transaction():
+        attrs = {
+            'objectClass': [b'inetOrgPerson'],
+            'uid': [f'txn2{TESTUSERNAME}'.encode()],
+            'cn': [b'CN'],
+            'sn': [b'SN'],
+        }
+        dn = f'uid=txn2{TESTUSERNAME},{base_dn}'
+        await conn.add(dn, attrs)
+    assert await conn.exists(dn)
+
+
 def test_sync_methods_exists():
     def methods(cls):
         return {name for name, member in inspect.getmembers(cls, predicate=inspect.isfunction) if not name.startswith('_')}
