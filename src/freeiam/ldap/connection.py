@@ -723,7 +723,7 @@ class Connection:
     ) -> Result:
         """Modify a LDAP object from modlist."""
         conn = self.conn
-        new_dn = self._compute_changed_dn(DN(dn), ml)
+        new_dn = self._compute_changed_dn(DN.get(dn), ml)
         if dn != new_dn:
             dn = (await self.rename(dn, new_dn)).dn
         response = await self._execute(conn, conn.modify_ext, str(dn), ml, **Controls.expand(controls))
