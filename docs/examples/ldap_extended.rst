@@ -27,7 +27,7 @@ available directly as a method of the connection.
 .. literalinclude:: extended.py
    :language: python
    :start-after: start WHOAMI
-   :end-before: END WHOAMI
+   :end-before: end WHOAMI
    :caption: Using the Who Am I? extended operation
 
 Automatic object removal (refresh Time to Live (TTL))
@@ -42,7 +42,7 @@ effectively extending the entry's lifetime until the next refresh.
 .. literalinclude:: extended.py
    :language: python
    :start-after: start REFRESH
-   :end-before: END REFRESH
+   :end-before: end REFRESH
    :caption: Refreshing the TTL of a dynamic entry
 
 Transactions
