@@ -20,15 +20,19 @@ s/async for /for /g;
 s/async with /with /g;
 s/anext(/next(/g;
 s/asynccontextmanager/contextmanager/g;
+s/AsyncGenerator/Generator/g;
 s/StopAsyncIteration/StopIteration/g;
+s/  # type: ignore\[attr-defined\]//g;
+s/  # type: ignore\[misc\]//g;
 /^ *def __enter__(/,/^$/d
 /^ *def __exit__(/,/^$/d
 s/def __aenter__/def __enter__/g;
 s/def __aexit__/def __exit__/g;
+/self\.__conn_s:.*/d;
 s/self\.__conn_s\./self./g;
 /^[[:space:]]*@property[[:space:]]*$/{
 N
-/^[[:space:]]*@property[[:space:]]*\n[[:space:]]*def _sync_connection(self):[[:space:]]*$/s/.*\n//
+/^[[:space:]]*@property[[:space:]]*\n[[:space:]]*def _sync_connection(self) -> SynchronousConnection:[[:space:]]*$/s/.*\n//
 }
 /^ *def _sync_connection(/,/^$/d
 s/self\._sync_connection\./self./g;

@@ -12,18 +12,21 @@ from freeiam.ldap.constants import ResponseType
 from freeiam.ldap.dn import DN
 
 
-LDAPControlList: TypeAlias = list[ldap.controls.LDAPControl]
+LDAPControl: TypeAlias = ldap.controls.LDAPControl | ldap.controls.RequestControl | ldap.controls.ResponseControl
+LDAPControlList: TypeAlias = list[LDAPControl]
+LDAPResponseControlList: TypeAlias = list[ldap.controls.ResponseControl]
+LDAPRequestControlList: TypeAlias = list[ldap.controls.RequestControl]
 
 
 @dataclass
 class Controls:
     """The LDAP request controls."""
 
-    server: LDAPControlList | None = None
-    client: LDAPControlList | None = None
-    response: LDAPControlList | None = None
+    server: LDAPRequestControlList | None = None
+    client: LDAPRequestControlList | None = None
+    response: LDAPResponseControlList | None = None
 
-    def get(self, control: ldap.controls.LDAPControl):
+    def get(self, control: LDAPControl) -> ldap.controls.ResponseControl | None:
         """Get the control from the list of response controls."""
         for ctrl in self.response or []:
             if ctrl.controlType == control.controlType:
@@ -31,22 +34,24 @@ class Controls:
         return None
 
     @classmethod
-    def expand(cls, controls: Self) -> dict[str, LDAPControlList]:
+    def expand(cls, controls: Self | None) -> dict[str, LDAPRequestControlList | None]:
         if controls is None:
             return {}
         return {'serverctrls': controls.server, 'clientctrls': controls.client}
 
     @classmethod
-    def append_server(cls, controls: Self | None, control: ldap.controls.LDAPControl) -> Self:
-        controls = Controls([]) if controls is None else controls
-        controls.server.append(control)
-        return controls
+    def append_server(cls, controls: Self | None, control: ldap.controls.LDAPControl | ldap.controls.RequestControl) -> Self:
+        ctrls = cls([]) if controls is None else controls
+        assert ctrls.server is not None  # noqa: S101
+        ctrls.server.append(control)
+        return ctrls
 
     @classmethod
-    def set_server(cls, controls: Self | None, control: ldap.controls.LDAPControl) -> Self:
-        controls = Controls([]) if controls is None else controls
-        controls.server = [ctrl for ctrl in controls.server if ctrl.controlType != control.controlType] + [control]
-        return controls
+    def set_server(cls, controls: Self | None, control: ldap.controls.LDAPControl | ldap.controls.RequestControl) -> Self:
+        ctrls = cls([]) if controls is None else controls
+        assert ctrls.server is not None  # noqa: S101
+        ctrls.server = [ctrl for ctrl in ctrls.server if ctrl.controlType != control.controlType] + [control]
+        return ctrls
 
 
 @dataclass
@@ -56,13 +61,13 @@ class _Response:
     type: ResponseType | None
     """The response protocol operation."""
 
-    data: list | None
+    data: list[tuple[str, dict[str, list[bytes]]]] | None
     """The response data for the corresponding operation."""
 
     msgid: int | None
     """The unique message ID."""
 
-    ctrls: LDAPControlList | None
+    ctrls: LDAPResponseControlList | None
     """The list of python-ldap decoded response controls."""
 
     name: str | None = None
@@ -105,10 +110,10 @@ class Page:
 class Result:
     """The wrapped result of an operation. Allows accessing response controls."""
 
-    dn: DN
+    dn: DN | None
     """The new or unchanged DN of the object."""
 
-    attr: Attributes
+    attr: Attributes | None
     """The result LDAP attributes, if the operation provides some."""
 
     controls: Controls | None
@@ -124,10 +129,12 @@ class Result:
     """The decoded response value of an extended response."""
 
     @classmethod
-    def from_response(cls, dn: DN | None, attr: dict, controls: LDAPControlList, response: _Response, **kwargs: Any) -> Self:
+    def from_response(
+        cls, dn: DN | str | None, attr: dict[str, list[bytes]] | None, controls: Controls | None, response: _Response, **kwargs: Any
+    ) -> Self:
         dn = dn if dn is None else DN.get(dn)
-        attr = attr if attr is None else Attributes(attr)
-        return cls(dn, attr, cls._control_response(controls, response.ctrls), response, **kwargs)
+        attrs = attr if attr is None else Attributes(attr)
+        return cls(dn, attrs, cls._control_response(controls, response.ctrls), response, **kwargs)
 
     @classmethod
     def set_controls(cls, response: _Response, controls: Controls | None) -> None:
@@ -136,7 +143,7 @@ class Result:
         controls.response = response.ctrls
 
     @classmethod
-    def _control_response(cls, controls: Controls | None, response_ctrls: LDAPControlList) -> Controls:
+    def _control_response(cls, controls: Controls | None, response_ctrls: LDAPResponseControlList | None) -> Controls:
         if controls is None:
             return Controls(None, None, response_ctrls)
 

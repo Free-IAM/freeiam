@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """LDAP Server and Client controls."""
 
+from collections.abc import Callable
+from typing import Any, Protocol, TypeVar, cast
+
 from ldap.controls import DecodeControlTuples, RequestControl, ResponseControl
 from ldap.controls.deref import DereferenceControl
 from ldap.controls.libldap import AssertionControl, MatchedValuesControl
@@ -54,12 +57,25 @@ __all__ = (
 )
 
 
-def decode(ctrls: list[tuple[str, int, bytes]]) -> list[ResponseControl]:
+class RequestControlType(Protocol):
+    response: type[ResponseControl]
+
+    def __call__(self, *args: Any, **kwargs: Any) -> RequestControl: ...  # pragma: no cover
+
+
+F = TypeVar('F', bound=Callable[..., RequestControl])
+
+
+def _control(fn: F) -> RequestControlType:
+    return cast('RequestControlType', fn)
+
+
+def decode(ctrls: list[tuple[str, bool, bytes]]) -> list[ResponseControl]:
     """Decode any list of supported controls."""
     return DecodeControlTuples(ctrls)
 
 
-def simple_paged_results(size: int = 10, cookie: str = '', *, criticality: bool = False):
+def simple_paged_results(size: int = 10, cookie: str = '', *, criticality: bool = False) -> SimplePagedResultsControl:
     """SimplePagedResults control."""
     return SimplePagedResultsControl(criticality, size, cookie)
 
@@ -67,7 +83,7 @@ def simple_paged_results(size: int = 10, cookie: str = '', *, criticality: bool 
 def server_side_sorting(
     *ordering_rules: str | tuple[str, str | None, bool],
     criticality: bool = False,
-):
+) -> SSSRequestControl:
     """Server Side Sorting."""
     ordering_rules_ = []
     for rule in ordering_rules:
@@ -79,16 +95,17 @@ def server_side_sorting(
     return SSSRequestControl(criticality, ordering_rules_)
 
 
+@_control
 def virtual_list_view(
     before_count: int = 0,
     after_count: int = 0,
     offset: int | None = None,
     content_count: int | None = None,
-    greater_than_or_equal: int | None = None,
+    greater_than_or_equal: str | None = None,
     context_id: str | None = None,
     *,
     criticality: bool = False,
-):
+) -> VLVRequestControl:
     """Virtual List View."""
     return VLVRequestControl(criticality, before_count, after_count, offset, content_count, greater_than_or_equal, context_id)
 
@@ -96,13 +113,14 @@ def virtual_list_view(
 virtual_list_view.response = VLVResponseControl
 
 
-def get_effective_rights(authz_id: DN | str, *, criticality: bool = False):
+def get_effective_rights(authz_id: DN | str, *, criticality: bool = False) -> GetEffectiveRightsControl:
     """GetEffectiveRights control."""
     authz_id = f'dn:{authz_id}' if isinstance(authz_id, DN) else authz_id
     return GetEffectiveRightsControl(criticality, authz_id.encode('UTF-8'))
 
 
-def authorization_identity(*, criticality: bool = False):
+@_control
+def authorization_identity(*, criticality: bool = False) -> AuthorizationIdentityRequestControl:
     """AuthorizationIdentityRequest control."""
     return AuthorizationIdentityRequestControl(criticality)
 
@@ -110,61 +128,64 @@ def authorization_identity(*, criticality: bool = False):
 authorization_identity.response = AuthorizationIdentityResponseControl
 
 
-def dereference(deref_specs, *, criticality: bool = False):
+def dereference(deref_specs: dict[str, list[str]], *, criticality: bool = False) -> DereferenceControl:
     """Dereference control."""
     return DereferenceControl(criticality, deref_specs)
 
 
-def assertion(filter_expr: str, *, criticality: bool = False):
+def assertion(filter_expr: str, *, criticality: bool = False) -> AssertionControl:
     """Get Assertion control."""
     return AssertionControl(criticality, filter_expr)
 
 
-def matched_values(filter_expr: str, *, criticality: bool = False):
+def matched_values(filter_expr: str, *, criticality: bool = False) -> MatchedValuesControl:
     """MatchedValues control."""
     return MatchedValuesControl(criticality, filter_expr)
 
 
-def persistent_search(change_types: list[LDAPChangeType], changes_only, return_entry_change_control, *, criticality: bool = False):
+@_control
+def persistent_search(
+    change_types: list[LDAPChangeType], changes_only: bool, return_entry_change_control: bool, *, criticality: bool = False
+) -> PersistentSearchControl:
     """PersistentSearch control."""
-    return PersistentSearchControl(criticality, change_types, changes_only, return_entry_change_control)
+    return PersistentSearchControl(criticality, cast('list[int]', change_types), changes_only, return_entry_change_control)
 
 
 persistent_search.response = EntryChangeNotificationControl
 
 
-def pre_read(attrs: list[str], *, criticality: bool = False):
+def pre_read(attrs: list[str], *, criticality: bool = False) -> PreReadControl:
     """PreRead control."""
     return PreReadControl(criticality, attrs)
 
 
-def post_read(attrs, *, criticality: bool = False):
+def post_read(attrs: list[str], *, criticality: bool = False) -> PostReadControl:
     """PostRead control."""
     return PostReadControl(criticality, attrs)
 
 
-def session_tracking(source_ip, source_name, format_oid, tracking_identifier):
+def session_tracking(source_ip: str, source_name: str, format_oid: str, tracking_identifier: str) -> SessionTrackingControl:
     """SessionTracking control."""
     return SessionTrackingControl(source_ip, source_name, format_oid, tracking_identifier)
 
 
-def manage_dsa_information_tree(*, criticality: bool = False):
+def manage_dsa_information_tree(*, criticality: bool = False) -> ManageDSAITControl:
     """ManageDSAIT control."""
     return ManageDSAITControl(criticality)
 
 
-def relax_rules(*, criticality: bool = False):
+def relax_rules(*, criticality: bool = False) -> RelaxRulesControl:
     """RelaxRules control."""
     return RelaxRulesControl(criticality)
 
 
-def proxy_authorization(authz_id: str | DN, *, criticality: bool = False):
+def proxy_authorization(authz_id: str | DN, *, criticality: bool = False) -> ProxyAuthzControl:
     """ProxyAuthz control."""
     authz_id = f'dn:{authz_id}' if isinstance(authz_id, DN) else authz_id
     return ProxyAuthzControl(criticality, authz_id.encode('UTF-8'))
 
 
-def transaction(transaction_id: bytes | None = None, *, criticality: bool = True):
+def transaction(transaction_id: bytes | None = None, *, criticality: bool = True) -> 'TransactionSpecificationControl':
     """TransactionSpecification control."""
     return TransactionSpecificationControl(criticality, transaction_id)
 
