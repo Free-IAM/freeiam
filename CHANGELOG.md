@@ -2,6 +2,27 @@
 
 <!-- version list -->
 
+## v0.8.0 (2025-11-20)
+
+### Bug Fixes
+
+- **ldap.connection**: Allow passing `DN` instance to modify
+  ([`6bbadb2`](https://github.com/Free-IAM/freeiam/commit/6bbadb24749184bcb06f2e2c78be9a463f668fb1))
+
+### Documentation
+
+- **ldap.extended_operations**: Add documentation for extended operations
+  ([`8f00dc4`](https://github.com/Free-IAM/freeiam/commit/8f00dc40759377952dd274d430c95b0dd6c310dd))
+
+### Features
+
+- **ldap.connection**: Add convenience context manager for transactions
+  ([`8c0368d`](https://github.com/Free-IAM/freeiam/commit/8c0368d47cede079637b35eedad9e051807b2147))
+
+- **ldap.extended_operations**: Add utilities for extended operations
+  ([`d352c91`](https://github.com/Free-IAM/freeiam/commit/d352c918820345939dc2b51e8b4e80a9c5136bf6))
+
+
 ## v0.7.0 (2025-11-14)
 
 ### Bug Fixes
