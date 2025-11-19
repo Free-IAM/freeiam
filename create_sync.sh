@@ -28,7 +28,7 @@ s/def __aexit__/def __exit__/g;
 s/self\.__conn_s\./self./g;
 /^[[:space:]]*@property[[:space:]]*$/{
 N
-/^[[:space:]]*@property[[:space:]]*\n[[:space:]]*def _sync_connection(self):[[:space:]]*$/s/.*\n//
+/^[[:space:]]*@property[[:space:]]*\n[[:space:]]*def _sync_connection(self) -> SynchronousConnection:[[:space:]]*$/s/.*\n//
 }
 /^ *def _sync_connection(/,/^$/d
 s/self\._sync_connection\./self./g;

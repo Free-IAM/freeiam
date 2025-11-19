@@ -21,7 +21,7 @@ __all__ = (
 )
 
 
-def refresh_ttl(entry_name: DN | str, ttl: int | None):
+def refresh_ttl(entry_name: DN | str, ttl: int | None) -> RefreshRequest:
     """Get Refresh request."""
     req = RefreshRequest(RefreshRequest.requestName, str(entry_name), ttl)
     if not hasattr(req, 'requestValue'):  # pragma: no cover
@@ -43,22 +43,25 @@ def transaction_commit(transaction_id: bytes | None = None, commit: bool = True)
 class StartTransactionRequest(ExtendedRequest):
     requestName = '1.3.6.1.1.21.1'  # noqa: N815
 
-    def __init__(self):
-        super().__init__(self.requestName, None)
+    def __init__(self) -> None:
+        super().__init__(self.requestName, b'')
 
 
 class StartTransactionResponse(ExtendedResponse):
     responseName = None  # noqa: N815
+    txn_id: bytes
 
-    def __init__(self, responseName, encodedResponseValue):  # noqa: N803  # pragma: no cover
+    def __init__(self, responseName: str | None, encodedResponseValue: bytes | None) -> None:  # noqa: N803  # pragma: no cover
         self.txn_id = b''
         if encodedResponseValue:
             self.txn_id, _ = decoder.decode(encodedResponseValue, asn1Spec=univ.OctetString())
-        super().__init__(responseName or self.responseName, encodedResponseValue)
+        super().__init__(responseName or self.responseName, encodedResponseValue or b'')
 
 
 class EndTransactionRequest(ExtendedRequest):
     requestName = '1.3.6.1.1.21.3'  # noqa: N815
+    commit: bool
+    txn_id: bytes | None
 
     class TxnEndReq(univ.Sequence):
         componentType = namedtype.NamedTypes(  # noqa: N815
@@ -66,12 +69,12 @@ class EndTransactionRequest(ExtendedRequest):
             namedtype.NamedType('identifier', univ.OctetString()),
         )
 
-    def __init__(self, commit=True, txn_id: bytes | None = None):
+    def __init__(self, commit: bool = True, txn_id: bytes | None = None) -> None:
         self.commit = commit
         self.txn_id = txn_id
-        super().__init__(self.requestName, None)
+        super().__init__(self.requestName, b'')
 
-    def encodedRequestValue(self):  # noqa: N802
+    def encodedRequestValue(self) -> bytes:  # noqa: N802
         req = self.TxnEndReq()
         req['commit'] = self.commit
         req['identifier'] = self.txn_id or b''

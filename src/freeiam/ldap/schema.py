@@ -2,7 +2,11 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """LDAP Schemata."""
 
+from collections.abc import Generator
+from typing import cast
+
 from ldap.schema import AttributeType, ObjectClass
+from ldap.schema.subentry import SubSchema
 
 
 class Schema:
@@ -10,38 +14,38 @@ class Schema:
 
     __slots__ = ('_schema',)
 
-    def __init__(self, schema):
+    def __init__(self, schema: SubSchema):
         self._schema = schema
 
-    def get_object_class(self, name):
+    def get_object_class(self, name: str) -> ObjectClass | None:
         """Get object class by name."""
         for oc in self.get_object_classes():
             if name in oc.names:
                 return oc
         return None
 
-    def get_object_class_by_oid(self, oid):
+    def get_object_class_by_oid(self, oid: str) -> ObjectClass | None:
         """Get object class by OID."""
         return self._schema.get_obj(ObjectClass, oid)
 
-    def get_object_classes(self):
+    def get_object_classes(self) -> Generator[ObjectClass, None, None]:
         """Get all object classes."""
         for oid in self._schema.listall(ObjectClass):
-            yield self.get_object_class_by_oid(oid)
+            yield cast('ObjectClass', self.get_object_class_by_oid(oid))
 
-    def get_attribute(self, name):
+    def get_attribute(self, name: str) -> AttributeType | None:
         """Get attribute by name."""
         for attr in self.get_attributes():
             if name in attr.names:
                 return attr
         return None
 
-    def get_attributes(self):
+    def get_attributes(self) -> Generator[AttributeType, None, None]:
         """Get all attributes."""
         for oid in self._schema.listall(AttributeType):
-            yield self._schema.get_obj(AttributeType, oid)
+            yield cast('AttributeType', self._schema.get_obj(AttributeType, oid))
 
-    def get_attribute_aliases(self) -> dict:
+    def get_attribute_aliases(self) -> dict[str, str]:
         """Get aliases of attribute names."""
         return {
             alias: attr.names[0]
