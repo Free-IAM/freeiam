@@ -199,6 +199,19 @@ task-tags = ["TODO", "FIXME"]
  "N815",
 ]
 "*/__init__.py" = ["D104"]
+"stubs/*" = [
+  "N815",  # mixed-case-variable-in-class-scope
+  "N801",  # invalid-class-name
+  "N803",  # invalid-argument-name
+  "N802",  # invalid-function-name
+  "N816",  # mixed-case-variable-in-global-scope
+  "CPY001",  # missing-copyright-notice
+  "PLC2701",  # import-private-name
+  "A002",  # builtin-argument-shadowing
+  "F403",  # undefined-local-with-import-star
+  "PYI001",  # unprefixed-type-param
+  "F405",  # undefined-local-with-import-star-usage
+]
 
 [tool.ruff.lint.flake8-builtins]
 builtins-ignorelist = ["copyright", "license", "object", "exit", "quit", "credits"]

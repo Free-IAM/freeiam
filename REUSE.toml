@@ -28,3 +28,13 @@ path = [
 ]
 SPDX-FileCopyrightText = "2025 Florian Best <info@freeiam.org>"
 SPDX-License-Identifier = "CC0-1.0"
+
+[[annotations]]
+path = [ "stubs/pyasn1/**/*.pyi" ]
+SPDX-FileCopyrightText = "2005-2020, Ilya Etingof <etingof@gmail.com>"
+SPDX-License-Identifier = "BSD-2-Clause"
+
+[[annotations]]
+path = [ "stubs/ldap/**/*.pyi", "stubs/_ldap.pyi", "stubs/ldapurl.pyi", "stubs/ldif.pyi" ]
+SPDX-FileCopyrightText = "python-ldap"
+SPDX-License-Identifier = "LicenseRef-python-ldap AND MIT"
