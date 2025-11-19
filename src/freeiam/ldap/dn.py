@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import functools
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 import ldap.dn
 
@@ -13,11 +13,15 @@ from freeiam.errors import InvalidDN
 from freeiam.ldap.constants import AVA, DNFormat
 
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+
 __all__ = ('DN',)
 
 
 @functools.lru_cache
-def _to_dn(dn):
+def _to_dn(dn: str) -> list[list[tuple[str, str, int]]]:
     return ldap.dn.str2dn(dn)
 
 
@@ -47,14 +51,16 @@ class DN:
         >>> str(DN.compose(('cn', 'admin'), 'ou=foo,ou=bar', base))
         "cn=admin,ou=foo,ou=bar,dc=freeiam,dc=org"
         """
-        rdns = []
+        rdns: list[list[tuple[str, str, int]]] = []
         for part in parts:
             if isinstance(part, DN):
                 rdns.extend(part.rdns)
             elif isinstance(part, str):
                 rdns.extend(cls(part).rdns)
-            elif isinstance(part, tuple) and len(part) > 1:
-                rdns.append([[*part[:3], AVA.String][:3]])
+            elif isinstance(part, tuple) and len(part) == 3:  # noqa: PLR2004
+                rdns.append([part])
+            elif isinstance(part, tuple) and len(part) == 2:  # noqa: PLR2004
+                rdns.append([(part[0], part[1], AVA.String)])
             else:
                 raise TypeError(part)
         return cls(ldap.dn.dn2str(rdns))
@@ -85,7 +91,7 @@ class DN:
         return {str(dn) for dn in dns}
 
     @property
-    def rdn(self) -> tuple[str, str]:
+    def rdn(self) -> tuple[str, str] | tuple[()]:
         """
         Get attr and value of the first RDN component.
 
@@ -98,33 +104,29 @@ class DN:
             return ()
 
     @property
-    def attribute(self) -> str:
+    def attribute(self) -> str | None:
         """
         Get attribute name of the first RDN component.
 
         >>> DN('cn=foo,cn=bar').attribute
         'cn'
         """
-        try:
-            return self.rdn[0]
-        except IndexError:
-            return ()
+        rdn = self.rdn
+        return rdn[0] if rdn else None
 
     @property
-    def value(self) -> str:
+    def value(self) -> str | None:
         """
         Get value of the first RDN component.
 
         >>> DN('cn=foo,cn=bar').value
         'foo'
         """
-        try:
-            return self.rdn[1]
-        except IndexError:
-            return ()
+        rdn = self.rdn
+        return rdn[1] if rdn else None
 
     @property
-    def multi_rdn(self) -> tuple[tuple[str, str]]:
+    def multi_rdn(self) -> tuple[tuple[str, str], ...]:
         """
         Get all attrs and values of the RDN.
 
@@ -132,12 +134,12 @@ class DN:
         (('uid', '1'), ('cn', '2'))
         """
         try:
-            return tuple(tuple(rdn[:2]) for rdn in self._dn[0])
+            return tuple((rdn[0], rdn[1]) for rdn in self._dn[0])
         except IndexError:
             return ()
 
     @property
-    def attributes(self) -> tuple[str]:
+    def attributes(self) -> tuple[str, ...]:
         """
         Get attribute name of the first RDN component.
 
@@ -150,7 +152,7 @@ class DN:
             return ()
 
     @property
-    def values(self) -> tuple[str]:
+    def values(self) -> tuple[str, ...]:
         """
         Get value of the first RDN component.
 
@@ -179,11 +181,11 @@ class DN:
             return self[1:]
         return None
 
-    def __init__(self, dn: str, format: DNFormat = None) -> None:  # noqa: A002
+    def __init__(self, dn: str, format: DNFormat | None = None) -> None:  # noqa: A002
         self.dn = dn
         self._format = format
-        self._cached_hash = None
-        self._cached_normalized = None
+        self._cached_hash: int | None = None
+        self._cached_normalized: str | None = None
         try:
             self._dn = _to_dn(self.dn)
         except ldap.DECODING_ERROR:
@@ -225,7 +227,7 @@ class DN:
         other = self.get(other)
         return self[-len(other) or len(self) :] == other
 
-    def startswith(self, other: Self | str):
+    def startswith(self, other: Self | str) -> bool:
         """
         Check if DN starts with another DN.
 
@@ -239,7 +241,7 @@ class DN:
         other = self.get(other)
         return self[: len(other)] == other
 
-    def walk(self, base: Self | str | None = None):
+    def walk(self, base: Self | str | None = None) -> Generator[Self, None, None]:
         """
         Walk the reversed DN components from the given base.
 
@@ -280,13 +282,13 @@ class DN:
         """Return number of components of the DN."""
         return len(self._dn)
 
-    def __getitem__(self, key: str | slice) -> Self:
+    def __getitem__(self, key: int | slice) -> Self:
         """Get slice or item of the DN components."""
         if isinstance(key, slice):
             return self.__class__(ldap.dn.dn2str(self._dn[key]))
         return self.__class__(ldap.dn.dn2str([self._dn[key]]))
 
-    def __eq__(self, other: Self | str) -> bool:
+    def __eq__(self, other: object) -> bool:
         """
         Check normalized DNs for equality.
 
@@ -317,10 +319,10 @@ class DN:
         """
         return hash(self) == hash(DN(other) if isinstance(other, str) else other)
 
-    def __ne__(self, other: Self | str) -> bool:
+    def __ne__(self, other: object) -> bool:
         return not self == other
 
-    def __hash__(self) -> str:
+    def __hash__(self) -> int:
         if self._cached_hash is None:
             self._cached_hash = hash(tuple(
                 tuple(sorted(
@@ -330,5 +332,5 @@ class DN:
             ))  # fmt: skip
         return self._cached_hash
 
-    def __add__(self, other):
+    def __add__(self, other: Self | str) -> Self:
         return self.__class__(f'{self},{other}')

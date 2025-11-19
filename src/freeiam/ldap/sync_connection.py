@@ -6,8 +6,9 @@ import contextlib
 import logging
 import math
 import time
-from collections.abc import AsyncGenerator, Callable, Generator
-from typing import Any, Self, TypeAlias
+from collections.abc import Callable, Generator, Sequence
+from types import TracebackType
+from typing import Any, Literal, Self, TypeAlias, cast, overload
 
 import ldap.ldapobject
 import ldap.modlist
@@ -42,7 +43,7 @@ log = logging.getLogger(__name__)
 
 LDAPObject: TypeAlias = ldap.ldapobject.SimpleLDAPObject
 LDAPAddList: TypeAlias = list[tuple[str, list[bytes]]]
-LDAPModList: TypeAlias = list[tuple[int, str, list[bytes] | None]]
+LDAPModList: TypeAlias = list[tuple[int, str, list[bytes]]]
 Sorting: TypeAlias = list[str | tuple[str, str | None, bool]]
 
 
@@ -81,7 +82,7 @@ class Connection:
         return self._conn
 
     @property
-    def fileno(self):
+    def fileno(self) -> int:
         """Get the file descriptor number of the active socket connection."""
         if not self._conn or not hasattr(self._conn, '_l'):
             return -1
@@ -102,8 +103,8 @@ class Connection:
         max_connection_attempts: int = 10,
         retry_delay: float = 0.0,
         _hide_parent_exception: bool = True,
-        _conn: LDAPObject = None,
-    ):
+        _conn: LDAPObject | None = None,
+    ) -> None:
         self._conn = _conn
         self.uri = uri
         self.timeout = timeout
@@ -112,35 +113,54 @@ class Connection:
         self.retry_delay = retry_delay
         self._start_tls = start_tls
         self.__reconnects_counter = 0
-        self.__schema = {}
-        self._last_auth_state = None
-        self._options = []
+        self.__schema: dict[DN | str | None, Schema] = {}
+        self._last_auth_state: tuple[str, str | None, str | None] | None = None
+        self._options: list[tuple[AnyOption, AnyOptionValue | Sequence[ldap.controls.RequestControl]]] = []
         self._hide_parent_exception = _hide_parent_exception
-        self.__conn_s = None
 
     def __enter__(self) -> Self:
         """Initialize asynchronous connection."""
         self.connect()
         return self
 
-    def __exit__(self, etype, exc, etraceback) -> None:
+    def __exit__(self, etype: type[BaseException] | None, exc: BaseException | None, etraceback: TracebackType | None) -> None:
         """Close connection on shutdown."""
         self.unbind()
         self.disconnect()
 
-    def get_option(self, option: AnyOption) -> int:
+    @overload
+    def get_option(
+        self, option: Literal[Option.ProtocolVersion | Option.Timelimit | Option.NetworkTimeout | Option.Dereference | Option.Sizelimit]
+    ) -> int: ...
+
+    @overload
+    def get_option(self, option: AnyOption) -> AnyOptionValue: ...
+
+    def get_option(self, option: AnyOption) -> AnyOptionValue:
         """Get a LDAP connection option."""
         with errors.LdapError.wrap(self._hide_parent_exception):
-            return self.conn.get_option(option)
+            return cast('AnyOptionValue', self.conn.get_option(option))
 
-    def set_option(self, option: AnyOption, value: AnyOptionValue, *, append=True) -> None:
+    @overload
+    def set_option(self, option: Literal[Option.ServerControls], value: Sequence[ldap.controls.RequestControl]) -> None: ...
+
+    @overload
+    def set_option(self, option: Literal[Option.ClientControls], value: Sequence[ldap.controls.RequestControl]) -> None: ...
+
+    @overload
+    def set_option(self, option: Literal[Option.ProtocolVersion], value: int) -> None: ...
+
+    @overload
+    def set_option(self, option: AnyOption, value: AnyOptionValue | Sequence[ldap.controls.RequestControl], *, append: bool = True) -> None: ...
+
+    def set_option(self, option: AnyOption, value: AnyOptionValue | Sequence[ldap.controls.RequestControl], *, append: bool = True) -> None:
         """Set a LDAP connection option."""
         if append:
             self._options.append((option, value))
         with errors.LdapError.wrap(self._hide_parent_exception):
-            return self.conn.set_option(option, value)
+            self.conn.set_option(option, value)
 
-    def set_controls(self, controls: Controls):
+    def set_controls(self, controls: Controls) -> None:
         """Set LDAP controls for all operations on this connection."""
         if controls.server is not None:
             self.set_option(Option.ServerControls, controls.server)
@@ -153,9 +173,9 @@ class Connection:
         return Version(self.get_option(Option.ProtocolVersion))
 
     @protocol_version.setter
-    def protocol_version(self, value: Version):
+    def protocol_version(self, value: Version) -> None:
         """Set the LDAP protocol version."""
-        return self.set_option(Option.ProtocolVersion, value)
+        self.set_option(Option.ProtocolVersion, value)
 
     @property
     def timelimit(self) -> int:
@@ -163,9 +183,9 @@ class Connection:
         return self.get_option(Option.Timelimit)
 
     @timelimit.setter
-    def timelimit(self, value: int):
+    def timelimit(self, value: int) -> None:
         """Set the LDAP time limit."""
-        return self.set_option(Option.Timelimit, value)
+        self.set_option(Option.Timelimit, value)
 
     @property
     def network_timeout(self) -> int:
@@ -173,9 +193,9 @@ class Connection:
         return self.get_option(Option.NetworkTimeout)
 
     @network_timeout.setter
-    def network_timeout(self, value: int):
+    def network_timeout(self, value: int) -> None:
         """Set the LDAP network timeout."""
-        return self.set_option(Option.NetworkTimeout, value)
+        self.set_option(Option.NetworkTimeout, value)
 
     @property
     def dereference(self) -> int:
@@ -183,9 +203,9 @@ class Connection:
         return self.get_option(Option.Dereference)
 
     @dereference.setter
-    def dereference(self, value: int):
+    def dereference(self, value: int) -> None:
         """Set the de-reference setting."""
-        return self.set_option(Option.Dereference, value)
+        self.set_option(Option.Dereference, value)
 
     @property
     def follow_referrals(self) -> bool | None:
@@ -196,9 +216,9 @@ class Connection:
         return follow == OptionValue.On
 
     @follow_referrals.setter
-    def follow_referrals(self, value: bool):
+    def follow_referrals(self, value: bool) -> None:
         """Enable following of referrals."""
-        return self.set_option(Option.Referrals, OptionValue.On if value else OptionValue.Off)
+        self.set_option(Option.Referrals, OptionValue.On if value else OptionValue.Off)
 
     @property
     def sizelimit(self) -> int:
@@ -206,9 +226,9 @@ class Connection:
         return self.get_option(Option.Sizelimit)
 
     @sizelimit.setter
-    def sizelimit(self, value: int):
+    def sizelimit(self, value: int) -> None:
         """Set the sizelimit setting."""
-        return self.set_option(Option.Sizelimit, value)
+        self.set_option(Option.Sizelimit, value)
 
     @classmethod
     def set_tls(
@@ -245,9 +265,9 @@ class Connection:
         cls.set_global_option(TLSOption.NewContext, 0)
 
     @classmethod
-    def get_global_option(cls, option: AnyOption) -> int:
+    def get_global_option(cls, option: AnyOption) -> AnyOptionValue:
         """Get a LDAP connection option."""
-        return ldap.get_option(option)
+        return cast('AnyOptionValue', ldap.get_option(option))
 
     @classmethod
     def set_global_option(cls, option: AnyOption, value: AnyOptionValue) -> None:
@@ -264,7 +284,7 @@ class Connection:
                 self.uri,
                 trace_level=0,
                 trace_file=None,
-                trace_stack_limit=None,
+                trace_stack_limit=5,
                 fileno=fileno,
                 retry_max=self.max_connection_attempts,
                 retry_delay=self.retry_delay,
@@ -274,7 +294,7 @@ class Connection:
                 self.uri,
                 trace_level=0,
                 trace_file=None,
-                trace_stack_limit=None,
+                trace_stack_limit=5,
                 fileno=fileno,
             )
         self.__conn_s = None
@@ -302,19 +322,19 @@ class Connection:
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.start_tls_s()
 
-    def get_schema(self, subschema_dn: DN | str | None = None) -> ldap.schema.subentry.SubSchema:
+    def get_schema(self, subschema_dn: DN | str | None = None) -> Schema:
         """Get LDAP Schema."""
         conn = self.conn
         # cache schema by connection
         if isinstance(conn, ldap.ldapobject.ReconnectLDAPObject) and conn._reconnects_done > self.__reconnects_counter:
-            self.__schema[subschema_dn] = None
+            del self.__schema[subschema_dn]
             self.__reconnects_counter = self.conn._reconnects_done
 
         if not self.__schema.get(subschema_dn):
             try:
                 subschemasubentry = self.get(subschema_dn, attrs=['subschemaSubentry']) if subschema_dn else self.get_root_dse(['subschemaSubentry'])
                 try:
-                    subschemasubentry_dn = subschemasubentry.attr['subschemaSubentry'][0].decode('UTF-8')
+                    subschemasubentry_dn = cast('Attributes', subschemasubentry.attr)['subschemaSubentry'][0].decode('UTF-8')
                 except KeyError:  # pragma: no cover; impossible?
                     if subschema_dn:
                         return self.get_schema()
@@ -326,18 +346,18 @@ class Connection:
                     subschema = (self.get(subschemasubentry_dn, SCHEMA_ATTRS, '(objectClass=subschema)')).attr
                 except errors.NoSuchObject:  # pragma: no cover
                     subschema = None
-            self.__schema[subschema_dn] = Schema(ldap.schema.SubSchema(subschema, 0))
+            self.__schema[subschema_dn] = Schema(ldap.schema.SubSchema(cast('dict[str, list[bytes]]', subschema), 0))
             Attributes.set_schema(self.__schema[subschema_dn])
         return self.__schema[subschema_dn]
 
-    def bind(self, authzid: str | None, password: str | None, *, controls: Controls | None = None) -> None:
+    def bind(self, authzid: str | None, password: str | None, *, controls: Controls | None = None) -> Result:
         """Authenticate via plaintext credentials."""
         conn = self.conn
         self._last_auth_state = ('simple_bind_s', authzid, password)
         response = self._execute(conn, conn.simple_bind, authzid, password, **Controls.expand(controls))
         return Result.from_response(None, None, controls, response)
 
-    def bind_external(self):  # pragma: no cover
+    def bind_external(self) -> None:  # pragma: no cover
         """Authenticate via EXTERNAL method e.g. UNIX socket or TLS client certificate."""
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.sasl_interactive_bind_s('', ldap.sasl.external())
@@ -347,7 +367,7 @@ class Connection:
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.sasl_interactive_bind_s('', ldap.sasl.gssapi())
 
-    def bind_oauthbearer(self, authzid, token) -> None:  # pragma: no cover; requires SASL module
+    def bind_oauthbearer(self, authzid: str | None, token: str) -> None:  # pragma: no cover; requires SASL module
         """Authenticate via OAuth 2.0 Access Token."""
         oauth = ldap.sasl.sasl(
             {
@@ -368,7 +388,7 @@ class Connection:
             with errors.LdapError.wrap(self._hide_parent_exception):
                 getattr(self.conn, self._last_auth_state[0])(*self._last_auth_state[1:])
 
-    def unbind(self, *, controls: Controls | None = None) -> Result:
+    def unbind(self, *, controls: Controls | None = None) -> Result | None:
         """Unbind."""
         self._last_auth_state = None
         try:
@@ -383,7 +403,7 @@ class Connection:
             raise  # pragma: no cover; not possible
         return Result.from_response(None, None, controls, response)
 
-    def whoami(self, *, controls: Controls | None = None) -> DN | str:
+    def whoami(self, *, controls: Controls | None = None) -> DN | str | None:
         """Get authenticated user DN (authzid). "Who am I?" Operation."""
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
@@ -408,19 +428,30 @@ class Connection:
             return False
         return True
 
-    def get(self, dn: DN | str, attrs=None, filter_expr='(objectClass=*)', *, unique: bool = False, controls: Controls | None = None) -> Result:
+    def get(
+        self,
+        dn: DN | str,
+        attrs: list[str] | None = None,
+        filter_expr: str = '(objectClass=*)',
+        *,
+        unique: bool = False,
+        controls: Controls | None = None,
+    ) -> Result:
         """Get a LDAP object."""
         for obj in self.search(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls):
             return obj
-        return None  # pragma: no cover; impossible
+        return None  # type: ignore[return-value] # pragma: no cover; impossible
         # obj, = [_ for _ in self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls)]  # noqa: E501
         # return obj[0]
         # # GC calls gen.aclose() causing unnecessary .cancel() to be called:
         # # return next(self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls))
 
-    def get_attr(self, dn, attr, filter_expr='(objectClass=*)', *, unique: bool = False, controls: Controls | None = None) -> list[bytes]:
+    def get_attr(
+        self, dn: DN | str, attr: str, filter_expr: str = '(objectClass=*)', *, unique: bool = False, controls: Controls | None = None
+    ) -> list[bytes]:
         """Get attribute of an LDAP object."""
         attributes = (self.get(dn, attrs=[attr], filter_expr=filter_expr, unique=unique, controls=controls)).attr
+        assert attributes is not None  # noqa: S101
         try:
             return attributes[attr]
         except KeyError:
@@ -439,7 +470,7 @@ class Connection:
         sorting: Sorting | None = None,
         controls: Controls | None = None,
         _attrsonly: bool = False,
-    ) -> AsyncGenerator[Result, None]:
+    ) -> Generator[Result, None]:
         """Search iterative for DN and Attributes of LDAP objects."""
         conn = self.conn
         all_results = []
@@ -460,6 +491,7 @@ class Connection:
                 sizelimit=sizelimit or OptionValue.NoLimit,
             ):
                 Result.set_controls(response, controls)
+                assert response.data is not None  # noqa: S101
                 results = [Result.from_response(dn, attributes, controls, response) for dn, attributes in response.data]
                 all_results.extend(results)
                 if unique and len(all_results) > 1:
@@ -469,6 +501,7 @@ class Connection:
                 except GeneratorExit as exc:
                     with contextlib.suppress(errors.NoSuchOperation):
                         # self.cancel(response.msgid)  # better do it immediately
+                        assert response.msgid is not None  # noqa: S101
                         self.cancel(response.msgid)
                     raise exc from exc
         except errors.NoSuchObject as no_object_error:
@@ -494,7 +527,7 @@ class Connection:
         sorting: Sorting | None = None,
         controls: Controls | None = None,
         _attrsonly: bool = False,
-    ) -> AsyncGenerator[Result, None]:
+    ) -> list[Result]:
         """Search for DN and Attributes of LDAP objects."""
         conn = self.conn
         all_results = []
@@ -514,6 +547,7 @@ class Connection:
                 sizelimit=sizelimit or OptionValue.NoLimit,
             )
             Result.set_controls(response, controls)
+            assert response.data is not None  # noqa: S101
             results = [Result.from_response(dn, attributes, controls, response) for dn, attributes in response.data]
             all_results.extend(results)
             if unique and len(all_results) > 1:
@@ -536,7 +570,7 @@ class Connection:
         sizelimit: bool | None = None,
         sorting: Sorting | None = None,
         controls: Controls | None = None,
-    ) -> AsyncGenerator[DN, None]:
+    ) -> Generator[DN, None]:
         """Search for DNs of LDAP objects."""
         # FIXME: the following hangs forever as the iterative search is unfinished while the FD reader is replaced
         # for result in self.search(
@@ -545,6 +579,7 @@ class Connection:
         for result in self.search(
             base, scope, filter_expr, [], unique=unique, sizelimit=sizelimit, sorting=sorting, controls=controls, _attrsonly=True
         ):
+            assert result.dn is not None  # noqa: S101
             yield result.dn
 
     def search_paginated(
@@ -559,7 +594,7 @@ class Connection:
         unique: bool = False,
         sizelimit: bool | None = None,
         controls: Controls | None = None,
-    ) -> AsyncGenerator[Result, None]:
+    ) -> Generator[Result, None]:
         """Search paginated using Virtual List View control."""
         controls = Controls.set_server(controls, server_side_sorting(*sorting))
 
@@ -583,13 +618,13 @@ class Connection:
             if length is not None and offset > length:
                 break  # end reached
 
-            vlv = None
+            vlv: ldap.controls.vlv.VLVResponseControl | None = None
             current = None
             for entry_number, result in enumerate(
                 self.search(base, scope, filter_expr, attrs, unique=unique, sizelimit=sizelimit, controls=controls), 1
             ):
                 if last_page is None:
-                    vlv = controls.get(res_vlv)
+                    vlv = cast('ldap.controls.vlv.VLVResponseControl', controls.get(res_vlv))
                     length = vlv.contentCount
                     last_page = math.ceil(length / (page_size or length))
                 result.page = Page(
@@ -606,7 +641,7 @@ class Connection:
                 break
 
             page += 1
-            vlv = controls.get(res_vlv)
+            vlv = cast('ldap.controls.vlv.VLVResponseControl', controls.get(res_vlv))
             context_id = vlv.context_id
             length = vlv.contentCount
 
@@ -622,7 +657,7 @@ class Connection:
         sizelimit: bool | None = None,
         sorting: Sorting | None = None,
         controls: Controls | None = None,
-    ) -> AsyncGenerator[Result, None]:
+    ) -> Generator[Result, None]:
         """Search paginated using SimplePagedResults control."""
         pagination = simple_paged_results(size=page_size, cookie='', criticality=True)
         controls = Controls.append_server(controls, pagination)
@@ -645,14 +680,14 @@ class Connection:
             if not control:  # pragma: no cover
                 break  # Server doesn't support pagination
 
-            pagination.cookie = controls.get(pagination).cookie
+            pagination.cookie = cast('ldap.controls.pagedresults.SimplePagedResultsControl', controls.get(pagination)).cookie
             if not pagination.cookie:
                 break
 
     def add(
         self,
         dn: DN | str,
-        attrs: dict | Attributes,
+        attrs: dict[str, list[bytes]] | Attributes,
         *,
         controls: Controls | None = None,
     ) -> Result:
@@ -675,8 +710,8 @@ class Connection:
     def modify(
         self,
         dn: DN | str,
-        oldattr: dict | Attributes,
-        newattr: dict | Attributes,
+        oldattr: dict[str, list[bytes]] | Attributes,
+        newattr: dict[str, list[bytes]] | Attributes,
         *,
         controls: Controls | None = None,
     ) -> Result:
@@ -695,12 +730,12 @@ class Connection:
         conn = self.conn
         new_dn = self._compute_changed_dn(DN.get(dn), ml)
         if dn != new_dn:
-            dn = (self.rename(dn, new_dn)).dn
+            dn = cast('DN', (self.rename(dn, new_dn)).dn)
         response = self._execute(conn, conn.modify_ext, str(dn), ml, **Controls.expand(controls))
         return Result.from_response(dn, None, controls, response)
 
     @classmethod
-    def _compute_changed_dn(cls, dn: DN, ml: list[tuple[int, str, list[bytes] | None]]) -> DN:
+    def _compute_changed_dn(cls, dn: DN, ml: LDAPModList) -> DN:
         """
         Get changed DN.
 
@@ -727,7 +762,7 @@ class Connection:
             ),
         )
         if dn[0] != new_rdn:
-            return new_rdn + dn.parent
+            return new_rdn + cast('DN', dn.parent)
         return dn
 
     def move(
@@ -765,7 +800,7 @@ class Connection:
         controls: Controls | None = None,
     ) -> Result:
         """Rename a LDAP object."""
-        return self.rename(dn, DN.get(newrdn) + DN.get(dn).parent, delete_old, controls=controls)
+        return self.rename(dn, DN.get(newrdn) + cast('DN', DN.get(dn).parent), delete_old, controls=controls)
 
     def delete(self, dn: DN | str, *, controls: Controls | None = None) -> Result:
         """Delete a LDAP object."""
@@ -811,7 +846,7 @@ class Connection:
         for i, parent in enumerate(entry.walk()):
             for attr, value, _ in dn.rdns[-i - 1]:
                 try:
-                    equal = self.compare(str(parent), attr, value)
+                    equal = self.compare(str(parent), attr, value.encode('UTF-8'))
                     if not equal:  # pragma: no cover; https://github.com/nedbat/coveragepy/issues/2014
                         return False
                 except errors.NoSuchObject:
@@ -856,7 +891,7 @@ class Connection:
             return True
 
     @contextlib.contextmanager
-    def transaction(self, set_controls: bool = True):
+    def transaction(self, set_controls: bool = True) -> Generator[bytes, None]:
         """Context manager to make a transaction, which is aborted on errors."""
         result = self.extended(transaction_start(), transaction_start.response)
         txn_id = result.extended_value
@@ -882,7 +917,7 @@ class Connection:
         result.dn = DN.get(dn)
         return result
 
-    def extended(self, request: ExtendedRequest, response_class: ExtendedResponse | None = None, *, controls: Controls | None = None) -> Result:
+    def extended(self, request: ExtendedRequest, response_class: type[ExtendedResponse] | None = None, *, controls: Controls | None = None) -> Result:
         """Perform extended operation."""
         conn = self.conn
         response = self._execute(conn, conn.extop, request, **Controls.expand(controls))
@@ -899,11 +934,11 @@ class Connection:
                     decoded_value = response_class(response.name, response.value).responseValue
         return Result.from_response(None, None, controls, response, extended_value=decoded_value)
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> dict[str, Any]:
         """Return state for pickle."""
         return {slot: getattr(self, slot) for slot in set(self.__slots__) - {'_conn'} | {'connected'} if not slot.startswith('__')}
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         """Set state for pickle."""
         self._conn = None
         connected = state.pop('connected', None)
@@ -914,38 +949,39 @@ class Connection:
             self._restore_options()
         self._restore_auth_state()
 
-    def _execute(self, conn: LDAPObject, operation: Callable, *args: Any, **kwargs: Any) -> _Response:
+    def _execute(self, conn: LDAPObject, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> _Response:
         """Execute the operation and wait asynchronously for the result."""
         msgid = self._retry(self.request, operation, *args, **kwargs)
         if msgid is None:  # abandon_ext, unbind_ext
             return _Response(None, None, msgid, [], None, None)
-        response = None
+        response: _Response | None = None
         for resp in self._poll(conn, msgid, 1):
             if response is not None:  # pragma: no cover
                 raise RuntimeError('Wrong method used! Use _execute_iter instead!')  # noqa: TRY003
             response = resp
+        assert response is not None  # noqa: S101
         return response
 
-    def _execute_iter(self, conn: LDAPObject, operation: Callable, *args: Any, **kwargs: Any) -> AsyncGenerator[_Response, None]:
+    def _execute_iter(self, conn: LDAPObject, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> Generator[_Response, None]:
         """Execute the operation and yield the results asynchronously."""
         msgid = self._retry(self.request, operation, *args, **kwargs)
         if msgid is None:  # abandon_ext, unbind_ext
             return
         yield from self._poll(conn, msgid, 0)
 
-    def get_result(self, conn: LDAPObject, msgid: ResponseType = ResponseType.Any, _all: int = 0, timeout: int = 0) -> _Response:
+    def get_result(self, conn: LDAPObject, msgid: int = ResponseType.Any, _all: int = 0, timeout: int = 0) -> _Response:
         """Get the LDAP result for the given msgid."""
         log.debug('result(%r, timeout=%r)', msgid, timeout, extra={'MSGID': msgid, 'ALL': _all, 'TIMEOUT': timeout, 'FUNC': 'result'})
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
-                response = _Response(*conn.result4(msgid, all=_all, timeout=timeout, add_extop=1))
+                response = _Response(*conn.result4(msgid, all=_all, timeout=timeout, add_extop=1))  # type: ignore[arg-type]
         except (errors.LdapError, OSError) as exc:
             log.debug('result(%r) -> raised %r', msgid, exc, extra={'MSGID': msgid, 'OPERATION': 'result', 'EXCEPTION': str(exc)})
             raise
         log.debug('result(%r) -> %s', msgid, repr(response)[:200], extra={'MSGID': msgid, 'OPERATION': 'result'})
         return response
 
-    def request(self, operation: Callable, *args: Any, **kwargs: Any) -> int | None:
+    def request(self, operation: Callable[..., int], *args: Any, **kwargs: Any) -> int | None:
         """Make the LDAP request for the given operation."""
         op = operation.__name__
         arg_str = ', '.join(map(repr, args)) if 'bind' not in op else ''
@@ -960,7 +996,7 @@ class Connection:
         log.debug('%s() -> %r', op, msgid, extra={'OPERATION': op, 'MSGID': msgid})
         return msgid
 
-    def _retry(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
+    def _retry(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Retry operation or reconnect if necessary."""
         max_attempts = attempts = self.max_connection_attempts
         while attempts:
@@ -979,7 +1015,7 @@ class Connection:
                 time.sleep(self.retry_delay)
         raise RuntimeError()  # pragma: no cover; impossible
 
-    def _poll(self, conn: LDAPObject, msgid: ResponseType = ResponseType.Any, _all: int = 0) -> Generator[_Response, None]:  # pragma: no cover
+    def _poll(self, conn: LDAPObject, msgid: ResponseType = ResponseType.Any, _all: int = 0) -> Generator[_Response, None, None]:  # pragma: no cover
         """Wait synchronously for operation to succeed."""
         # this method must only used by the synchronous variant of this class
         while True:

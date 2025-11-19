@@ -169,11 +169,14 @@ def test_get_unique():
 def test_dn_compose():
     base = DN('dc=freeiam,dc=org')
     assert str(DN.compose(('cn', 'admin'), 'ou=foo,ou=bar', base)) == 'cn=admin,ou=foo,ou=bar,dc=freeiam,dc=org'
+    assert str(DN.compose(('cn', 'admin', 1), 'ou=foo,ou=bar', base)) == 'cn=admin,ou=foo,ou=bar,dc=freeiam,dc=org'
 
 
 def test_dn_compose_invalid():
     with pytest.raises(TypeError):
-        str(DN.compose(('cn',)))
+        DN.compose(('cn',))
+    with pytest.raises(TypeError):
+        DN.compose(('cn', 'admin', 1, 2))
 
 
 def test_contains(user_dn):

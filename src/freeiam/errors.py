@@ -8,6 +8,10 @@ from contextlib import contextmanager
 import ldap
 
 
+if typing.TYPE_CHECKING:
+    import freeiam
+
+
 class Error(Exception):
     """Base Error."""
 
@@ -23,8 +27,10 @@ class CancelOperation(Error):
 class NotUnique(Error):
     """More than one unique search result."""
 
+    args: tuple[list['freeiam.ldap._wrapper.Result']]
+
     @property
-    def results(self):
+    def results(self) -> list['freeiam.ldap._wrapper.Result']:
         """The non unique search results."""
         return self.args[0]
 
@@ -32,12 +38,13 @@ class NotUnique(Error):
 class LdapError(Error):
     """LDAP Error wrapper base class."""
 
-    _MAP: typing.ClassVar = {}
-
+    _MAP: typing.ClassVar[dict[type[ldap.LDAPError], type[typing.Self]]] = {}
     exc_class = ldap.LDAPError
+    _controls: list[tuple[str, bool, bytes]] | None
+    _controls_decoded: list['ldap.controls.ResponseControl'] | None
 
     @property
-    def result(self) -> int:
+    def result(self) -> int | None:
         """Numeric code of the error class."""
         return self._result
 
@@ -61,59 +68,60 @@ class LdapError(Error):
         return self._matched
 
     @property
-    def errno(self) -> int:
+    def errno(self) -> int | None:
         """The C errno, usually set by system calls or libc rather than the LDAP libraries."""
         return self._errno
 
     @property
-    def controls(self) -> list | None:
+    def controls(self) -> list['ldap.controls.ResponseControl'] | None:
         """List of LDAP Control instances attached to the error."""
         if self._controls_decoded is None:
             from freeiam.ldap.controls import decode  # noqa: PLC0415
 
+            assert self._controls is not None  # noqa: S101
             self._controls_decoded = decode(self._controls)
         return self._controls_decoded
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls: type[typing.Self], **kwargs: typing.Any):
         super().__init_subclass__(**kwargs)
         cls._MAP[cls.exc_class] = cls
 
-    def __init__(self, args: dict | None = None):
+    def __init__(self, args: dict[str, str | int | list[tuple[str, int, bytes]]] | None = None):
         args = args or {}
-        self._result = args.get('result')
-        self._description = args.get('desc')
-        self._info = args.get('info')
-        self._matched = args.get('matched')
-        self._errno = args.get('errno')
-        self._controls = args.get('ctrls')
+        self._result = typing.cast('int', args.get('result'))
+        self._description = typing.cast('str', args.get('desc'))
+        self._info = typing.cast('str', args.get('info'))
+        self._matched = typing.cast('str', args.get('matched'))
+        self._errno = typing.cast('int', args.get('errno'))
+        self._controls = typing.cast('list[tuple[str, bool, bytes]]', args.get('ctrls'))
         self._controls_decoded = None
         super().__init__(args)
 
-    def __str__(self):
+    def __str__(self) -> str:
         msg = f'{self.description or ""}: {self.info or ""}'.removesuffix(': ')
         if self.matched:
             msg = f'{msg} (exists: {self.matched})'
         return msg
 
-    _repr_fields = ('description', 'info', 'matched', 'result', 'errno')
+    _repr_fields: typing.ClassVar = ['description', 'info', 'matched', 'result', 'errno']
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         msg = ', '.join(f'{f}={getattr(self, f)!r}' for f in self._repr_fields)
         return f'{type(self).__name__}({msg})'
 
     @classmethod
-    def from_ldap_exception(cls, exc):
+    def from_ldap_exception(cls, exc: ldap.LDAPError) -> typing.Self:
         """Get instance from the correct child exception."""
         error = cls._MAP.get(type(exc), cls)
         args = exc.args[0] if exc and exc.args and isinstance(exc.args[0], dict) else {}
         return error(args)
 
     @classmethod
-    def wrap(cls, hide_parent_exception: bool = True):
+    def wrap(cls, hide_parent_exception: bool = True) -> typing.ContextManager[None]:
         """Context manager to wrap LDAP exceptions."""
 
         @contextmanager
-        def wrap():
+        def _wrap() -> typing.Generator[None, None, None]:
             try:
                 yield
             except ldap.LDAPError as exc:
@@ -122,7 +130,7 @@ class LdapError(Error):
                     raise error from None
                 raise error from exc
 
-        return wrap()
+        return _wrap()
 
 
 class AdminlimitExceeded(LdapError):
@@ -381,26 +389,26 @@ class NoSuchObject(LdapError):
     exc_class = ldap.NO_SUCH_OBJECT
     # sets the matched field
 
-    _repr_fields = (*LdapError._repr_fields, 'base_dn')
+    _repr_fields: typing.ClassVar = [*LdapError._repr_fields, 'base_dn']
 
-    def __init__(self, *args, **kwargs):
-        self._base_dn = None
-        self.filter = None
-        self.scope = None
-        self.attrs = None
+    def __init__(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        self._base_dn: freeiam.ldap.dn.DN | None = None
+        self.filter: str | None = None
+        self.scope: freeiam.ldap.constants.Scope | None = None
+        self.attrs: list[str] | None = None
         super().__init__(*args, **kwargs)
 
     @property
-    def base_dn(self):
+    def base_dn(self) -> 'freeiam.ldap.dn.DN | None':
         """Get search base DN."""
         return self._base_dn
 
     @base_dn.setter
-    def base_dn(self, value):
+    def base_dn(self, value: 'freeiam.ldap.dn.DN') -> None:
         """Set search base DN."""
         self._base_dn = value
 
-    def __str__(self):
+    def __str__(self) -> str:
         string = super().__str__()
         if self.base_dn:
             string = f'{string} (base: {self._base_dn})'
@@ -467,7 +475,7 @@ class ProtocolError(LdapError):
 class ProxiedAuthorizationDenied(LdapError):
     """Proxied authorization was denied."""
 
-    exc_class = getattr(ldap, 'PROXIED_AUTHORIZATION_DENIED', object())
+    exc_class = getattr(ldap, 'PROXIED_AUTHORIZATION_DENIED', ldap.LDAPError)
 
 
 class Referral(LdapError):

@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """LDAP Extended Operations."""
 
+from collections.abc import Callable
+from typing import Any, Protocol, TypeVar, cast
+
 from ldap.extop import ExtendedRequest, ExtendedResponse
 from ldap.extop.dds import RefreshRequest, RefreshResponse
 from ldap.extop.passwd import PasswordModifyResponse
@@ -21,7 +24,21 @@ __all__ = (
 )
 
 
-def refresh_ttl(entry_name: DN | str, ttl: int | None):
+class ExtendedOperationType(Protocol):
+    response: type[ExtendedResponse]
+
+    def __call__(self, *args: Any, **kwargs: Any) -> ExtendedRequest: ...  # pragma: no cover
+
+
+F = TypeVar('F', bound=Callable[..., ExtendedRequest])
+
+
+def _extended(fn: F) -> ExtendedOperationType:
+    return cast('ExtendedOperationType', fn)
+
+
+@_extended
+def refresh_ttl(entry_name: DN | str, ttl: int | None) -> RefreshRequest:
     """Get Refresh request."""
     req = RefreshRequest(RefreshRequest.requestName, str(entry_name).encode('UTF-8'), ttl)
     if not hasattr(req, 'requestValue'):  # pragma: no cover
@@ -30,12 +47,14 @@ def refresh_ttl(entry_name: DN | str, ttl: int | None):
     return req
 
 
-def transaction_start():
+@_extended
+def transaction_start() -> 'StartTransactionRequest':
     """Start a transaction."""
     return StartTransactionRequest()
 
 
-def transaction_commit(transaction_id: bytes | None = None, commit: bool = True):
+@_extended
+def transaction_commit(transaction_id: bytes | None = None, commit: bool = True) -> 'EndTransactionRequest':
     """End (abort or commit) a transaction."""
     return EndTransactionRequest(commit, transaction_id)
 
@@ -43,22 +62,25 @@ def transaction_commit(transaction_id: bytes | None = None, commit: bool = True)
 class StartTransactionRequest(ExtendedRequest):
     requestName = '1.3.6.1.1.21.1'  # noqa: N815
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(self.requestName, None)
 
 
 class StartTransactionResponse(ExtendedResponse):
     responseName = None  # noqa: N815
+    txn_id: bytes
 
-    def __init__(self, responseName, encodedResponseValue):  # noqa: N803  # pragma: no cover
+    def __init__(self, responseName: str | None, encodedResponseValue: bytes | None) -> None:  # noqa: N803  # pragma: no cover
         self.txn_id = b''
         if encodedResponseValue:
             self.txn_id, _ = decoder.decode(encodedResponseValue, asn1Spec=univ.OctetString())
-        super().__init__(responseName or self.responseName, encodedResponseValue)
+        super().__init__(responseName or self.responseName, encodedResponseValue or b'')
 
 
 class EndTransactionRequest(ExtendedRequest):
     requestName = '1.3.6.1.1.21.3'  # noqa: N815
+    commit: bool
+    txn_id: bytes | None
 
     class TxnEndReq(univ.Sequence):
         componentType = namedtype.NamedTypes(  # noqa: N815
@@ -66,12 +88,12 @@ class EndTransactionRequest(ExtendedRequest):
             namedtype.NamedType('identifier', univ.OctetString()),
         )
 
-    def __init__(self, commit=True, txn_id: bytes | None = None):
+    def __init__(self, commit: bool = True, txn_id: bytes | None = None) -> None:
         self.commit = commit
         self.txn_id = txn_id
-        super().__init__(self.requestName, None)
+        super().__init__(self.requestName, b'')
 
-    def encodedRequestValue(self):  # noqa: N802
+    def encodedRequestValue(self) -> bytes:  # noqa: N802
         req = self.TxnEndReq()
         req['commit'] = self.commit
         req['identifier'] = self.txn_id or b''
