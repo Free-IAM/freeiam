@@ -37,7 +37,7 @@ class LdapError(Error):
     exc_class = ldap.LDAPError
 
     @property
-    def result(self) -> int:
+    def result(self) -> int | None:
         """Numeric code of the error class."""
         return self._result
 
@@ -61,7 +61,7 @@ class LdapError(Error):
         return self._matched
 
     @property
-    def errno(self) -> int:
+    def errno(self) -> int | None:
         """The C errno, usually set by system calls or libc rather than the LDAP libraries."""
         return self._errno
 
@@ -74,7 +74,7 @@ class LdapError(Error):
             self._controls_decoded = decode(self._controls)
         return self._controls_decoded
 
-    def __init_subclass__(cls, **kwargs):
+    def __init_subclass__(cls: typing.Self, **kwargs):
         super().__init_subclass__(**kwargs)
         cls._MAP[cls.exc_class] = cls
 
@@ -85,11 +85,11 @@ class LdapError(Error):
         self._info = args.get('info')
         self._matched = args.get('matched')
         self._errno = args.get('errno')
-        self._controls = args.get('ctrls')
-        self._controls_decoded = None
+        self._controls: list = args.get('ctrls')
+        self._controls_decoded: list | None = None
         super().__init__(args)
 
-    def __str__(self):
+    def __str__(self) -> str:
         msg = f'{self.description or ""}: {self.info or ""}'.removesuffix(': ')
         if self.matched:
             msg = f'{msg} (exists: {self.matched})'
@@ -97,7 +97,7 @@ class LdapError(Error):
 
     _repr_fields = ('description', 'info', 'matched', 'result', 'errno')
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         msg = ', '.join(f'{f}={getattr(self, f)!r}' for f in self._repr_fields)
         return f'{type(self).__name__}({msg})'
 
@@ -109,11 +109,11 @@ class LdapError(Error):
         return error(args)
 
     @classmethod
-    def wrap(cls, hide_parent_exception: bool = True):
+    def wrap(cls, hide_parent_exception: bool = True) -> typing.ContextManager[None]:
         """Context manager to wrap LDAP exceptions."""
 
         @contextmanager
-        def wrap():
+        def _wrap() -> typing.Generator[None, None, None]:
             try:
                 yield
             except ldap.LDAPError as exc:
@@ -122,7 +122,7 @@ class LdapError(Error):
                     raise error from None
                 raise error from exc
 
-        return wrap()
+        return _wrap()
 
 
 class AdminlimitExceeded(LdapError):
@@ -400,7 +400,7 @@ class NoSuchObject(LdapError):
         """Set search base DN."""
         self._base_dn = value
 
-    def __str__(self):
+    def __str__(self) -> str:
         string = super().__str__()
         if self.base_dn:
             string = f'{string} (base: {self._base_dn})'
@@ -467,7 +467,7 @@ class ProtocolError(LdapError):
 class ProxiedAuthorizationDenied(LdapError):
     """Proxied authorization was denied."""
 
-    exc_class = getattr(ldap, 'PROXIED_AUTHORIZATION_DENIED', object())
+    exc_class: type[ldap.LDAPError] = getattr(ldap, 'PROXIED_AUTHORIZATION_DENIED', ldap.LDAPError)
 
 
 class Referral(LdapError):

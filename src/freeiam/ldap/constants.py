@@ -10,7 +10,7 @@ from typing import TypeAlias
 import ldap
 
 
-def _getoptional(name, default):
+def _getoptional(name: str, default: int) -> int:
     return getattr(ldap, name, default)
 
 

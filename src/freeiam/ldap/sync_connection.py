@@ -81,7 +81,7 @@ class Connection:
         return self._conn
 
     @property
-    def fileno(self):
+    def fileno(self) -> int:
         """Get the file descriptor number of the active socket connection."""
         if not self._conn or not hasattr(self._conn, '_l'):
             return -1
@@ -102,8 +102,8 @@ class Connection:
         max_connection_attempts: int = 10,
         retry_delay: float = 0.0,
         _hide_parent_exception: bool = True,
-        _conn: LDAPObject = None,
-    ):
+        _conn: LDAPObject | None = None,
+    ) -> None:
         self._conn = _conn
         self.uri = uri
         self.timeout = timeout
@@ -133,14 +133,14 @@ class Connection:
         with errors.LdapError.wrap(self._hide_parent_exception):
             return self.conn.get_option(option)
 
-    def set_option(self, option: AnyOption, value: AnyOptionValue, *, append=True) -> None:
+    def set_option(self, option: AnyOption, value: AnyOptionValue, *, append: bool = True) -> None:
         """Set a LDAP connection option."""
         if append:
             self._options.append((option, value))
         with errors.LdapError.wrap(self._hide_parent_exception):
-            return self.conn.set_option(option, value)
+            self.conn.set_option(option, value)
 
-    def set_controls(self, controls: Controls):
+    def set_controls(self, controls: Controls) -> None:
         """Set LDAP controls for all operations on this connection."""
         if controls.server is not None:
             self.set_option(Option.ServerControls, controls.server)
@@ -153,9 +153,9 @@ class Connection:
         return Version(self.get_option(Option.ProtocolVersion))
 
     @protocol_version.setter
-    def protocol_version(self, value: Version):
+    def protocol_version(self, value: Version) -> None:
         """Set the LDAP protocol version."""
-        return self.set_option(Option.ProtocolVersion, value)
+        self.set_option(Option.ProtocolVersion, value)
 
     @property
     def timelimit(self) -> int:
@@ -163,9 +163,9 @@ class Connection:
         return self.get_option(Option.Timelimit)
 
     @timelimit.setter
-    def timelimit(self, value: int):
+    def timelimit(self, value: int) -> None:
         """Set the LDAP time limit."""
-        return self.set_option(Option.Timelimit, value)
+        self.set_option(Option.Timelimit, value)
 
     @property
     def network_timeout(self) -> int:
@@ -173,9 +173,9 @@ class Connection:
         return self.get_option(Option.NetworkTimeout)
 
     @network_timeout.setter
-    def network_timeout(self, value: int):
+    def network_timeout(self, value: int) -> None:
         """Set the LDAP network timeout."""
-        return self.set_option(Option.NetworkTimeout, value)
+        self.set_option(Option.NetworkTimeout, value)
 
     @property
     def dereference(self) -> int:
@@ -183,9 +183,9 @@ class Connection:
         return self.get_option(Option.Dereference)
 
     @dereference.setter
-    def dereference(self, value: int):
+    def dereference(self, value: int) -> None:
         """Set the de-reference setting."""
-        return self.set_option(Option.Dereference, value)
+        self.set_option(Option.Dereference, value)
 
     @property
     def follow_referrals(self) -> bool | None:
@@ -196,9 +196,9 @@ class Connection:
         return follow == OptionValue.On
 
     @follow_referrals.setter
-    def follow_referrals(self, value: bool):
+    def follow_referrals(self, value: bool) -> None:
         """Enable following of referrals."""
-        return self.set_option(Option.Referrals, OptionValue.On if value else OptionValue.Off)
+        self.set_option(Option.Referrals, OptionValue.On if value else OptionValue.Off)
 
     @property
     def sizelimit(self) -> int:
@@ -206,9 +206,9 @@ class Connection:
         return self.get_option(Option.Sizelimit)
 
     @sizelimit.setter
-    def sizelimit(self, value: int):
+    def sizelimit(self, value: int) -> None:
         """Set the sizelimit setting."""
-        return self.set_option(Option.Sizelimit, value)
+        self.set_option(Option.Sizelimit, value)
 
     @classmethod
     def set_tls(
@@ -330,14 +330,14 @@ class Connection:
             Attributes.set_schema(self.__schema[subschema_dn])
         return self.__schema[subschema_dn]
 
-    def bind(self, authzid: str | None, password: str | None, *, controls: Controls | None = None) -> None:
+    def bind(self, authzid: str | None, password: str | None, *, controls: Controls | None = None) -> Result:
         """Authenticate via plaintext credentials."""
         conn = self.conn
         self._last_auth_state = ('simple_bind_s', authzid, password)
         response = self._execute(conn, conn.simple_bind, authzid, password, **Controls.expand(controls))
         return Result.from_response(None, None, controls, response)
 
-    def bind_external(self):  # pragma: no cover
+    def bind_external(self) -> None:  # pragma: no cover
         """Authenticate via EXTERNAL method e.g. UNIX socket or TLS client certificate."""
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.sasl_interactive_bind_s('', ldap.sasl.external())
@@ -368,7 +368,7 @@ class Connection:
             with errors.LdapError.wrap(self._hide_parent_exception):
                 getattr(self.conn, self._last_auth_state[0])(*self._last_auth_state[1:])
 
-    def unbind(self, *, controls: Controls | None = None) -> Result:
+    def unbind(self, *, controls: Controls | None = None) -> Result | None:
         """Unbind."""
         self._last_auth_state = None
         try:
@@ -383,7 +383,7 @@ class Connection:
             raise  # pragma: no cover; not possible
         return Result.from_response(None, None, controls, response)
 
-    def whoami(self, *, controls: Controls | None = None) -> DN | str:
+    def whoami(self, *, controls: Controls | None = None) -> DN | str | None:
         """Get authenticated user DN (authzid). "Who am I?" Operation."""
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
@@ -408,7 +408,15 @@ class Connection:
             return False
         return True
 
-    def get(self, dn: DN | str, attrs=None, filter_expr='(objectClass=*)', *, unique: bool = False, controls: Controls | None = None) -> Result:
+    def get(
+        self,
+        dn: DN | str,
+        attrs: list[str] | None = None,
+        filter_expr: str = '(objectClass=*)',
+        *,
+        unique: bool = False,
+        controls: Controls | None = None,
+    ) -> Result:
         """Get a LDAP object."""
         for obj in self.search(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls):
             return obj
@@ -418,7 +426,9 @@ class Connection:
         # # GC calls gen.aclose() causing unnecessary .cancel() to be called:
         # # return next(self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls))
 
-    def get_attr(self, dn, attr, filter_expr='(objectClass=*)', *, unique: bool = False, controls: Controls | None = None) -> list[bytes]:
+    def get_attr(
+        self, dn: DN | str, attr: str, filter_expr: str = '(objectClass=*)', *, unique: bool = False, controls: Controls | None = None
+    ) -> list[bytes]:
         """Get attribute of an LDAP object."""
         attributes = (self.get(dn, attrs=[attr], filter_expr=filter_expr, unique=unique, controls=controls)).attr
         try:
@@ -856,7 +866,7 @@ class Connection:
             return True
 
     @contextlib.contextmanager
-    def transaction(self, set_controls: bool = True):
+    def transaction(self, set_controls: bool = True) -> AsyncGenerator[bytes, None]:
         """Context manager to make a transaction, which is aborted on errors."""
         result = self.extended(transaction_start(), transaction_start.response)
         txn_id = result.extended_value
@@ -882,7 +892,7 @@ class Connection:
         result.dn = DN.get(dn)
         return result
 
-    def extended(self, request: ExtendedRequest, response_class: ExtendedResponse | None = None, *, controls: Controls | None = None) -> Result:
+    def extended(self, request: ExtendedRequest, response_class: type[ExtendedResponse] | None = None, *, controls: Controls | None = None) -> Result:
         """Perform extended operation."""
         conn = self.conn
         response = self._execute(conn, conn.extop, request, **Controls.expand(controls))
@@ -899,11 +909,11 @@ class Connection:
                     decoded_value = response_class(response.name, response.value).responseValue
         return Result.from_response(None, None, controls, response, extended_value=decoded_value)
 
-    def __getstate__(self) -> dict:
+    def __getstate__(self) -> dict[str, Any]:
         """Return state for pickle."""
         return {slot: getattr(self, slot) for slot in set(self.__slots__) - {'_conn'} | {'connected'} if not slot.startswith('__')}
 
-    def __setstate__(self, state: dict) -> None:
+    def __setstate__(self, state: dict[str, Any]) -> None:
         """Set state for pickle."""
         self._conn = None
         connected = state.pop('connected', None)
@@ -914,19 +924,19 @@ class Connection:
             self._restore_options()
         self._restore_auth_state()
 
-    def _execute(self, conn: LDAPObject, operation: Callable, *args: Any, **kwargs: Any) -> _Response:
+    def _execute(self, conn: LDAPObject, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> _Response:
         """Execute the operation and wait asynchronously for the result."""
         msgid = self._retry(self.request, operation, *args, **kwargs)
         if msgid is None:  # abandon_ext, unbind_ext
             return _Response(None, None, msgid, [], None, None)
-        response = None
+        response: _Response | None = None
         for resp in self._poll(conn, msgid, 1):
             if response is not None:  # pragma: no cover
                 raise RuntimeError('Wrong method used! Use _execute_iter instead!')  # noqa: TRY003
             response = resp
         return response
 
-    def _execute_iter(self, conn: LDAPObject, operation: Callable, *args: Any, **kwargs: Any) -> AsyncGenerator[_Response, None]:
+    def _execute_iter(self, conn: LDAPObject, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> AsyncGenerator[_Response, None]:
         """Execute the operation and yield the results asynchronously."""
         msgid = self._retry(self.request, operation, *args, **kwargs)
         if msgid is None:  # abandon_ext, unbind_ext
@@ -945,7 +955,7 @@ class Connection:
         log.debug('result(%r) -> %s', msgid, repr(response)[:200], extra={'MSGID': msgid, 'OPERATION': 'result'})
         return response
 
-    def request(self, operation: Callable, *args: Any, **kwargs: Any) -> int | None:
+    def request(self, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> int | None:
         """Make the LDAP request for the given operation."""
         op = operation.__name__
         arg_str = ', '.join(map(repr, args)) if 'bind' not in op else ''
@@ -960,7 +970,7 @@ class Connection:
         log.debug('%s() -> %r', op, msgid, extra={'OPERATION': op, 'MSGID': msgid})
         return msgid
 
-    def _retry(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
+    def _retry(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         """Retry operation or reconnect if necessary."""
         max_attempts = attempts = self.max_connection_attempts
         while attempts:
@@ -979,7 +989,7 @@ class Connection:
                 time.sleep(self.retry_delay)
         raise RuntimeError()  # pragma: no cover; impossible
 
-    def _poll(self, conn: LDAPObject, msgid: ResponseType = ResponseType.Any, _all: int = 0) -> Generator[_Response, None]:  # pragma: no cover
+    def _poll(self, conn: LDAPObject, msgid: ResponseType = ResponseType.Any, _all: int = 0) -> Generator[_Response, None, None]:  # pragma: no cover
         """Wait synchronously for operation to succeed."""
         # this method must only used by the synchronous variant of this class
         while True:

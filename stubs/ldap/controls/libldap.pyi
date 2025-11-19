@@ -1,0 +1,23 @@
+from _typeshed import Incomplete
+from ldap.controls import KNOWN_RESPONSE_CONTROLS as KNOWN_RESPONSE_CONTROLS, LDAPControl as LDAPControl, RequestControl as RequestControl
+
+class AssertionControl(RequestControl):
+    controlType: Incomplete
+    criticality: Incomplete
+    filterstr: Incomplete
+    def __init__(self, criticality: bool = ..., filterstr: str = ...) -> None: ...
+    def encodeControlValue(self) -> bytes: ...
+
+class MatchedValuesControl(RequestControl):
+    controlType: Incomplete
+    criticality: Incomplete
+    filterstr: Incomplete
+    def __init__(self, criticality: bool = ..., filterstr: str = ...) -> None: ...
+    def encodeControlValue(self) -> bytes: ...
+
+class SimplePagedResultsControl(LDAPControl):
+    controlType: Incomplete
+    criticality: Incomplete
+    def __init__(self, criticality: bool = ..., size: int | None = ..., cookie: str | bytes | None = ...) -> None: ...
+    def encodeControlValue(self) -> bytes: ...
+    def decodeControlValue(self, encodedControlValue: bytes) -> None: ...
