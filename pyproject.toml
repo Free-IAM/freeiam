@@ -335,3 +335,37 @@ insecure = false
 [tool.semantic_release.publish]
 dist_glob_patterns = ["dist/*"]
 upload_to_vcs_release = false
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+show_error_codes = true
+explicit_package_bases = true
+namespace_packages = true
+mypy_path = ["src", "stubs"]
+files = ["src/"]
+
+[[tool.mypy.overrides]]
+module = "pyasn1.*"
+ignore_missing_imports = true
+disallow_untyped_calls = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+disallow_untyped_decorators = false
+
+[[tool.mypy.overrides]]
+module = "pyasn1_modules.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "docs.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "benchmarks.*"
+ignore_errors = true
