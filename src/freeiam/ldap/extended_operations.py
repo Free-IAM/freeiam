@@ -23,7 +23,7 @@ __all__ = (
 
 def refresh_ttl(entry_name: DN | str, ttl: int | None):
     """Get Refresh request."""
-    req = RefreshRequest(RefreshRequest.requestName, str(entry_name), ttl)
+    req = RefreshRequest(RefreshRequest.requestName, str(entry_name).encode('UTF-8'), ttl)
     if not hasattr(req, 'requestValue'):  # pragma: no cover
         # https://github.com/python-ldap/python-ldap/commit/414ae1de91543a1c0fee0738f97fe1a33d0fe666
         req.requestValue = req.encodedRequestValue()
