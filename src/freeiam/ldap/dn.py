@@ -190,7 +190,7 @@ class DN:
             self._dn = _to_dn(self.dn)
         except ldap.DECODING_ERROR:
             try:
-                self._dn = _to_dn(self.dn.replace(r'\?', '?'))  # Samba LDAP returns broken DN
+                self._dn = _to_dn(self.dn.replace(r'\?', '?'))  # Samba LDAP returns broken DN: https://bugzilla.samba.org/show_bug.cgi?id=14073
             except ldap.DECODING_ERROR as exc:
                 err = InvalidDN()
                 err._description = 'Malformed DN syntax'
