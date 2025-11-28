@@ -8,7 +8,7 @@ This document provides development-focused notes and references for contributors
 
 FreeIAM uses a Makefile to streamline common development tasks. Instead of memorizing long commands, you can rely on concise `make` targets during development, testing, building, and releasing.
 
-All commands can also be executed directly (e.g. via `tox`, `pre-commit`, or `semantic-release`), but the Makefile serves as a convenient shortcut.
+All commands can also be executed directly (e.g. via `tox`, `prek`, or `semantic-release`), but the Makefile serves as a convenient shortcut.
 
 ---
 
@@ -35,7 +35,7 @@ Below is an overview of the most relevant development commands defined in the Ma
 ### Linting & Formatting
 
 * **`make lint`**
-  Runs all linters via `pre-commit`.
+  Runs all linters via `prek`.
 
 * **`make lint-fix`**
   Automatically fixes issues using the `ruff-fix` hook.
@@ -75,12 +75,12 @@ FreeIAM uses **semantic-release** to automate versioning and publishing.
 ### Copyright & Licensing
 
 * **`make copyright`**
-  Runs REUSE annotation and linting via `pre-commit`.
+  Runs REUSE annotation and linting via `prek`.
 
 ### Pre-commit Hooks
 
-* **`make pre-commit-install`**
-  Installs all configured `pre-commit` hooks locally.
+* **`make prek-install`**
+  Installs all configured `prek` hooks locally.
 
 ---
 
