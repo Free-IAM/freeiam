@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2025 Florian Best
 # SPDX-License-Identifier: CC0-1.0
 
-.PHONY: test docs docs-open lint format build upload changelog publish coverage benchmark copyright pre-commit-install
+.PHONY: test docs docs-open lint format build upload changelog publish coverage benchmark copyright prek-install
 
 test:
 	-tox
@@ -17,13 +17,13 @@ testenv:
 	-. .tox/py311/bin/activate
 
 lint:
-	-pre-commit run -a
+	-prek run -a
 
 lint-fix:
-	-pre-commit run -a --hook-stage manual ruff-fix
+	-prek run -a --hook-stage manual ruff-fix
 
 format:
-	-pre-commit run -a --hook-stage manual ruff-format
+	-prek run -a --hook-stage manual ruff-format
 
 changelog:
 	semantic-release version --no-push --skip-build --changelog
@@ -51,8 +51,8 @@ benchmark:
 	-pytest-benchmark compare --json > benchmark.json
 
 copyright:
-	-pre-commit run -a --hook-stage manual reuse-annotate
-	-pre-commit run -a --hook-stage manual reuse-lint
+	-prek run -a --hook-stage manual reuse-annotate
+	-prek run -a --hook-stage manual reuse-lint
 
-pre-commit-install:
-	pre-commit install
+prek-install:
+	prek install

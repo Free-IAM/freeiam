@@ -12,7 +12,7 @@ Before contributing, please make sure you have the following installed:
 
 - Python ≥ 3.10
 - [`uv`](https://github.com/astral-sh/uv) for environment management
-- [`pre-commit`](https://pre-commit.com/)
+- [`prek`](https://prek.j178.dev/)
 - Git configured to use [Conventional Commits](https://www.conventionalcommits.org/)
 - [`tox`](https://tox.readthedocs.io/)
 - [`reuse`](https://reuse.software/)
@@ -33,9 +33,9 @@ source .venv/bin/activate
 # Install development dependencies
 uv pip install -r requirements-dev.txt
 
-# Set up pre-commit hooks
-pre-commit install
-pre-commit run --all-files
+# Set up prek hooks
+prek install
+prek run --all-files
 ```
 
 ---
@@ -55,7 +55,7 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 - Apply principles of Clean Code.
 - Include a clear description of _what_ you changed and _why_.
 - Link any related issues.
-- All pre-commit checks and tox test environments should pass.
+- All prek pre-commit checks and tox test environments should pass.
 
 ---
 
@@ -63,7 +63,7 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 
 We use [`ruff`](https://docs.astral.sh/ruff/) for linting and formatting.
 
-It is automatically run via `pre-commit`. You can also run it manually:
+It is automatically run via `prek`. You can also run it manually:
 
 ```bash
 ruff check .
