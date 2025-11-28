@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v0.9.0 (2025-11-28)
+
+### Documentation
+
+- **ldap.dn**: Add note about broken DN handling in Samba
+  ([`4af2ff2`](https://github.com/Free-IAM/freeiam/commit/4af2ff24f4791c2df03637daaa617ce882000274))
+
+### Features
+
+- Add type annotations with full mypy coverage
+  ([`5cf9db9`](https://github.com/Free-IAM/freeiam/commit/5cf9db971fac52bff1a1b19604fe93f50635da70))
+
+
 ## v0.8.0 (2025-11-20)
 
 ### Bug Fixes
