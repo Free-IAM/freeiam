@@ -31,7 +31,7 @@ uv venv
 source .venv/bin/activate
 
 # Install development dependencies
-uv pip install -r requirements-dev.txt
+uv pip install . --group dev
 
 # Set up prek hooks
 prek install
