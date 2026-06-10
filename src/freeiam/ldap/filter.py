@@ -157,15 +157,15 @@ class Attribute:
     def eq_ext(self, attr: str, value: str) -> 'ExtensibleMatch':
         return Filter.get_extensible(attr, self.dn, self.matchingrule, value)
 
-    def __eq__(self, other: str) -> 'SubstringMatch | EqualityMatch | ExtensibleMatch | ApproximateMatch':  # type: ignore[override]
+    def __eq__(self, other: str) -> 'SubstringMatch | EqualityMatch | ExtensibleMatch | ApproximateMatch':  # type: ignore[override]  # ty: ignore[invalid-method-override]
         if isinstance(other, (list, tuple)):
             return Filter.get_substring(self.attribute, *other)
         return self.eq(self.attribute, other)
 
-    def __ne__(self, other: Sequence[str] | None) -> 'NOT | PresenceMatch':  # type: ignore[override]
+    def __ne__(self, other: Sequence[str] | None) -> 'NOT | PresenceMatch':  # type: ignore[override]  # ty: ignore[invalid-method-override]
         if other is None:
             return Filter.get_pres(self.attribute)
-        return Filter.get_not(self == other)  # type: ignore[arg-type]
+        return Filter.get_not(self == other)  # type: ignore[arg-type]  # ty: ignore[invalid-argument-type]
 
     def __gt__(self, other: str | int) -> 'NOT | GreaterOrEqual':
         return Filter.get_gt(self.attribute, other)

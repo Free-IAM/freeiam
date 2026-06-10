@@ -4,6 +4,7 @@ import inspect
 import logging
 import math
 import pickle
+from typing import TYPE_CHECKING, cast
 
 import ldap as _ldap
 import pytest
@@ -20,6 +21,10 @@ from freeiam.ldap.extended_operations import (
     transaction_commit,
     transaction_start,
 )
+
+
+if TYPE_CHECKING:
+    from ldap.controls.vlv import VLVResponseControl
 
 
 log = logging.getLogger(__name__)
@@ -91,6 +96,9 @@ async def testuser2(sess_conn, base_dn):
 async def ou_structure(sess_conn, base_dn):
     dn = ldap.DN(f'cn={TESTUSERNAME}3,ou=Newsletter,ou=Marketing,ou=Departments,{base_dn}')
     dn2 = ldap.DN(f'cn={TESTUSERNAME}4,ou=Sales,ou=Departments,{base_dn}')
+    assert dn.parent is not None
+    assert dn.parent.parent is not None
+    assert dn.parent.parent.parent is not None
     base = dn.parent.parent.parent
     await create_ou(sess_conn, base)
     await create_ou(sess_conn, dn.parent.parent)
@@ -486,6 +494,7 @@ async def test_paginated_error_search(conn, page_users, base_dn):
     controls = Controls.set_server(None, pagination)
     await conn.search(base_dn, Scope.SUBTREE, f'(cn={PAGEPREFIX}*)', sorting=[('cn', 'caseIgnoreOrderingMatch', False)], controls=controls)
     res = controls.get(virtual_list_view.response())
+    res = cast('VLVResponseControl', res)
     pagination.context_id = res.context_id
     pagination.offset = res.contentCount + 1
     with pytest.raises(errors.VLVError) as exc:

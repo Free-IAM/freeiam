@@ -70,7 +70,7 @@ def pytest_runtest_makereport(item, call):
 
 class ExtraFormatter(logging.Formatter):
     def format(self, record):
-        standard_attrs = logging.LogRecord('', '', '', '', '', '', '', '').__dict__.keys()
+        standard_attrs = logging.LogRecord('', logging.DEBUG, '', 0, '', (), None, '').__dict__.keys()
         extras = {k: v for k, v in record.__dict__.items() if k not in standard_attrs}
         extras_str = ' '.join(f'{k}={v!r}' for k, v in extras.items())
         record.extras = extras_str
@@ -134,12 +134,12 @@ def enable_config(ldap_uri):
         conn.unbind_s()
 
 
-def dump_logs(container, file=None, level=logging.INFO):
+def dump_logs(container, file: io.StringIO | None = None, level=logging.INFO):
     if not container:
         return
     current_log = container.get_logs()
     log_it = file is None
-    file = io.StringIO() if log_it else file
+    file = io.StringIO() if file is None else file
     print('\n################################### LOGS', file=file)
     for i, entry_ in enumerate(current_log):
         entry = entry_.decode('UTF-8', 'replace')
@@ -262,12 +262,16 @@ def _ldap_server():  # noqa: PLR0915,PLR0914
     def stop():
         # client.networks.create(net_name, driver='bridge')
         # client.networks.get(net_name).disconnect(container._container.id, force=True)
+        assert container is not None
+        assert container._container is not None
         cn = client.containers.get(container._container.id)
         cn.stop()
 
     def start():
         # client.networks.get(net_name).connect(container._container.id)
         # client.networks.get(net_name).remove()
+        assert container is not None
+        assert container._container is not None
         cn = client.containers.get(container._container.id)
         cn.start()
 

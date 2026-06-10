@@ -3,7 +3,7 @@ import pytest
 from ldap.controls import RelaxRulesControl, SimplePagedResultsControl
 
 from freeiam import errors, ldap
-from freeiam.ldap._wrapper import Result  # noqa: PLC2701
+from freeiam.ldap._wrapper import Attributes, Result, _Response  # noqa: PLC2701
 from freeiam.ldap.constants import LDAPChangeType, Mod, Scope
 from freeiam.ldap.controls import (
     Controls,
@@ -33,14 +33,20 @@ def conn(ldap_server, base_dn):
 
 def test_result_control_empty():
     ctrl = SimplePagedResultsControl()
+    res = _Response(None, None, None, None)
+    dn = DN('cn=foo')
+    attr = Attributes()
 
-    result = Result('', {}, Controls(None, None, []), None)
+    result = Result(dn, attr, Controls(None, None, []), res)
+    assert result.controls is not None
     assert result.controls.get(ctrl) is None
 
-    result = Result('', {}, Controls(None, None, None), None)
+    result = Result(dn, attr, Controls(None, None, None), res)
+    assert result.controls is not None
     assert result.controls.get(ctrl) is None
 
-    result = Result('', {}, Controls(None, None, [ctrl]), None)
+    result = Result(dn, attr, Controls(None, None, [ctrl]), res)
+    assert result.controls is not None
     assert result.controls.get(RelaxRulesControl()) is None
 
 
@@ -119,7 +125,7 @@ def test_bind_with_authzid_control(conn, base_dn):
 
 @pytest.mark.xfail(raises=errors.UnavailableCriticalExtension)
 def test_dereference_control_not_supported(conn, base_dn):
-    ctrl = dereference({'member': 'cn'}, criticality=True)
+    ctrl = dereference({'member': ['cn']}, criticality=True)
     conn.search(f'ou=groups,{base_dn}', Scope.Subtree, '(objectClass=groupOfNames)', controls=Controls([ctrl]))
 
 
