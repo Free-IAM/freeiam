@@ -6,10 +6,11 @@ import typing
 from contextlib import contextmanager
 
 import ldap
+import ldap.controls
 
 
 if typing.TYPE_CHECKING:
-    import freeiam
+    import freeiam.ldap._wrapper
 
 
 class Error(Exception):

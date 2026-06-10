@@ -11,5 +11,5 @@ def _parse_version_tuple(ver: str) -> tuple[int, ...]:
     return tuple(int(part) for part in ver.split('.') if part.isdigit())
 
 
-__version__ = version = get_version(__package__)
+__version__ = version = get_version(__package__ or 'freeiam')
 __version_tuple__ = version_tuple = _parse_version_tuple(__version__)

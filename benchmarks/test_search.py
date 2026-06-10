@@ -9,7 +9,7 @@ from freeiam import ldap
 from freeiam.ldap.constants import Scope
 
 
-num_workers = min(os.cpu_count(), 4)
+num_workers = min(os.cpu_count() or 1, 4)
 total_iterations = 100
 iterations_per_worker = total_iterations // num_workers
 

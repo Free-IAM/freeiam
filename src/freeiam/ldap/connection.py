@@ -11,9 +11,12 @@ from collections.abc import AsyncGenerator, Callable, Generator, Sequence
 from types import TracebackType
 from typing import Any, Literal, Self, TypeAlias, cast, overload
 
+import ldap.controls.pagedresults
+import ldap.controls.vlv
 import ldap.ldapobject
 import ldap.modlist
 import ldap.sasl
+import ldap.schema
 from ldap.schema import SCHEMA_ATTRS
 
 from freeiam import errors
@@ -157,7 +160,7 @@ class Connection:
 
     @overload
     def get_option(
-        self, option: Literal[Option.ProtocolVersion | Option.Timelimit | Option.NetworkTimeout | Option.Dereference | Option.Sizelimit]
+        self, option: Literal[Option.ProtocolVersion, Option.Timelimit, Option.NetworkTimeout, Option.Dereference, Option.Sizelimit]
     ) -> int: ...
 
     @overload
@@ -377,7 +380,7 @@ class Connection:
                     subschema = (await self.get(subschemasubentry_dn, SCHEMA_ATTRS, '(objectClass=subschema)')).attr
                 except errors.NoSuchObject:  # pragma: no cover
                     subschema = None
-            self.__schema[subschema_dn] = Schema(ldap.schema.SubSchema(cast('dict[str, list[bytes]]', subschema), 0))
+            self.__schema[subschema_dn] = Schema(ldap.schema.subentry.SubSchema(cast('dict[str, list[bytes]]', subschema), 0))
             Attributes.set_schema(self.__schema[subschema_dn])
         return self.__schema[subschema_dn]
 
@@ -471,7 +474,7 @@ class Connection:
         """Get a LDAP object."""
         for obj in await self.search(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls):
             return obj
-        return None  # type: ignore[return-value] # pragma: no cover; impossible
+        raise AssertionError('unreachable')  # pragma: no cover
         # obj, = [_ async for _ in self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls)]  # noqa: E501
         # return obj[0]
         # # GC calls gen.aclose() causing unnecessary .cancel() to be called:
@@ -1009,7 +1012,8 @@ class Connection:
         log.debug('result(%r, timeout=%r)', msgid, timeout, extra={'MSGID': msgid, 'ALL': _all, 'TIMEOUT': timeout, 'FUNC': 'result'})
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
-                response = _Response(*conn.result4(msgid, all=_all, timeout=timeout, add_extop=1))  # type: ignore[arg-type]
+                rtype, data, msgid_ret, ctrls, name, value = conn.result4(msgid, all=_all, timeout=timeout, add_extop=1)
+                response = _Response(ResponseType(rtype) if rtype is not None else None, data, msgid_ret, ctrls, name, value)
         except (errors.LdapError, OSError) as exc:
             log.debug('result(%r) -> raised %r', msgid, exc, extra={'MSGID': msgid, 'OPERATION': 'result', 'EXCEPTION': str(exc)})
             raise
@@ -1018,7 +1022,7 @@ class Connection:
 
     def request(self, operation: Callable[..., int], *args: Any, **kwargs: Any) -> int | None:
         """Make the LDAP request for the given operation."""
-        op = operation.__name__
+        op = getattr(operation, '__name__', repr(operation))
         arg_str = ', '.join(map(repr, args)) if 'bind' not in op else ''
         kw = ', '.join(f'{k}={v!r}' for k, v in kwargs.items()) if 'bind' not in op else ''
         log.debug('Request %s(%s%s%s)', op, arg_str, ', ' if kw else '', kw, extra={'OPERATION': op, 'ARGUMENTS': arg_str, 'KEYWORDS': kw})
@@ -1057,15 +1061,15 @@ class Connection:
         # this method must only used by the synchronous variant of this class
         while True:
             try:
-                response = self._retry(self.get_result, conn, msgid, _all=_all, timeout=self.timeout)
+                response: _Response = cast('_Response', self._retry(self.get_result, conn, msgid, _all=_all, timeout=self.timeout))
             except errors.NoResultsReturned:  # pragma: no cover
                 break
 
-            rtype = response.type  # type: ignore[attr-defined]
+            rtype = response.type
             if rtype is None:
                 continue
 
-            yield response  # type: ignore[misc]
+            yield response
             if rtype == ldap.RES_SEARCH_ENTRY:
                 continue
             if rtype == ldap.RES_SEARCH_RESULT:
