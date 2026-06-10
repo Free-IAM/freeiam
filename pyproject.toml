@@ -7,7 +7,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "pyasn1",
-    "python-ldap",
+    "python-ldap>=3.4.7",
     "lark",
 ]
 
@@ -23,17 +23,18 @@ package-dir = { "" = "src" }
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "build",
     "cryptography",
+    "ty",
     "pytest",
     "pytest-asyncio",
     "pytest-benchmark",
     "pytest-cov",
     "pytest-timeout",
     "tox",
-    "testcontainers[docker]",
+    "testcontainers",
     "python-semantic-release",
 ]
 test = [
@@ -43,7 +44,7 @@ test = [
     "pytest-benchmark",
     "pytest-cov",
     "pytest-timeout",
-    "testcontainers[docker]",
+    "testcontainers",
 ]
 docs = [
     "lark",
@@ -338,6 +339,29 @@ insecure = false
 [tool.semantic_release.publish]
 dist_glob_patterns = ["dist/*"]
 upload_to_vcs_release = false
+
+[tool.ty.terminal]
+output-format = "concise"
+
+[tool.ty.environment]
+extra-paths = ["stubs"]
+python-version = "3.11"
+
+[tool.ty.analysis]
+replace-imports-with-any = [
+    "pyasn1.**",
+    "pyasn1_modules.**",
+]
+
+[[tool.ty.overrides]]
+include = [
+    "docs/**",
+    "tests/**",
+    "benchmarks/**",
+]
+
+[tool.ty.overrides.rules]
+all = "ignore"
 
 [tool.mypy]
 python_version = "3.11"
