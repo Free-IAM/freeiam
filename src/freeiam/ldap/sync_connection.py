@@ -441,7 +441,7 @@ class Connection:
         for obj in self.search(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls):
             return obj
         return None  # type: ignore[return-value] # pragma: no cover; impossible
-        # obj, = [_ for _ in self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls)]  # noqa: E501
+        # obj, = [_ for _ in self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls)]
         # return obj[0]
         # # GC calls gen.aclose() causing unnecessary .cancel() to be called:
         # # return next(self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls))
