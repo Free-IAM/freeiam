@@ -141,8 +141,8 @@ def dump_logs(container, file=None, level=logging.INFO):
     log_it = file is None
     file = io.StringIO() if log_it else file
     print('\n################################### LOGS', file=file)
-    for i, _entry in enumerate(current_log):
-        entry = _entry.decode('UTF-8', 'replace')
+    for i, entry_ in enumerate(current_log):
+        entry = entry_.decode('UTF-8', 'replace')
         additions = entry.removeprefix(last_log.get(i, ''))
         if additions:
             print(additions, file=file)
