@@ -31,7 +31,7 @@ PAGEPREFIX = 'page'
 NUM_PAGEUSERS = 13
 
 
-@pytest_asyncio.fixture(scope='function')
+@pytest_asyncio.fixture()
 async def conn(ldap_server, base_dn):
     """A connection to the LDAP server bound to the admin account"""
     async with ldap.Connection(ldap_server['ldap_uri'], retry_delay=1) as conn:
@@ -78,7 +78,7 @@ async def testuser(sess_conn, base_dn):
     return await create_user(sess_conn, f'cn={TESTUSERNAME},{base_dn}', sn='User')
 
 
-@pytest_asyncio.fixture(scope='function')
+@pytest_asyncio.fixture()
 async def testuser2(sess_conn, base_dn):
     """A testuser which can be destroyed"""
     dn, _attrs = await create_user(sess_conn, f'cn={TESTUSERNAME}2,{base_dn}', sn='User')
