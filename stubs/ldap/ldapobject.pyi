@@ -1,6 +1,6 @@
 from typing import Any, BinaryIO, TextIO
 
-import ldap.functions
+import ldap.extop
 import ldap.sasl
 from _ldap import NO_SUCH_OBJECT
 from _typeshed import Incomplete
