@@ -441,7 +441,7 @@ async def page_users(sess_conn, base_dn):
         dn = f'cn={PAGEPREFIX}user{i},{base_dn}'
         await create_user(sess_conn, dn, sn='User')
         results.append(dn)
-    yield tuple(results)
+    return tuple(results)
 
 
 @pytest.mark.asyncio
