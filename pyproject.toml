@@ -65,7 +65,7 @@ combine_as_imports = true
 filter_files = true
 force_grid_wrap = false
 known_first_party = "freeiam"
-known_third_party = "ldap"
+known_third_party = "ldap,ldif"
 line_length = 150
 multi_line_output = 5
 include_trailing_comma = true
@@ -133,6 +133,8 @@ ignore = [
  "FIX002", # Line contains TODO, consider resolving the issue
  "EM101",  # Exception must not use a string literal, assign to variable first
  "N818",
+ "PLW0717",  # too-many-statements-in-try-clause
+ "D421",  # property-docstring-starts-with-verb
 
  "COM812",  # missing-trailing-comma
 ]
@@ -248,7 +250,7 @@ combine-as-imports = true
 #filter-files = true
 #force-grid-wrap = false
 known-first-party = ["freeiam"]
-known-third-party = ["ldap"]
+known-third-party = ["ldap", "ldif"]
 # https://github.com/astral-sh/ruff/issues/2600 :
 #multi-line-output = 5
 #include-trailing-comma = true

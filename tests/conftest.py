@@ -346,7 +346,8 @@ def generate_ca(cert_dir: Path, cn):
     ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
     ca_cert = (
-        x509.CertificateBuilder()
+        x509
+        .CertificateBuilder()
         .subject_name(ca_name)
         .issuer_name(ca_name)
         .public_key(ca_key.public_key())
@@ -375,7 +376,8 @@ def generate_signed_cert(cert_dir: Path, ca_cert, ca_key, cn: str, filename_pref
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
     cert = (
-        x509.CertificateBuilder()
+        x509
+        .CertificateBuilder()
         .subject_name(subject)
         .issuer_name(ca_cert.subject)
         .public_key(key.public_key())
