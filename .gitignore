@@ -209,6 +209,6 @@ __marimo__/
 # Vim
 .*.sw?
 
-schema/
+./schema/
 
 .claude

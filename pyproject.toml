@@ -202,6 +202,7 @@ task-tags = ["TODO", "FIXME"]
 ]
 "*/__init__.py" = ["D104"]
 "stubs/*" = [
+  "E501",  # line-too-long
   "N815",  # mixed-case-variable-in-class-scope
   "N801",  # invalid-class-name
   "N803",  # invalid-argument-name
