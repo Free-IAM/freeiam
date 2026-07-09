@@ -217,9 +217,9 @@ INVALID_FILTERS = [
     '(cn=John Doe',
     '(&(cn=John)(sn=Smith)',
     '(|(a=b)(c=d)',
-    '(!(a=b) extra )'
+    '(!(a=b) extra )',
     # text
-    'hello'
+    'hello',
     # multiple NOT
     '(!(a=b)(b=c))',
     # invalid operators
