@@ -2,6 +2,13 @@
 
 <!-- version list -->
 
+## v0.10.0 (2026-07-10)
+
+### Features
+
+- Adjust type annotations for full ty and mypy 2 coverage
+  ([`cbb41af`](https://github.com/Free-IAM/freeiam/commit/cbb41af2511d446e5b886cc4fb58a415826360b5))
+
 ## v0.9.0 (2025-11-28)
 
 ### Documentation
