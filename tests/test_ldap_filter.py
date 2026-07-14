@@ -100,6 +100,8 @@ VALID_FILTERS = [
     '(cn:2.5.13.2:=John)',
     '(cn:dn:2.5.13.2:=John)',
     '(cn:DN:2.5.13.2:=John)',
+    '(uniqueMember:1.2.840.113556.1.4.1941:=uid=john,ou=users,dc=freeiam,dc=org)',
+    '(uniqueMember:inchainMatch:=uid=john,ou=users,dc=freeiam,dc=org)',
     '(cn:dn:=foo)',
     '(cn:=foo)',
     '(:dn:caseIgnoreMatch:=value)',
