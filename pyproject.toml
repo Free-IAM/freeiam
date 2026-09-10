@@ -136,6 +136,8 @@ ignore = [
  "N818",
  "PLW0717",  # too-many-statements-in-try-clause
  "D421",  # property-docstring-starts-with-verb
+ "RUF105",  # noqa-comments
+ "RUF201",  # rule-codes-in-selectors
 
  "COM812",  # missing-trailing-comma
 ]
@@ -169,6 +171,9 @@ task-tags = ["TODO", "FIXME"]
  "S301",
  "PLR2004",
 ]
+
+"!**/conftest.py" = ["pytest-fixture-autouse"]
+
 "benchmarks/*" = [
  "D",
  "S603",
