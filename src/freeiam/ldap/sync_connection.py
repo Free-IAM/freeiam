@@ -45,8 +45,8 @@ __all__ = ('Connection',)
 log = logging.getLogger(__name__)
 
 LDAPObject: TypeAlias = ldap.ldapobject.SimpleLDAPObject
-LDAPAddList: TypeAlias = list[tuple[str, list[bytes]]]
-LDAPModList: TypeAlias = list[tuple[int, str, list[bytes]]]
+LDAPAddList: TypeAlias = Sequence[tuple[str, list[bytes]]]
+LDAPModList: TypeAlias = Sequence[tuple[int, str, bytes | list[bytes] | None]]
 Sorting: TypeAlias = list[str | tuple[str, str | None, bool]]
 
 

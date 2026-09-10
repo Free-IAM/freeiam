@@ -148,7 +148,7 @@ def persistent_search(
     change_types: list[LDAPChangeType], changes_only: bool, return_entry_change_control: bool, *, criticality: bool = False
 ) -> PersistentSearchControl:
     """PersistentSearch control."""
-    return PersistentSearchControl(criticality, cast('list[int]', change_types), changes_only, return_entry_change_control)
+    return PersistentSearchControl(criticality, cast('list[int | str]', change_types), changes_only, return_entry_change_control)
 
 
 persistent_search.response = EntryChangeNotificationControl
