@@ -2,6 +2,8 @@ from _typeshed import Incomplete
 from ldap.controls import RequestControl, ResponseControl
 from pyasn1.type import univ
 
+__all__ = ['CHANGE_TYPES_INT', 'CHANGE_TYPES_STR', 'EntryChangeNotificationControl', 'PersistentSearchControl']
+
 CHANGE_TYPES_INT: Incomplete
 CHANGE_TYPES_STR: Incomplete
 
@@ -11,7 +13,9 @@ class PersistentSearchControl(RequestControl):
 
     controlType: str
     changeTypes: Incomplete
-    def __init__(self, criticality: bool = ..., changeTypes: list[int] | None = ..., changesOnly: bool = ..., returnECs: bool = ...) -> None: ...
+    def __init__(
+        self, criticality: bool = True, changeTypes: list[int | str] | int | None = None, changesOnly: bool = False, returnECs: bool = True
+    ) -> None: ...
     def encodeControlValue(self) -> bytes: ...
 
 class ChangeType(univ.Enumerated):
@@ -24,6 +28,6 @@ class EntryChangeNotificationValue(univ.Sequence):
 class EntryChangeNotificationControl(ResponseControl):
     controlType: str
     changeType: Incomplete
-    previousDN: Incomplete
-    changeNumber: Incomplete
+    previousDN: str | None
+    changeNumber: int | None
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...

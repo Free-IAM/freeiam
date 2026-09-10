@@ -2,6 +2,8 @@ from _typeshed import Incomplete
 from ldap.controls import RequestControl, ResponseControl
 from pyasn1.type import univ
 
+__all__ = ['VLVRequestControl', 'VLVResponseControl']
+
 class ByOffsetType(univ.Sequence):
     tagSet: Incomplete
     componentType: Incomplete
@@ -22,13 +24,13 @@ class VLVRequestControl(RequestControl):
     context_id: Incomplete
     def __init__(
         self,
-        criticality: bool = ...,
-        before_count: int = ...,
-        after_count: int = ...,
-        offset: int | None = ...,
-        content_count: int | None = ...,
-        greater_than_or_equal: str | None = ...,
-        context_id: str | None = ...,
+        criticality: bool = False,
+        before_count: int = 0,
+        after_count: int = 0,
+        offset: int | None = None,
+        content_count: int | None = None,
+        greater_than_or_equal: str | None = None,
+        context_id: str | None = None,
     ) -> None: ...
     def encodeControlValue(self) -> bytes: ...
 
@@ -40,11 +42,11 @@ class VirtualListViewResponseType(univ.Sequence):
 
 class VLVResponseControl(ResponseControl):
     controlType: str
-    def __init__(self, criticality: bool = ...) -> None: ...
+    def __init__(self, criticality: bool = False) -> None: ...
     targetPosition: Incomplete
     contentCount: Incomplete
     virtualListViewResult: Incomplete
-    contextID: Incomplete
+    contextID: str | None
     target_position: Incomplete
     content_count: Incomplete
     result: Incomplete

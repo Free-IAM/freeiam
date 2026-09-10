@@ -11,7 +11,7 @@ class SessionTrackingControl(RequestControl):
     class SessionIdentifierControlValue(univ.Sequence):
         componentType: Incomplete
 
-    controlType: Incomplete
+    controlType = SESSION_TRACKING_CONTROL_OID
     criticality: bool
     def __init__(self, sessionSourceIp: str, sessionSourceName: str, formatOID: str, sessionTrackingIdentifier: str) -> None: ...
     def encodeControlValue(self) -> bytes: ...

@@ -3,6 +3,18 @@ from typing import TypeAlias
 
 from _typeshed import Incomplete
 
+__all__ = [
+    'LDAP_SCOPE_BASE',
+    'LDAP_SCOPE_ONELEVEL',
+    'LDAP_SCOPE_SUBTREE',
+    'SEARCH_SCOPE',
+    'SEARCH_SCOPE_STR',
+    'LDAPUrl',
+    'LDAPUrlExtension',
+    'LDAPUrlExtensions',
+    'isLDAPUrl',
+]
+
 LDAP_SCOPE_BASE: int
 LDAP_SCOPE_ONELEVEL: int
 LDAP_SCOPE_SUBTREE: int
@@ -15,7 +27,7 @@ class LDAPUrlExtension:
     critical: Incomplete
     extype: Incomplete
     exvalue: Incomplete
-    def __init__(self, extensionStr: str | None = ..., critical: int = ..., extype: str | None = ..., exvalue: str | None = ...) -> None: ...
+    def __init__(self, extensionStr: str | None = None, critical: int = 0, extype: str | None = None, exvalue: str | None = None) -> None: ...
     def unparse(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
     def __ne__(self, other: object) -> bool: ...
@@ -23,7 +35,7 @@ class LDAPUrlExtension:
 LDAPUrlExtensionsBase: TypeAlias = MutableMapping[(str, LDAPUrlExtension)]
 
 class LDAPUrlExtensions(LDAPUrlExtensionsBase):
-    def __init__(self, default: dict[str, LDAPUrlExtension] | None = ...) -> None: ...
+    def __init__(self, default: dict[str, LDAPUrlExtension] | None = None) -> None: ...
     def __setitem__(self, name: str, value: LDAPUrlExtension) -> None: ...
     def __getitem__(self, name: str) -> LDAPUrlExtension: ...
     def __delitem__(self, name: str) -> None: ...
@@ -41,28 +53,28 @@ class LDAPUrl:
     attrs: Incomplete
     scope: Incomplete
     filterstr: Incomplete
-    extensions: Incomplete
+    extensions: LDAPUrlExtensions | None
     who: Incomplete
     cred: Incomplete
     def __init__(
         self,
-        ldapUrl: str | None = ...,
-        urlscheme: str = ...,
-        hostport: str = ...,
-        dn: str = ...,
-        attrs: list[str] | None = ...,
-        scope: int | None = ...,
-        filterstr: str | None = ...,
-        extensions: LDAPUrlExtensions | None = ...,
-        who: str | None = ...,
-        cred: str | None = ...,
+        ldapUrl: str | None = None,
+        urlscheme: str = 'ldap',
+        hostport: str = '',
+        dn: str = '',
+        attrs: list[str] | None = None,
+        scope: int | None = None,
+        filterstr: str | None = None,
+        extensions: LDAPUrlExtensions | None = None,
+        who: str | None = None,
+        cred: str | None = None,
     ) -> None: ...
     def __eq__(self, other: object) -> bool: ...
     def __ne__(self, other: object) -> bool: ...
     def applyDefaults(self, defaults: dict[str, str]) -> None: ...
     def initializeUrl(self) -> str: ...
     def unparse(self) -> str: ...
-    def htmlHREF(self, urlPrefix: str = ..., hrefText: str | None = ..., hrefTarget: str | None = ...) -> str: ...
+    def htmlHREF(self, urlPrefix: str = '', hrefText: str | None = None, hrefTarget: str | None = None) -> str: ...
     def __getattr__(self, name: str) -> str | None: ...
     def __setattr__(self, name: str, value: str) -> None: ...
     def __delattr__(self, name: str) -> None: ...

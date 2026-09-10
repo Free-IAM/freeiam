@@ -1,9 +1,9 @@
-from collections import UserDict
-from collections.abc import ItemsView, KeysView
+from collections.abc import ItemsView, Iterator, KeysView, MutableMapping
 from typing import TypeAlias
 
-import ldap.schema.subentry
+import ldap.schema
 from _typeshed import Incomplete
+from ldap._types import LDAPEntryDict as LDAPEntryDict
 from ldap.cidict import cidict as cidict
 from ldap.schema.subentry import SCHEMA_ATTR_MAPPING as SCHEMA_ATTR_MAPPING, SCHEMA_CLASS_MAPPING as SCHEMA_CLASS_MAPPING
 from ldap.schema.tokenizer import (
@@ -12,9 +12,8 @@ from ldap.schema.tokenizer import (
     parse_tokens as parse_tokens,
     split_tokens as split_tokens,
 )
-from ldap.types import LDAPEntryDict as LDAPEntryDict
 
-EntryBase: TypeAlias = UserDict[str, list[bytes]]
+EntryBase: TypeAlias = MutableMapping[(str, list[bytes])]
 NOT_HUMAN_READABLE_LDAP_SYNTAXES: Incomplete
 
 class SchemaElement:
@@ -69,11 +68,18 @@ class NameForm(SchemaElement):
     known_tokens: Incomplete
 
 class Entry(EntryBase):
+    data: dict[tuple[str, ...], list[bytes]]
     dn: Incomplete
     def __init__(self, schema: ldap.schema.subentry.SubSchema, dn: str, entry: LDAPEntryDict) -> None: ...
+    def __contains__(self, nameoroid: object) -> bool: ...
+    def __getitem__(self, nameoroid: object) -> list[bytes]: ...
+    def __setitem__(self, nameoroid: object, attr_values: list[bytes]) -> None: ...
+    def __delitem__(self, nameoroid: object) -> None: ...
+    def __len__(self) -> int: ...
     def has_key(self, nameoroid: str) -> bool: ...
     def keys(self) -> KeysView[str]: ...
     def items(self) -> ItemsView[str, list[bytes]]: ...
+    def __iter__(self) -> Iterator[str]: ...
     def attribute_types(
         self, attr_type_filter: list[tuple[str, list[str]]] | None = None, raise_keyerror: int = 1
     ) -> tuple[cidict[AttributeType | None], cidict[AttributeType | None]]: ...

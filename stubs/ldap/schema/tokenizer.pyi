@@ -1,9 +1,10 @@
+from collections.abc import Mapping
 from typing import TypeAlias
 
 from _typeshed import Incomplete
 
-LDAPTokenDictValue: TypeAlias = tuple[str, ...]
-LDAPTokenDict: TypeAlias = dict[str, LDAPTokenDictValue]
+LDAPTokenDictValue: TypeAlias = tuple[()] | tuple[str, ...]
+LDAPTokenDict: TypeAlias = Mapping[str, LDAPTokenDictValue]
 TOKENS_FINDALL: Incomplete
 UNESCAPE_PATTERN: Incomplete
 

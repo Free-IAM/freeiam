@@ -2,6 +2,8 @@ from _typeshed import Incomplete
 from ldap.controls import ResponseControl, ValueLessRequestControl
 from pyasn1.type import univ
 
+__all__ = ['PasswordPolicyControl']
+
 class PasswordPolicyWarning(univ.Choice):
     componentType: Incomplete
 
@@ -15,8 +17,8 @@ class PasswordPolicyResponseValue(univ.Sequence):
 class PasswordPolicyControl(ValueLessRequestControl, ResponseControl):
     controlType: str
     criticality: Incomplete
-    timeBeforeExpiration: Incomplete
-    graceAuthNsRemaining: Incomplete
-    error: Incomplete
-    def __init__(self, criticality: bool = ...) -> None: ...
+    timeBeforeExpiration: int | None
+    graceAuthNsRemaining: int | None
+    error: int | None
+    def __init__(self, criticality: bool = False) -> None: ...
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...
