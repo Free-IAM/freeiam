@@ -34,7 +34,7 @@ async def main():
     async with ldap.Connection('ldap://localhost:389', timeout=30) as conn:
         # TLS
         conn.set_tls(ca_certfile='/path/to/ca.crt', require_cert=TLSRequireCert.Hard)
-        await conn.start_tls()
+        conn.start_tls()
 
         # authenticate
         await conn.bind('cn=admin,dc=freeiam,dc=org', 'iamfree')
@@ -66,7 +66,7 @@ async def main():
             Scope.Subtree,
             '(&(uid=*)(objectClass=person))',
             page_size=10,
-            sorting=[('uid', 'caseIgnoreOrderingMatch', False)]
+            sorting=[('uid', 'caseIgnoreOrderingMatch', False)],
         ):
             print(entry.dn, entry.attr, entry.page)
 
