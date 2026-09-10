@@ -1,10 +1,11 @@
 from collections.abc import Iterator
 from typing import Any
 
-import ldap
 from ldap.controls import ResponseControl as ResponseControl
+from ldap.ldapobject import LDAPObject as _Base
+from ldap.pkginfo import __version__ as __version__
 
-class ResultProcessor(ldap.ldapobject.LDAPObject):
+class ResultProcessor(_Base):
     def allresults(
-        self, msgid: int, timeout: int = ..., add_ctrls: int = ...
+        self, msgid: int, timeout: int = -1, add_ctrls: int = 0
     ) -> Iterator[tuple[int | None, Any | None, int | None, list[ResponseControl] | None]]: ...

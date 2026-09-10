@@ -8,7 +8,7 @@ class Constant:
     name: Incomplete
     requirements: Incomplete
     doc: Incomplete
-    def __init__(self, name: str, optional: bool = ..., requirements: Sequence[str] = ..., doc: str | None = ...) -> None: ...
+    def __init__(self, name: str, optional: bool = False, requirements: Sequence[str] = (), doc: str | None = None) -> None: ...
 
 class Error(Constant):
     c_template: str
@@ -31,3 +31,4 @@ API_2004: str
 CONSTANTS: Incomplete
 
 def print_header() -> None: ...
+def generate_pyi() -> None: ...

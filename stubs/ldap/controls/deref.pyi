@@ -3,6 +3,8 @@ from ldap.controls import LDAPControl
 from pyasn1.type import univ
 from pyasn1_modules.rfc2251 import AttributeDescriptionList
 
+__all__ = ['DEREF_CONTROL_OID', 'DereferenceControl']
+
 DEREF_CONTROL_OID: str
 AttributeList = AttributeDescriptionList
 
@@ -29,9 +31,9 @@ class DerefResultControlValue(univ.SequenceOf):
     componentType: Incomplete
 
 class DereferenceControl(LDAPControl):
-    controlType: Incomplete
+    controlType = DEREF_CONTROL_OID
     derefSpecs: Incomplete
-    def __init__(self, criticality: bool = ..., derefSpecs: dict[str, list[str]] | None = ...) -> None: ...
+    def __init__(self, criticality: bool = False, derefSpecs: dict[str, list[str]] | None = None) -> None: ...
     def encodeControlValue(self) -> bytes: ...
-    derefRes: Incomplete
+    derefRes: dict[str, list[tuple[str, dict[str, list[str]]]]]
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...

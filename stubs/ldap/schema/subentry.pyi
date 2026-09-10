@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from typing import Any, TypeVar
 
 from _typeshed import Incomplete
+from ldap._types import LDAPEntryDict as LDAPEntryDict
 from ldap.cidict import cidict as cidict
 from ldap.schema.models import (
     AttributeType as AttributeType,
@@ -9,7 +10,6 @@ from ldap.schema.models import (
     ObjectClass as ObjectClass,
     SchemaElement as SchemaElement,
 )
-from ldap.types import LDAPEntryDict as LDAPEntryDict
 
 SCHEMA_CLASS_MAPPING: cidict[type[SchemaElement]]
 SCHEMA_ATTR_MAPPING: dict[type[SchemaElement], str]

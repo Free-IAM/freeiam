@@ -1,6 +1,8 @@
 from _typeshed import Incomplete
 from ldap.controls import ResponseControl
 
+__all__ = ['PasswordExpiredControl', 'PasswordExpiringControl']
+
 class PasswordExpiringControl(ResponseControl):
     controlType: str
     gracePeriod: Incomplete
