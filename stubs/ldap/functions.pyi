@@ -10,7 +10,7 @@ def initialize(
     uri: str,
     trace_level: int = 0,
     trace_file: TextIO = ...,
-    trace_stack_limit: int = 5,
+    trace_stack_limit: int | None = None,
     bytes_mode: Any | None = None,
     fileno: int | BinaryIO | None = None,
     **kwargs: Any,

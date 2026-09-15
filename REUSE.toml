@@ -35,6 +35,6 @@ SPDX-FileCopyrightText = "2005-2020, Ilya Etingof <etingof@gmail.com>"
 SPDX-License-Identifier = "BSD-2-Clause"
 
 [[annotations]]
-path = [ "stubs/ldap/**/*.pyi", "stubs/_ldap.pyi", "stubs/ldapurl.pyi", "stubs/ldif.pyi" ]
+path = [ "stubs/ldap/**/*.pyi", "stubs/_ldap.pyi", "stubs/ldapurl.pyi", "stubs/ldif.pyi", "stubs/slapdtest/*.pyi" ]
 SPDX-FileCopyrightText = "python-ldap"
 SPDX-License-Identifier = "LicenseRef-python-ldap AND MIT"

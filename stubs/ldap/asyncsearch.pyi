@@ -1,7 +1,7 @@
 from collections.abc import Iterable, Sequence
 from typing import Any, TextIO
 
-import ldap
+import ldap.ldapobject
 import ldif
 from _typeshed import Incomplete
 from ldap._types import LDAPEntryDict as LDAPEntryDict, LDAPSearchResult as LDAPSearchResult
