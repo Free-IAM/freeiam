@@ -1,11 +1,11 @@
 from typing import Any, BinaryIO, TextIO
 
-import ldap.extop
+import ldap
 import ldap.sasl
 from _typeshed import Incomplete
 from ldap._types import LDAPAddModList, LDAPEntryDict, LDAPModifyModList
 from ldap.controls import RequestControl, ResponseControl
-from ldap.extop import PasswordModifyResponse
+from ldap.extop import ExtendedRequest, ExtendedResponse, PasswordModifyResponse
 
 __all__ = ['LDAPBytesWarning', 'LDAPObject', 'ReconnectLDAPObject', 'SimpleLDAPObject']
 
@@ -23,7 +23,7 @@ class SimpleLDAPObject:
         uri: str | None = None,
         trace_level: int = 0,
         trace_file: TextIO | None = None,
-        trace_stack_limit: int = 5,
+        trace_stack_limit: int | None = 5,
         bytes_mode: Any | None = None,
         bytes_strictness: str | None = None,
         fileno: int | BinaryIO | None = None,
@@ -114,16 +114,16 @@ class SimpleLDAPObject:
     def delete(self, dn: str) -> int: ...
     def delete_s(self, dn: str) -> None: ...
     def extop(
-        self, extreq: ldap.extop.ExtendedRequest, serverctrls: list[RequestControl] | None = None, clientctrls: list[RequestControl] | None = None
+        self, extreq: ExtendedRequest, serverctrls: list[RequestControl] | None = None, clientctrls: list[RequestControl] | None = None
     ) -> int: ...
     def extop_result(self, msgid: int = ..., all: int = 1, timeout: float | None = None) -> tuple[str | None, bytes]: ...
     def extop_s(
         self,
-        extreq: ldap.extop.ExtendedRequest,
+        extreq: ExtendedRequest,
         serverctrls: list[RequestControl] | None = None,
         clientctrls: list[RequestControl] | None = None,
-        extop_resp_class: type[ldap.extop.ExtendedResponse] | None = None,
-    ) -> tuple[str | None, bytes] | ldap.extop.ExtendedResponse: ...
+        extop_resp_class: type[ExtendedResponse] | None = None,
+    ) -> tuple[str | None, bytes] | ExtendedResponse: ...
     def modify_ext(
         self, dn: str, modlist: LDAPModifyModList, serverctrls: list[RequestControl] | None = None, clientctrls: list[RequestControl] | None = None
     ) -> int: ...

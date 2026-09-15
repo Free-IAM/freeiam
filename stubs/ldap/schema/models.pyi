@@ -1,71 +1,64 @@
 from collections.abc import ItemsView, Iterator, KeysView, MutableMapping
-from typing import TypeAlias
+from typing import ClassVar, Self, TypeAlias
 
 import ldap.schema
 from _typeshed import Incomplete
 from ldap._types import LDAPEntryDict as LDAPEntryDict
 from ldap.cidict import cidict as cidict
 from ldap.schema.subentry import SCHEMA_ATTR_MAPPING as SCHEMA_ATTR_MAPPING, SCHEMA_CLASS_MAPPING as SCHEMA_CLASS_MAPPING
-from ldap.schema.tokenizer import (
-    LDAPTokenDict as LDAPTokenDict,
-    LDAPTokenDictValue as LDAPTokenDictValue,
-    parse_tokens as parse_tokens,
-    split_tokens as split_tokens,
-)
+from ldap.schema.tokenizer import LDAPTokenDict as LDAPTokenDict, parse_tokens as parse_tokens, split_tokens as split_tokens
 
 EntryBase: TypeAlias = MutableMapping[(str, list[bytes])]
 NOT_HUMAN_READABLE_LDAP_SYNTAXES: Incomplete
 
 class SchemaElement:
+    oid: str
+    names: tuple[str, ...]
+    desc: str | None
     schema_attribute: str
-    known_tokens: Incomplete
+    known_tokens: ClassVar[list[str]]
     def __init__(self, schema_element_str: str | bytes | None = None) -> None: ...
-    oid: Incomplete
     def set_id(self, element_id: str) -> None: ...
     def get_id(self) -> str: ...
     def key_attr(self, key: str, value: str | None, quoted: int = 0) -> str: ...
     def key_list(self, key: str, values: tuple[str, ...], sep: str = ' ', quoted: int = 0) -> str: ...
 
 class ObjectClass(SchemaElement):
-    desc: str | None
-    names: tuple[str, ...]
     schema_attribute: str
-    known_tokens: Incomplete
+    known_tokens: ClassVar[list[str]]
 
 AttributeUsage: Incomplete
 
 class AttributeType(SchemaElement):
-    desc: str | None
-    names: tuple[str, ...]
     schema_attribute: str
-    known_tokens: Incomplete
+    known_tokens: ClassVar[list[str]]
 
 class LDAPSyntax(SchemaElement):
     schema_attribute: str
-    known_tokens: Incomplete
+    known_tokens: ClassVar[list[str]]
 
 class MatchingRule(SchemaElement):
     schema_attribute: str
-    known_tokens: Incomplete
+    known_tokens: ClassVar[list[str]]
 
 class MatchingRuleUse(SchemaElement):
     schema_attribute: str
-    known_tokens: Incomplete
+    known_tokens: ClassVar[list[str]]
 
 class DITContentRule(SchemaElement):
     schema_attribute: str
-    known_tokens: Incomplete
+    known_tokens: ClassVar[list[str]]
 
 class DITStructureRule(SchemaElement):
     schema_attribute: str
-    known_tokens: Incomplete
+    known_tokens: ClassVar[list[str]]
     ruleid: Incomplete
     def set_id(self, element_id: str) -> None: ...
     def get_id(self) -> str: ...
 
 class NameForm(SchemaElement):
     schema_attribute: str
-    known_tokens: Incomplete
+    known_tokens: ClassVar[list[str]]
 
 class Entry(EntryBase):
     data: dict[tuple[str, ...], list[bytes]]
@@ -80,6 +73,8 @@ class Entry(EntryBase):
     def keys(self) -> KeysView[str]: ...
     def items(self) -> ItemsView[str, list[bytes]]: ...
     def __iter__(self) -> Iterator[str]: ...
+    def copy(self) -> Self: ...
+    __copy__ = copy
     def attribute_types(
         self, attr_type_filter: list[tuple[str, list[str]]] | None = None, raise_keyerror: int = 1
     ) -> tuple[cidict[AttributeType | None], cidict[AttributeType | None]]: ...

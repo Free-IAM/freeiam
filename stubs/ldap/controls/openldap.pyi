@@ -1,3 +1,5 @@
+from typing import Any
+
 from _typeshed import Incomplete
 from ldap.controls import ResponseControl, ValueLessRequestControl
 from ldap.ldapobject import SimpleLDAPObject as _Base
@@ -16,6 +18,7 @@ class SearchNoOpControl(ValueLessRequestControl, ResponseControl):
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...
 
 class SearchNoOpMixIn(_Base):
+    def __init__(self, *args: Any, **kwargs: Any) -> None: ...
     def noop_search_st(
         self, base: str, scope: int = ..., filterstr: str = '(objectClass=*)', timeout: int = -1
     ) -> tuple[int, int] | tuple[None, None]: ...
