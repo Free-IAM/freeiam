@@ -401,11 +401,11 @@ class Connection:
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.sasl_interactive_bind_s('', ldap.sasl.gssapi())
 
-    async def bind_oauthbearer(self, authzid: str | None, token: str) -> None:  # pragma: no cover; requires SASL module
+    async def bind_oauthbearer(self, token: str, authzid: str = '') -> None:  # pragma: no cover; requires SASL module
         """Authenticate via OAuth 2.0 Access Token."""
         oauth = ldap.sasl.sasl(
             {
-                ldap.sasl.CB_AUTHNAME: authzid,
+                ldap.sasl.CB_USER: authzid,
                 ldap.sasl.CB_PASS: token,
             },
             'OAUTHBEARER',

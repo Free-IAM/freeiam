@@ -44,9 +44,8 @@ async def ldap_authenticate_example():
 
         # start OAUTHBEARER
         # perform SASL OAUTHBEARER authentication using OAuth 2.0 access token (JWT)
-        authzid = None
         token = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'  # noqa: S105,E501
-        await conn.bind_oauthbearer(authzid, token)
+        await conn.bind_oauthbearer(token)
         # end OAUTHBEARER
 
         # start WHOAMI
