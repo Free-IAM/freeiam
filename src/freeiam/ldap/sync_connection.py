@@ -353,34 +353,43 @@ class Connection:
             Attributes.set_schema(self.__schema[subschema_dn])
         return self.__schema[subschema_dn]
 
-    def bind(self, authzid: str | None, password: str | None, *, controls: Controls | None = None) -> Result:
+    def bind(self, authc_id: str | None, password: str | None, *, controls: Controls | None = None) -> Result:
         """Authenticate via plaintext credentials."""
         conn = self.conn
-        self._last_auth_state = ('simple_bind_s', authzid, password)
-        response = self._execute(conn, conn.simple_bind, authzid, password, **Controls.expand(controls))
+        self._last_auth_state = ('simple_bind_s', authc_id, password)
+        response = self._execute(conn, conn.simple_bind, authc_id, password, **Controls.expand(controls))
         return Result.from_response(None, None, controls, response)
 
-    def bind_external(self) -> None:  # pragma: no cover
+    def bind_external(self, authz_id: str = '', *, controls: Controls | None = None) -> None:  # pragma: no cover
         """Authenticate via EXTERNAL method e.g. UNIX socket or TLS client certificate."""
-        with errors.LdapError.wrap(self._hide_parent_exception):
-            self.conn.sasl_interactive_bind_s('', ldap.sasl.external())
+        return self.bind_sasl(ldap.sasl.external(authz_id), controls=controls)
 
-    def bind_sasl_gssapi(self) -> None:  # pragma: no cover
+    def bind_gssapi(self, authz_id: str = '', *, controls: Controls | None = None) -> None:  # pragma: no cover
         """Authenticate via GSSAPI e.g. via Kerberos ticket."""
-        with errors.LdapError.wrap(self._hide_parent_exception):
-            self.conn.sasl_interactive_bind_s('', ldap.sasl.gssapi())
+        return self.bind_sasl(ldap.sasl.gssapi(authz_id), controls=controls)
 
-    def bind_oauthbearer(self, token: str, authzid: str = '') -> None:  # pragma: no cover; requires SASL module
+    def bind_oauthbearer(self, token: str, authz_id: str = '', *, controls: Controls | None = None) -> None:  # pragma: no cover; unavailable lib
         """Authenticate via OAuth 2.0 Access Token."""
-        oauth = ldap.sasl.sasl(
-            {
-                ldap.sasl.CB_USER: authzid,
-                ldap.sasl.CB_PASS: token,
-            },
-            'OAUTHBEARER',
+        return self.bind_sasl(
+            ldap.sasl.sasl(
+                {
+                    ldap.sasl.CB_USER: authz_id,
+                    ldap.sasl.CB_PASS: token,
+                },
+                'OAUTHBEARER',
+            ),
+            controls=controls,
         )
+
+    def bind_sasl(self, auth: ldap.sasl.sasl, *, controls: Controls | None = None) -> None:  # pragma: no cover
+        """Authenticate via SASL."""
         with errors.LdapError.wrap(self._hide_parent_exception):
-            self.conn.sasl_interactive_bind_s('', oauth)
+            self.conn.sasl_interactive_bind_s('', auth, **Controls.expand(controls), sasl_flags=ldap.SASL_QUIET)
+
+    def bind_sasl_noninteractive(self, sasl_mech: str, authz_id: str = '', *, controls: Controls | None = None) -> None:  # pragma: no cover
+        """Authenticate via SASL noninteractively."""
+        with errors.LdapError.wrap(self._hide_parent_exception):
+            self.conn.sasl_non_interactive_bind_s(sasl_mech, **Controls.expand(controls), sasl_flags=ldap.SASL_QUIET, authz_id=authz_id)
 
     def _restore_options(self) -> None:
         for option, value in self._options:
@@ -407,7 +416,7 @@ class Connection:
         return Result.from_response(None, None, controls, response)
 
     def whoami(self, *, controls: Controls | None = None) -> DN | str | None:
-        """Get authenticated user DN (authzid). "Who am I?" Operation."""
+        """Get authenticated user DN (authz_id). "Who am I?" Operation."""
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
                 dn = self.conn.whoami_s(**Controls.expand(controls))
