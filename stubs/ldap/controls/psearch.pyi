@@ -13,6 +13,7 @@ class PersistentSearchControl(RequestControl):
 
     controlType: str
     changeTypes: Incomplete
+
     def __init__(
         self, criticality: bool = True, changeTypes: list[int | str] | int | None = None, changesOnly: bool = False, returnECs: bool = True
     ) -> None: ...
@@ -30,4 +31,5 @@ class EntryChangeNotificationControl(ResponseControl):
     changeType: Incomplete
     previousDN: str | None
     changeNumber: int | None
+
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...

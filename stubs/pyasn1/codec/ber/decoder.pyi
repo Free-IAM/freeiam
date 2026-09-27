@@ -4,6 +4,7 @@ __all__ = ['decode']
 
 class AbstractDecoder:
     protoComponent: Incomplete
+
     def valueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options) -> None: ...
     def indefLenValueDecoder(
         self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options
@@ -15,11 +16,13 @@ class AbstractSimpleDecoder(AbstractDecoder):
 
 class ExplicitTagDecoder(AbstractSimpleDecoder):
     protoComponent: Incomplete
+
     def valueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
     def indefLenValueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
 
 class IntegerDecoder(AbstractSimpleDecoder):
     protoComponent: Incomplete
+
     def valueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
 
 class BooleanDecoder(IntegerDecoder):
@@ -28,25 +31,30 @@ class BooleanDecoder(IntegerDecoder):
 class BitStringDecoder(AbstractSimpleDecoder):
     protoComponent: Incomplete
     supportConstructedForm: bool
+
     def valueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
     def indefLenValueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
 
 class OctetStringDecoder(AbstractSimpleDecoder):
     protoComponent: Incomplete
     supportConstructedForm: bool
+
     def valueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
     def indefLenValueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
 
 class NullDecoder(AbstractSimpleDecoder):
     protoComponent: Incomplete
+
     def valueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
 
 class ObjectIdentifierDecoder(AbstractSimpleDecoder):
     protoComponent: Incomplete
+
     def valueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
 
 class RealDecoder(AbstractSimpleDecoder):
     protoComponent: Incomplete
+
     def valueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
 
 class AbstractConstructedDecoder(AbstractDecoder):
@@ -55,6 +63,7 @@ class AbstractConstructedDecoder(AbstractDecoder):
 class UniversalConstructedTypeDecoder(AbstractConstructedDecoder):
     protoRecordComponent: Incomplete
     protoSequenceComponent: Incomplete
+
     def valueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
     def indefLenValueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
 
@@ -80,11 +89,13 @@ class SetOfDecoder(SetOrSetOfDecoder):
 
 class ChoiceDecoder(AbstractConstructedDecoder):
     protoComponent: Incomplete
+
     def valueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
     def indefLenValueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
 
 class AnyDecoder(AbstractSimpleDecoder):
     protoComponent: Incomplete
+
     def valueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
     def indefLenValueDecoder(self, substrate, asn1Spec, tagSet=None, length=None, state=None, decodeFun=None, substrateFun=None, **options): ...
 
@@ -134,6 +145,7 @@ class Decoder:
     defaultErrorState = ...
     defaultRawDecoder: Incomplete
     supportIndefLength: bool
+
     def __init__(self, tagMap, typeMap={}) -> None: ...
     def __call__(self, substrate, asn1Spec=None, tagSet=None, length=None, state=..., decodeFun=None, substrateFun=None, **options): ...
 

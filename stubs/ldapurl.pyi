@@ -27,6 +27,7 @@ class LDAPUrlExtension:
     critical: Incomplete
     extype: Incomplete
     exvalue: Incomplete
+
     def __init__(self, extensionStr: str | None = None, critical: int = 0, extype: str | None = None, exvalue: str | None = None) -> None: ...
     def unparse(self) -> str: ...
     def __eq__(self, other: object) -> bool: ...
@@ -56,6 +57,7 @@ class LDAPUrl:
     extensions: LDAPUrlExtensions | None
     who: Incomplete
     cred: Incomplete
+
     def __init__(
         self,
         ldapUrl: str | None = None,

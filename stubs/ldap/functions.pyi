@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import Any, BinaryIO, TextIO
 
-from ldap.dn import explode_dn as explode_dn, explode_rdn as explode_rdn
+from ldap.dn import explode_dn, explode_rdn
 from ldap.ldapobject import LDAPObject
 
 __all__ = ['escape_str', 'explode_dn', 'explode_rdn', 'get_option', 'initialize', 'set_option', 'strf_secs', 'strp_secs']

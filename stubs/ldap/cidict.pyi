@@ -1,8 +1,6 @@
 from collections.abc import Iterator, Mapping, MutableMapping as MutableMappingType
 from typing import Any, Self, TypeVar
 
-from ldap.pkginfo import __version__ as __version__
-
 T = TypeVar('T', bound=Any)
 
 class cidict(MutableMappingType[str, T]):
@@ -16,6 +14,7 @@ class cidict(MutableMappingType[str, T]):
     def clear(self) -> None: ...
     def copy(self) -> Self: ...
     __copy__ = copy
+
     def has_key(self, key: str) -> bool: ...
     @property
     def data(self) -> dict[str, T]: ...

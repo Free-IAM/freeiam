@@ -9,11 +9,13 @@ __all__ = ['ExtendedRequest', 'ExtendedResponse', 'PasswordModifyResponse', 'Ref
 class ExtendedRequest:
     requestName: Incomplete
     requestValue: Incomplete
+
     def __init__(self, requestName: str, requestValue: bytes | None) -> None: ...
     def encodedRequestValue(self) -> bytes | None: ...
 
 class ExtendedResponse:
     responseName: str | None
     responseValue: Incomplete
+
     def __init__(self, responseName: str | None, encodedResponseValue: bytes | None) -> None: ...
     def decodeResponseValue(self, value: bytes | None) -> Any: ...

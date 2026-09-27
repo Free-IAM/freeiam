@@ -33,7 +33,9 @@ class DerefResultControlValue(univ.SequenceOf):
 class DereferenceControl(LDAPControl):
     controlType = DEREF_CONTROL_OID
     derefSpecs: Incomplete
+
     def __init__(self, criticality: bool = False, derefSpecs: dict[str, list[str]] | None = None) -> None: ...
     def encodeControlValue(self) -> bytes: ...
     derefRes: dict[str, list[tuple[str, dict[str, list[str]]]]]
+
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...

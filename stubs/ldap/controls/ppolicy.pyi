@@ -20,5 +20,6 @@ class PasswordPolicyControl(ValueLessRequestControl, ResponseControl):
     timeBeforeExpiration: int | None
     graceAuthNsRemaining: int | None
     error: int | None
+
     def __init__(self, criticality: bool = False) -> None: ...
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...

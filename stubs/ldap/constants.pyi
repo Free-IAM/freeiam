@@ -8,6 +8,7 @@ class Constant:
     name: Incomplete
     requirements: Incomplete
     doc: Incomplete
+
     def __init__(self, name: str, optional: bool = False, requirements: Sequence[str] = (), doc: str | None = None) -> None: ...
 
 class Error(Constant):
@@ -22,6 +23,7 @@ class TLSInt(Int):
 class Feature(Constant):
     c_template: Incomplete
     c_feature: Incomplete
+
     def __init__(self, name: str, c_feature: str, **kwargs: Any) -> None: ...
 
 class Str(Constant):

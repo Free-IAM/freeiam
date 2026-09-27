@@ -18,6 +18,7 @@ class SimpleLDAPObject:
     CLASSATTR_OPTION_MAPPING: Incomplete
     timeout: int
     protocol_version: Incomplete
+
     def __init__(
         self,
         uri: str | None = None,
@@ -245,6 +246,7 @@ class SimpleLDAPObject:
 
 class ReconnectLDAPObject(SimpleLDAPObject):
     __transient_attrs__: Incomplete
+
     def __init__(
         self,
         uri: str | None = None,

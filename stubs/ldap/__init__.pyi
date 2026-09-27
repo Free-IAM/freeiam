@@ -3,7 +3,7 @@ from typing import Any
 from _typeshed import Incomplete
 from ldap._ldap import *
 from ldap._types import *
-from ldap.dn import dn2str as dn2str, explode_dn as explode_dn, explode_rdn as explode_rdn, str2dn as str2dn
+from ldap.dn import explode_dn as explode_dn, explode_rdn as explode_rdn
 from ldap.functions import (
     escape_str as escape_str,
     get_option as get_option,

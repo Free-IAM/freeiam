@@ -9,6 +9,7 @@ ldif_pattern: Incomplete
 
 class LDIFWriter:
     records_written: int
+
     def __init__(self, output_file: TextIO, base64_attrs: list[str] | None = None, cols: int = 76, line_sep: str = '\n') -> None: ...
     def unparse(self, dn: str, record: LDAPEntryDict | LDAPModList) -> None: ...
 
@@ -20,6 +21,7 @@ class LDIFParser:
     byte_counter: int
     records_read: int
     changetype_counter: Incomplete
+
     def __init__(
         self,
         input_file: TextIO | BinaryIO,
@@ -37,6 +39,7 @@ class LDIFParser:
 class LDIFRecordList(LDIFParser):
     all_records: list[tuple[str, LDAPEntryDict]]
     all_modify_changes: list[tuple[str, LDAPModList, LDAPControlTuples | None]]
+
     def __init__(
         self,
         input_file: TextIO | BinaryIO,

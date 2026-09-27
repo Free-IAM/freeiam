@@ -51,6 +51,7 @@ class SlapdObject:
     serverkey: Incomplete
     clientcert: Incomplete
     clientkey: Incomplete
+
     def __init__(self) -> None: ...
     @property
     def root_dn(self) -> str: ...
@@ -78,6 +79,7 @@ class SlapdTestCase(unittest.TestCase):
     server_class = SlapdObject
     server: Incomplete
     ldap_object_class: Incomplete
+
     @classmethod
     def setUpClass(cls) -> None: ...
     @classmethod

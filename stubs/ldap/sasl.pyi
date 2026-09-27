@@ -1,5 +1,4 @@
 from _typeshed import Incomplete
-from ldap.pkginfo import __version__ as __version__
 
 CB_USER: int
 CB_AUTHNAME: int
@@ -12,6 +11,7 @@ CB_GETREALM: int
 class sasl:
     cb_value_dict: Incomplete
     mech: Incomplete
+
     def __init__(self, cb_value_dict: dict[int, str], mech: str | bytes) -> None: ...
     def callback(self, cb_id: int, challenge: str | bytes, prompt: str | bytes, defresult: str | bytes | None) -> bytes: ...
 

@@ -1,9 +1,8 @@
 from collections.abc import Iterator
 from typing import Any
 
-from ldap.controls import ResponseControl as ResponseControl
+from ldap.controls import ResponseControl
 from ldap.ldapobject import LDAPObject as _Base
-from ldap.pkginfo import __version__ as __version__
 
 class ResultProcessor(_Base):
     def __init__(self, *args: Any, **kwargs: Any) -> None: ...

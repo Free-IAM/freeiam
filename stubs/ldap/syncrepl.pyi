@@ -26,6 +26,7 @@ class SyncRequestControl(RequestControl):
     cookie: Incomplete
     mode: Incomplete
     reloadHint: Incomplete
+
     def __init__(
         self, criticality: int | bool = True, cookie: str | bytes | None = None, mode: str = 'refreshOnly', reloadHint: bool = False
     ) -> None: ...
@@ -44,6 +45,7 @@ class SyncStateControl(ResponseControl):
     cookie: str | None
     state: Incomplete
     entryUUID: Incomplete
+
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...
 
 class SyncDoneValue(univ.Sequence):
@@ -53,6 +55,7 @@ class SyncDoneControl(ResponseControl):
     controlType: str
     cookie: str | None
     refreshDeletes: Incomplete
+
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...
 
 class RefreshDelete(univ.Sequence):
@@ -76,6 +79,7 @@ class SyncInfoMessage:
     refreshDelete: Incomplete
     refreshPresent: Incomplete
     syncIdSet: Incomplete
+
     def __init__(self, encodedMessage: bytes) -> None: ...
 
 class SyncreplConsumer(_Base):
@@ -94,6 +98,7 @@ class SyncreplConsumer(_Base):
 class OpenLDAPSyncreplCookie:
     rid: int
     sid: int
+
     def __init__(self, cookie: str | bytes = '') -> None: ...
     def update(self, cookie: str | bytes) -> OpenLDAPSyncreplCookie: ...
     def unparse(self) -> str: ...

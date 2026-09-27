@@ -1,5 +1,5 @@
 from _typeshed import Incomplete
-from ldap.extop import ExtendedRequest as ExtendedRequest, ExtendedResponse as ExtendedResponse
+from ldap.extop import ExtendedRequest, ExtendedResponse
 from pyasn1.type import univ
 
 class RefreshRequest(ExtendedRequest):
@@ -10,7 +10,8 @@ class RefreshRequest(ExtendedRequest):
 
     entryName: Incomplete
     requestTtl: Incomplete
-    def __init__(self, requestName: str | None = None, entryName: bytes | None = None, requestTtl: int | None = None) -> None: ...
+
+    def __init__(self, requestName: str | None = None, entryName: str | bytes | None = None, requestTtl: int | None = None) -> None: ...
     def encodedRequestValue(self) -> bytes: ...
 
 class RefreshResponse(ExtendedResponse):
@@ -19,4 +20,5 @@ class RefreshResponse(ExtendedResponse):
         componentType: Incomplete
 
     responseTtl: Incomplete
+
     def decodeResponseValue(self, value: bytes | None) -> int: ...

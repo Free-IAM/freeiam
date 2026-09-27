@@ -10,11 +10,13 @@ __all__ = ['SearchNoOpControl', 'SearchNoOpMixIn']
 class SearchNoOpControl(ValueLessRequestControl, ResponseControl):
     controlType: str
     criticality: Incomplete
+
     def __init__(self, criticality: bool = False) -> None: ...
     class SearchNoOpControlValue(univ.Sequence): ...
     resultCode: Incomplete
     numSearchResults: Incomplete
     numSearchContinuations: Incomplete
+
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...
 
 class SearchNoOpMixIn(_Base):

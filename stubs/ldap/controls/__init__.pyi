@@ -24,14 +24,17 @@ class RequestControl:
     controlType: Incomplete
     criticality: Incomplete
     encodedControlValue: Incomplete
+
     def __init__(self, controlType: str | None = None, criticality: bool = False, encodedControlValue: bytes | None = None) -> None: ...
     def encodeControlValue(self) -> bytes | None: ...
 
 class ResponseControl:
     controlType: Incomplete
     criticality: Incomplete
+
     def __init__(self, controlType: str | None = None, criticality: bool = False) -> None: ...
     encodedControlValue: bytes | None
+
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...
 
 class LDAPControl(RequestControl, ResponseControl):
@@ -39,6 +42,7 @@ class LDAPControl(RequestControl, ResponseControl):
     criticality: Incomplete
     controlValue: Incomplete
     encodedControlValue: Incomplete
+
     def __init__(
         self, controlType: str | None = None, criticality: bool = False, controlValue: str | None = None, encodedControlValue: bytes | None = None
     ) -> None: ...

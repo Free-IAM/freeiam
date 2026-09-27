@@ -1,5 +1,5 @@
 from _typeshed import Incomplete
-from ldap.extop import ExtendedResponse as ExtendedResponse
+from ldap.extop import ExtendedResponse
 from pyasn1.type import univ
 
 class PasswordModifyResponse(ExtendedResponse):
@@ -8,4 +8,5 @@ class PasswordModifyResponse(ExtendedResponse):
         componentType: Incomplete
 
     genPasswd: Incomplete
+
     def decodeResponseValue(self, value: bytes | None) -> bytes: ...

@@ -22,6 +22,7 @@ class VLVRequestControl(RequestControl):
     content_count: Incomplete
     greater_than_or_equal: Incomplete
     context_id: Incomplete
+
     def __init__(
         self,
         criticality: bool = False,
@@ -42,6 +43,7 @@ class VirtualListViewResponseType(univ.Sequence):
 
 class VLVResponseControl(ResponseControl):
     controlType: str
+
     def __init__(self, criticality: bool = False) -> None: ...
     targetPosition: Incomplete
     contentCount: Incomplete
@@ -51,4 +53,5 @@ class VLVResponseControl(ResponseControl):
     content_count: Incomplete
     result: Incomplete
     context_id: Incomplete
+
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...

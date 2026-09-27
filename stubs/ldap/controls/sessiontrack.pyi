@@ -1,5 +1,5 @@
 from _typeshed import Incomplete
-from ldap.controls import RequestControl as RequestControl
+from ldap.controls import RequestControl
 from pyasn1.type import univ
 
 SESSION_TRACKING_CONTROL_OID: str
@@ -13,5 +13,6 @@ class SessionTrackingControl(RequestControl):
 
     controlType = SESSION_TRACKING_CONTROL_OID
     criticality: bool
+
     def __init__(self, sessionSourceIp: str, sessionSourceName: str, formatOID: str, sessionTrackingIdentifier: str) -> None: ...
     def encodeControlValue(self) -> bytes: ...

@@ -2,13 +2,12 @@ from collections.abc import Iterable
 from typing import Any, TypeVar
 
 from _typeshed import Incomplete
-from ldap._types import LDAPEntryDict as LDAPEntryDict
-from ldap.cidict import cidict as cidict
+from ldap._types import LDAPEntryDict
+from ldap.cidict import cidict
 from ldap.schema.models import (
-    AttributeType as AttributeType,
-    DITContentRule as DITContentRule,
-    ObjectClass as ObjectClass,
-    SchemaElement as SchemaElement,
+    AttributeType,
+    ObjectClass,
+    SchemaElement,
 )
 
 SCHEMA_CLASS_MAPPING: cidict[type[SchemaElement]]
@@ -20,10 +19,12 @@ class SubschemaError(ValueError): ...
 
 class OIDNotUnique(SubschemaError):
     desc: Incomplete
+
     def __init__(self, desc: str) -> None: ...
 
 class NameNotUnique(SubschemaError):
     desc: Incomplete
+
     def __init__(self, desc: str) -> None: ...
 
 class SubSchema:
@@ -31,6 +32,7 @@ class SubSchema:
     sed: dict[type[SchemaElement], dict[str, SchemaElement]]
     non_unique_names: dict[type[SchemaElement], cidict[None]]
     non_unique_oids: Incomplete
+
     def __init__(self, sub_schema_sub_entry: LDAPEntryDict, check_uniqueness: int = 1) -> None: ...
     def ldap_entry(self) -> dict[str, list[str]]: ...
     def listall(

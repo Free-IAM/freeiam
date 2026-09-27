@@ -12,6 +12,7 @@ __all__ = [
     'LDAPModListModifyEntry',
     'LDAPModifyModList',
     'LDAPSearchResult',
+    'TypeAlias',
 ]
 
 LDAPModListAddEntry: TypeAlias = tuple[str, list[bytes]]
@@ -23,4 +24,4 @@ LDAPModList: TypeAlias = Sequence[LDAPModListEntry]
 LDAPEntryDict: TypeAlias = MutableMapping[str, list[bytes]]
 LDAPControlTuple: TypeAlias = tuple[str, str, str | None]
 LDAPControlTuples: TypeAlias = list[LDAPControlTuple]
-LDAPSearchResult: TypeAlias = tuple[str, LDAPEntryDict]
+LDAPSearchResult: TypeAlias = tuple[(str, LDAPEntryDict)]
