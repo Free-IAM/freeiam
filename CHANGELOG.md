@@ -2,6 +2,27 @@
 
 <!-- version list -->
 
+## v0.11.0 (2026-09-27)
+
+### Bug Fixes
+
+- **ldap.connection**: Fix passing authz_id to OAUTHBEARER SASL mechanism
+  ([`7585a56`](https://github.com/Free-IAM/freeiam/commit/7585a569d9c4a7000ac63dc9cdc6b591ee19b534))
+
+### Documentation
+
+- **README**: Call to start_tls must be synchronous (fix example)
+  ([`b740635`](https://github.com/Free-IAM/freeiam/commit/b74063524205e227f078b0f7492676b3c2969f1a))
+
+### Features
+
+- **ldap**: Enhance type aliases for python-ldap compatibility
+  ([`83ef026`](https://github.com/Free-IAM/freeiam/commit/83ef026c94e1d79d5fbe892f5df8265e052d1652))
+
+- **ldap.connection**: Enhance SASL binds
+  ([`44df3ee`](https://github.com/Free-IAM/freeiam/commit/44df3ee0e4bbdbb91ef9f4803c0c4012d0957759))
+
+
 ## v0.10.0 (2026-07-10)
 
 ### Features
