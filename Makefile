@@ -4,6 +4,7 @@
 .PHONY: test docs docs-open build upload changelog publish coverage benchmark copyright prek-install lint lint-all clang clang-check ruff-check ruff-fix ruff-unsafe-fix ruff-statistics ruff-preview-statistics ruff-unsafe-preview-fix format-check format
 
 PRE_COMMIT=prek
+UV=uv
 
 test:
 	-tox
@@ -55,15 +56,18 @@ format:
 	$(PRE_COMMIT) run -a --hook-stage manual ruff-format-fix
 
 changelog:
-	semantic-release version --no-push --skip-build --changelog
+	PREK_SKIP=ruff,mypy,ty $(UV) run semantic-release version --no-push --skip-build --changelog --commit
+
+next-version:
+	$(UV) run semantic-release version --no-push --skip-build --changelog --no-commit --no-tag
 
 preview-changelog:
-	semantic-release changelog
+	$(UV) run semantic-release changelog
 	git diff CHANGELOG.md
 	git checkout CHANGELOG.md
 
 publish:
-	semantic-release publish
+	$(UV) run semantic-release publish
 
 build:
 	python -m build
