@@ -37,7 +37,7 @@ Below is an overview of the most relevant development commands defined in the Ma
 * **`make lint`**
   Runs all linters via `prek`.
 
-* **`make lint-fix`**
+* **`make ruff-fix`**
   Automatically fixes issues using the `ruff-fix` hook.
 
 * **`make format`**

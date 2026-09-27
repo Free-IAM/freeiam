@@ -1,7 +1,9 @@
 # SPDX-FileCopyrightText: 2025 Florian Best
 # SPDX-License-Identifier: CC0-1.0
 
-.PHONY: test docs docs-open lint format build upload changelog publish coverage benchmark copyright prek-install
+.PHONY: test docs docs-open build upload changelog publish coverage benchmark copyright prek-install lint lint-all clang clang-check ruff-check ruff-fix ruff-unsafe-fix ruff-statistics ruff-preview-statistics ruff-unsafe-preview-fix format-check format
+
+PRE_COMMIT=prek
 
 test:
 	-tox
@@ -17,13 +19,40 @@ testenv:
 	-. .tox/py311/bin/activate
 
 lint:
-	-prek run -a
+	{ git diff --name-only; git ls-files --others --exclude-standard; git diff --cached --name-only; } | xargs $(PRE_COMMIT) run --files
 
-lint-fix:
-	-prek run -a --hook-stage manual ruff-fix
+lint-all:
+	$(PRE_COMMIT) run -a
+
+clang:
+	$(PRE_COMMIT) run -a --hook-stage manual clang-format-fix
+
+clang-check:
+	$(PRE_COMMIT) run -a clang-format-check
+
+ruff-check:
+	$(PRE_COMMIT) run -a ruff
+
+ruff-fix:
+	$(PRE_COMMIT) run -a --hook-stage manual ruff-fix
+
+ruff-unsafe-fix:
+	$(PRE_COMMIT) run -a --hook-stage manual ruff-unsafe-fix
+
+ruff-statistics:
+	$(PRE_COMMIT) run -a --hook-stage manual ruff-statistics
+
+ruff-preview-statistics:
+	$(PRE_COMMIT) run -a --hook-stage manual ruff-preview-statistics
+
+ruff-unsafe-preview-fix:
+	$(PRE_COMMIT) run -a --hook-stage manual ruff-unsafe-preview-fix
+
+format-check:
+	$(PRE_COMMIT) run -a ruff-format-check
 
 format:
-	-prek run -a --hook-stage manual ruff-format
+	$(PRE_COMMIT) run -a --hook-stage manual ruff-format-fix
 
 changelog:
 	semantic-release version --no-push --skip-build --changelog

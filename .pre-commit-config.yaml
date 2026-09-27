@@ -24,42 +24,37 @@ repos:
     - id: rst-backticks
     - id: rst-directive-colons
     - id: rst-inline-touching-normal
-  # - repo: https://github.com/pycqa/flake8
-  #   rev: '7.2.0'
-  #   hooks:
-  #   - id: flake8
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.9
     hooks:
-      - id: ruff-check
-        alias: "ruff"
       - id: ruff-format
         alias: "ruff-format-check"
         args: ["--check", "--diff"]
+      - id: ruff-format
+        alias: "ruff-format-fix"
+        stages: [manual]
+      - id: ruff-check
+        alias: "ruff"
       - id: ruff-check
         alias: "ruff-fix"
-        stages: [ manual ]
+        stages: [manual]
+        args: ["--fix"]
+      - id: ruff-check
+        alias: "ruff-unsafe-fix"
+        stages: [manual]
         args: ["--fix", "--unsafe-fixes"]
       - id: ruff-check
+        alias: "ruff-unsafe-preview-fix"
+        stages: [manual]
+        args: ["--fix", "--unsafe-fixes", "--preview"]
+      - id: ruff-check
         alias: "ruff-statistics"
-        stages: [ manual ]
+        stages: [manual]
         args: ["--statistics"]
       - id: ruff-check
-        alias: "ruff-select"
-        stages: [ manual ]
-        args: ["--select", "CPY001"]
-      - id: ruff-format
-        alias: "ruff-format"
-        stages: [ manual ]
-  # - repo: https://github.com/pycqa/isort
-  #   rev: 5.13.2
-  #   hooks:
-  #     - id: isort
-  #       entry: isort -c
-  #     - id: isort
-  #       alias: "isort-fix"
-  #       stages: [ manual ]
-  #       entry: isort
+        alias: "ruff-preview-statistics"
+        stages: [manual]
+        args: ["--statistics", "--preview"]
   - repo: https://github.com/fsfe/reuse-tool
     rev: v6.2.0
     hooks:
