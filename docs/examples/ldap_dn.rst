@@ -24,9 +24,11 @@ Working with LDAP DNs in applications is not always straightforward. There are s
    Escaping is typically done by prefixing the character with a backslash, or by using a hexadecimal escape sequence.  
    Examples: ``cn=Mustermann\,Max``, ``cn=Mustermann\2CMax``.
 
-   Alternatively, the entire attribute value can be enclosed in double quotes: ``cn="Mustermann,Max"``.
-   Within quoted values, only the backslash and the quote character itself must be escaped.
-
+   Historically, LDAPv2/RFC 1779 also allowed an entire attribute value to be enclosed in double quotes,
+   for example ``cn="Mustermann,Max"``. Within quoted values, only the backslash and the quote character
+   itself had to be escaped. Some legacy LDAP implementations and APIs still support quoted RDN values.
+   RFC 4514, however, does not define quoted attribute values; portable LDAP DN strings must therefore
+   use backslash or hexadecimal escaping.
 
 2. **Canonical equivalence and normalization**
 
