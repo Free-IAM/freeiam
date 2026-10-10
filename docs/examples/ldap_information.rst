@@ -8,10 +8,10 @@ object classes and attributes you can use.
 
 The following examples demonstrate:
 
-* **Root DSE** — retrieving the Directory Server Entry, which contains
+* **Root DSE** - retrieving the Directory Server Entry, which contains
   server-supported features, controls, extensions, and other capabilities.
-* **Naming contexts** — listing the base DNs for all databases managed by the server.
-* **Subschema** — obtaining the schema definitions that describe allowable
+* **Naming contexts** - listing the base DNs for all databases managed by the server.
+* **Subschema** - obtaining the schema definitions that describe allowable
   object classes, attributes, syntaxes, and matching rules.
 
 These operations typically require no authentication, but access controls

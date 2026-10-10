@@ -9,11 +9,11 @@ connection to a secure one, while others rely on direct TLS from the start.
 
 The following examples illustrate:
 
-* **Regular connection** — opening a standard LDAP session without additional security layers.
-* **STARTTLS** — initiating an unencrypted connection, then upgrading to TLS.
-* **Direct TLS** — connecting to the server using TLS from the outset.
-* **Unencrypted plaintext connection** — for testing or in trusted networks only; not recommended for production.
-* **Connection options** — configuring and retrieving LDAP connection parameters.
+* **Regular connection** - opening a standard LDAP session without additional security layers.
+* **STARTTLS** - initiating an unencrypted connection, then upgrading to TLS.
+* **Direct TLS** - connecting to the server using TLS from the outset.
+* **Unencrypted plaintext connection** - for testing or in trusted networks only; not recommended for production.
+* **Connection options** - configuring and retrieving LDAP connection parameters.
 
 Each example assumes the server’s hostname, port, and security requirements are known.
 

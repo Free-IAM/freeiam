@@ -7,12 +7,12 @@ examples for common bind operations and related authentication features.
 
 The following examples demonstrate:
 
-* **SIMPLE bind** — direct authentication using a plaintext username and password.
-* **SASL noninteractive authentication** — e.g., using GSSAPI for Kerberos tickets.
-* **OAUTHBEARER authentication** — providing an OAuth 2.0 access token for bind.
-* **Who am I?** — querying the directory to determine the currently authenticated identity.
-* **Changing password** — performing a password modification operation.
-* **EXTERNAL bind** — authenticating via an external security layer such as a UNIX domain socket
+* **SIMPLE bind** - direct authentication using a plaintext username and password.
+* **SASL noninteractive authentication** - e.g., using GSSAPI for Kerberos tickets.
+* **OAUTHBEARER authentication** - providing an OAuth 2.0 access token for bind.
+* **Who am I?** - querying the directory to determine the currently authenticated identity.
+* **Changing password** - performing a password modification operation.
+* **EXTERNAL bind** - authenticating via an external security layer such as a UNIX domain socket
   with peer credentials or a TLS client certificate.
 
 Each example is self-contained and can be adapted for your environment.
