@@ -4,10 +4,15 @@
 
 # See https://app.readthedocs.org/projects/python-ldap/downloads/pdf/latest/
 
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 from typing import TypeAlias
 
 import ldap
+from ldap.controls.sessiontrack import (
+    SESSION_TRACKING_FORMAT_OID_RADIUS_ACCT_MULTI_SESSION_ID,
+    SESSION_TRACKING_FORMAT_OID_RADIUS_ACCT_SESSION_ID,
+    SESSION_TRACKING_FORMAT_OID_USERNAME,
+)
 
 
 def _getoptional(name: str, default: int) -> int:
@@ -362,3 +367,11 @@ class LDAPChangeType(IntEnum):
     Delete = 2
     Modify = 4
     ModifyDN = 8
+
+
+class SessionTrackingFormat(StrEnum):
+    """OID of format values for SessionTracking control."""
+
+    RadiusAcctSessionID = SESSION_TRACKING_FORMAT_OID_RADIUS_ACCT_SESSION_ID
+    RadiusAcctMultiSessionID = SESSION_TRACKING_FORMAT_OID_RADIUS_ACCT_MULTI_SESSION_ID
+    Username = SESSION_TRACKING_FORMAT_OID_USERNAME

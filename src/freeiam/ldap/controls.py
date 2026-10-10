@@ -32,7 +32,7 @@ from ldap.controls.sss import SSSRequestControl
 from ldap.controls.vlv import VLVRequestControl, VLVResponseControl
 
 from freeiam.ldap._wrapper import Controls
-from freeiam.ldap.constants import LDAPChangeType
+from freeiam.ldap.constants import LDAPChangeType, SessionTrackingFormat
 from freeiam.ldap.dn import DN
 
 
@@ -164,7 +164,7 @@ def post_read(attrs: list[str], *, criticality: bool = False) -> PostReadControl
     return PostReadControl(criticality, attrs)
 
 
-def session_tracking(source_ip: str, source_name: str, format_oid: str, tracking_identifier: str) -> SessionTrackingControl:
+def session_tracking(source_ip: str, source_name: str, format_oid: SessionTrackingFormat, tracking_identifier: str) -> SessionTrackingControl:
     """SessionTracking control."""
     return SessionTrackingControl(source_ip, source_name, format_oid, tracking_identifier)
 

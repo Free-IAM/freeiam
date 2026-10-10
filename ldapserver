@@ -3,6 +3,8 @@
 # SPDX-FileCopyrightText: 2025 Florian Best
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
+# uv run python3 ./ldapserver
+
 import time
 
 
@@ -19,6 +21,7 @@ if __name__ == '__main__':
         ADMIN_PW = server['bind_pw']
         BASE_DN = server['base_dn']
 
+        print(f'docker logs -f {server["container"]._container.short_id}')
         print(f'openssl x509 -in {ca_cert} -text -noout')
         print(f'openssl s_client -starttls ldap -connect localhost:{port_ldap}')
         print(f'openssl s_client -connect localhost:{port_ldaps} -showcerts')

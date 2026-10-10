@@ -111,7 +111,7 @@ SessionTracking Control
 .. literalinclude:: controls.py
    :language: python
    :dedent: 4
-   :caption: SessionTracking Control (not supported by OpenLDAP)
+   :caption: SessionTracking Control
    :start-after: use SessionTrackingControl
    :end-before: end use SessionTrackingControl
 
