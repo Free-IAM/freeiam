@@ -21,7 +21,7 @@ Establish connection
 --------------------
 .. literalinclude:: connection.py
    :language: python
-   :caption: Establish connections
+   :caption: Ways of establishing connections
    :start-after: start regular
    :end-before: end regular
 
@@ -29,7 +29,7 @@ Using START TLS
 ---------------
 .. literalinclude:: connection.py
    :language: python
-   :caption: Establish connections
+   :caption: Establish connection using START TLS
    :start-after: start STARTTLS
    :end-before: end STARTTLS
 
@@ -37,7 +37,7 @@ Using TLS
 ---------
 .. literalinclude:: connection.py
    :language: python
-   :caption: Establish connections
+   :caption: Establish connection using TLS
    :start-after: start TLS
    :end-before: end TLS
 
@@ -45,7 +45,7 @@ Unencrypted plaintext conncetion
 --------------------------------
 .. literalinclude:: connection.py
    :language: python
-   :caption: Establish connections
+   :caption: Establish insecure plaintext connection
    :start-after: start plain
    :end-before: end plain
 
