@@ -17,6 +17,7 @@ Free IAM
    examples/ldap_filter
    examples/ldap_controls
    examples/ldap_extended
+   examples/ldap_connection_pooling
 
 .. toctree::
    :maxdepth: 2
