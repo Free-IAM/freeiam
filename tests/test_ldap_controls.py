@@ -4,7 +4,7 @@ from ldap.controls import RelaxRulesControl, SimplePagedResultsControl
 
 from freeiam import errors, ldap
 from freeiam.ldap._wrapper import Attributes, Result, _Response  # noqa: PLC2701
-from freeiam.ldap.constants import LDAPChangeType, Mod, Scope
+from freeiam.ldap.constants import LDAPChangeType, Mod, Scope, SessionTrackingFormat
 from freeiam.ldap.controls import (
     Controls,
     assertion,
@@ -21,6 +21,9 @@ from freeiam.ldap.controls import (
     session_tracking,
 )
 from freeiam.ldap.dn import DN
+
+
+LDAP_CONTROL_X_SESSION_TRACKING = '1.3.6.1.4.1.21008.108.63.1'
 
 
 @pytest.fixture
@@ -146,8 +149,19 @@ def test_persistent_search_control(conn, base_dn):
 
 
 def test_session_tracking_control(conn, base_dn):
-    ctrl = session_tracking('127.0.0.1', 'test-client', '1.3.6.1.4.1.1466.115.121.1.15', 'traceid')
-    conn.search(base_dn, Scope.Base, '(objectClass=*)', controls=Controls([ctrl]))
+    ip = '192.0.2.1'
+    host = 'app.freeiam.org'
+    ctrls = [
+        session_tracking(ip, host, SessionTrackingFormat.RadiusAcctSessionID, '{Acct-Session-Id RADIUS attribute}'),
+        session_tracking(ip, host, SessionTrackingFormat.RadiusAcctMultiSessionID, '{Acct-Multi-Session-Id RADIUS attribute}'),
+        session_tracking(ip, host, SessionTrackingFormat.Username, '{username (SASL authorization identity)}'),
+    ]
+    conn.search(base_dn, Scope.Base, '(objectClass=*)', controls=Controls(ctrls))
+
+    ctrl = session_tracking('a' * 129, 'b' * 65537, 'c' * 1025, 'd' * 65537)
+    with pytest.raises(errors.ProtocolError) as exc:
+        conn.search(base_dn, Scope.Base, '(objectClass=*)', controls=Controls([ctrl]))
+    assert 'sessionTracking.sessionSourceIp too long' in str(exc.value)
 
 
 def test_manage_dsa_it_control(conn, base_dn):

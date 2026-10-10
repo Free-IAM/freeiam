@@ -191,14 +191,34 @@ def example_persistent_search(conn, base_dn):
 
 
 def example_session_tracking(conn, base_dn):
-    # use SessionTrackingControl (not supported by OpenLDAP)
+    # use SessionTrackingControl
+    from freeiam.ldap.constants import SessionTrackingFormat
     from freeiam.ldap.controls import Controls, session_tracking
 
-    ctrl = session_tracking(
-        '127.0.0.1', 'test-client', '1.3.6.1.4.1.1466.115.121.1.15', 'Max.Mustermann'
-    )
-    conn.search(base_dn, Scope.Base, '(objectClass=*)', controls=Controls([ctrl]))
-    # end use SessionTrackingControl (not supported by OpenLDAP)
+    ip = '192.0.2.1'
+    host = 'app.freeiam.org'
+    ctrls = [
+        session_tracking(
+            ip,
+            host,
+            SessionTrackingFormat.RadiusAcctSessionID,
+            '{Acct-Session-Id RADIUS attribute}',
+        ),
+        session_tracking(
+            ip,
+            host,
+            SessionTrackingFormat.RadiusAcctMultiSessionID,
+            '{Acct-Multi-Session-Id RADIUS attribute}',
+        ),
+        session_tracking(
+            ip,
+            host,
+            SessionTrackingFormat.Username,
+            '{username (SASL authorization identity)}',
+        ),
+    ]
+    conn.search(base_dn, Scope.Base, '(objectClass=*)', controls=Controls(ctrls))
+    # end use SessionTrackingControl
 
 
 def example_manage_dsa_information_tree(conn, base_dn):
