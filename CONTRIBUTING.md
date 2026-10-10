@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to FreeIAM!
 
-We welcome contributions of all kinds — bug reports, feature ideas, code, documentation, and tests.
+We welcome contributions of all kinds - bug reports, feature ideas, code, documentation, and tests.
 
 ---
 
