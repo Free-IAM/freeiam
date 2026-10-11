@@ -109,6 +109,37 @@ processing the search.
    :end-before: end use Search No-Op Control
 
 
+Password Policy Control
+-----------------------
+
+The Password Policy control returns password-policy warnings with a successful
+authentication response and password-policy errors with a failed response.
+Both paths need to be handled because the server can return the control with
+an LDAP error.
+
+.. literalinclude:: controls.py
+   :language: python
+   :dedent: 4
+   :caption: Password Policy Control
+   :start-after: use Password Policy controls
+   :end-before: end use Password Policy controls
+
+
+Netscape Password Status Controls
+---------------------------------
+
+The Netscape Password Expired and Password Expiring controls are response-only
+controls. A server can attach them to an authentication response without the
+client sending a corresponding request control.
+
+.. literalinclude:: controls.py
+   :language: python
+   :dedent: 4
+   :caption: Netscape Password Status Controls
+   :start-after: use Netscape password status controls
+   :end-before: end use Netscape password status controls
+
+
 PersistentSearch Control
 ------------------------
 

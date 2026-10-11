@@ -193,6 +193,56 @@ def example_search_no_op(conn, base_dn):
     # end use Search No-Op Control
 
 
+def example_password_policy(conn, base_dn):
+    # use Password Policy control
+    from ldap.controls.ppolicy import PasswordPolicyError
+
+    from freeiam.ldap.controls import Controls, password_policy
+
+    dn = f'cn=user01,ou=users,{base_dn}'
+    ctrl = password_policy(criticality=True)
+    controls = Controls([ctrl])
+
+    try:
+        result = conn.bind(dn, 'secret', controls=controls)
+    except errors.InvalidCredentials as exc:
+        # Failed authentication: password-policy errors are attached to the exception
+        policy = Controls(response=exc.controls).get(password_policy())
+        if policy is not None and policy.error is not None:
+            print(PasswordPolicyError(policy.error).prettyPrint())
+    else:
+        # Successful authentication: inspect password warnings
+        policy = result.controls.get(ctrl)
+        if policy is not None and policy.error is None:
+            print(policy.timeBeforeExpiration)
+            print(policy.graceAuthNsRemaining)
+
+    try:
+        result = conn.change_password(dn, 'secret', 'too-short', controls=controls)
+    except errors.ConstraintViolation as exc:
+        # Failed password change: password-policy errors are attached to the exception
+        policy = Controls(response=exc.controls).get(password_policy())
+        if policy is not None and policy.error is not None:
+            print(PasswordPolicyError(policy.error).prettyPrint())
+    # end use Password Policy control
+
+
+def example_netscape_password_status_controls(conn, base_dn):
+    # use Netscape password status controls
+    from freeiam.ldap.controls import password_expired, password_expiring
+
+    result = conn.bind(f'cn=user01,ou=users,{base_dn}', 'iamfree1')
+
+    expired = result.controls.get(password_expired())
+    if expired is not None:
+        print(expired.passwordExpired)
+
+    expiring = result.controls.get(password_expiring())
+    if expiring is not None:
+        print(expiring.gracePeriod)
+    # end use Netscape password status controls
+
+
 def example_persistent_search(conn, base_dn):
     # use PersistentSearch Control (not supported by OpenLDAP)
     from freeiam.ldap.controls import Controls, persistent_search
