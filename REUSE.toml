@@ -41,6 +41,6 @@ SPDX-FileCopyrightText = "python-ldap"
 SPDX-License-Identifier = "LicenseRef-python-ldap AND MIT"
 
 [[annotations]]
-path = [ "tests/entrypoint/noopsrch.so" ]
+path = [ "tests/entrypoint/noopsrch.so", "tests/entrypoint/usn.so" ]
 SPDX-FileCopyrightText = "2010-2026 The OpenLDAP Foundation"
 SPDX-License-Identifier = "OLDAP-2.8"

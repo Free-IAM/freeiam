@@ -4,7 +4,7 @@
 DOCKER ?= docker
 OPENLDAP_VERSION ?= 2.6.10
 
-OVERLAYS := noopsrch
+OVERLAYS := noopsrch usn
 MODULES := $(addprefix entrypoint/,$(addsuffix .so,$(OVERLAYS)))
 
 .PHONY: all clean

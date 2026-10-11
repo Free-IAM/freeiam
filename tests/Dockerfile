@@ -21,6 +21,12 @@ WORKDIR /src/openldap
 ENV CFLAGS="-O2 -fPIC -ffile-prefix-map=/build=/usr/src/openldap"
 ENV SOURCE_DATE_EPOCH=0
 
+# Fix USN schema definitions for OpenLDAP
+RUN sed -i \
+        -e 's/1\.2\.840\.113556\.1\.4\.906/1.3.6.1.4.1.1466.115.121.1.27/g' \
+        -e 's/NO-USER-MODIFICATION )/NO-USER-MODIFICATION USAGE directoryOperation )/g' \
+        contrib/slapd-modules/usn/usn.c
+
 RUN ./configure \
         --enable-slapd \
         --enable-modules \
@@ -28,7 +34,7 @@ RUN ./configure \
         --with-cyrus-sasl=no \
     && make -j2
 
-ARG OVERLAYS="noopsrch"
+ARG OVERLAYS="noopsrch usn"
 
 RUN set -eu; \
     mkdir -p /out; \
