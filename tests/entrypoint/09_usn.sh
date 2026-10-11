@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Script to enable usn overlay in OpenLDAP
 set -e
-exit 0
 
 CONFIG_DIR=/opt/bitnami/openldap/etc/slapd.d
 
