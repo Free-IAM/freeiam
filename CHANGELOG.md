@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v0.12.0 (2026-10-12)
+
+### Documentation
+
+- **ldap.connection**: Add chapter about difficulties with connection pooling
+  ([`eaad2ba`](https://github.com/Free-IAM/freeiam/commit/eaad2bab6f566d6548c7c4a98bb53da98ad8b49f))
+
+- **ldap**: Improve docstrings
+  ([`389228b`](https://github.com/Free-IAM/freeiam/commit/389228b6d7c88a4693a9b81d750e0054abdd7b23))
+
+- **ldap.dn**: State obsoletion of LDAPv2 Quoted RDN values
+  ([`05bc79d`](https://github.com/Free-IAM/freeiam/commit/05bc79de761bf168d0a98575a82bf5842d2a6fd1))
+
+### Features
+
+- **ldap.controls**: Add enum for Session Tracking formats
+  ([`d6d272e`](https://github.com/Free-IAM/freeiam/commit/d6d272e13062ce43108bcc08d5a262d9c72d0ad3))
+
+- **ldap.controls**: Add support for Passwort Policy controls
+  ([`3ecbde9`](https://github.com/Free-IAM/freeiam/commit/3ecbde9c081068e614ec6b033ed8db910697fd91))
+
+- **ldap.controls**: Add support for SearchNoOpControl
+  ([`4a9aec9`](https://github.com/Free-IAM/freeiam/commit/4a9aec9a7bd39699a1af5eda88ec7d8e624b8e63))
+
+
 ## v0.11.0 (2026-09-27)
 
 ### Bug Fixes
