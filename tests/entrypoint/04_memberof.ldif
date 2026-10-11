@@ -1,0 +1,14 @@
+dn: cn=module{4},cn=config
+objectClass: olcModuleList
+cn: module{4}
+olcModuleLoad: memberof
+
+dn: olcOverlay=memberof,olcDatabase={2}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcMemberOf
+olcOverlay: memberof
+olcMemberOfDangling: ignore
+olcMemberOfRefInt: TRUE
+olcMemberOfGroupOC: posixGroup
+olcMemberOfMemberAD: uniqueMember
+olcMemberOfMemberOfAD: memberOf

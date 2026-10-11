@@ -1,0 +1,12 @@
+dn: cn=module{3},cn=config
+objectClass: olcModuleList
+cn: module{3}
+olcModuleLoad: dds
+
+dn: olcOverlay=dds,olcDatabase={2}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcDDSConfig
+olcOverlay: dds
+olcDDSMaxTTL: 31536000
+olcDDSMinTTL: 10
+olcDDSDefaultTTL: 86400

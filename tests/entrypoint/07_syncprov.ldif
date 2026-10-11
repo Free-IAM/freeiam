@@ -1,0 +1,11 @@
+dn: cn=module{7},cn=config
+objectClass: olcModuleList
+cn: module{7}
+olcModuleLoad: syncprov
+
+dn: olcOverlay=syncprov,olcDatabase={2}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcSyncProvConfig
+olcOverlay: syncprov
+olcSpCheckpoint: 1000 1
+olcSpSessionlog: 1000

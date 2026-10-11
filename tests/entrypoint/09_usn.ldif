@@ -1,0 +1,8 @@
+dn: cn=module{9},cn=config
+objectClass: olcModuleList
+cn: module{9}
+olcModuleLoad: usn
+
+dn: olcOverlay=usn,olcDatabase={2}mdb,cn=config
+objectClass: olcOverlayConfig
+olcOverlay: usn

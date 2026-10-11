@@ -1,0 +1,11 @@
+dn: cn=module{2},cn=config
+objectClass: olcModuleList
+cn: module{2}
+olcModuleLoad: constraint
+
+dn: olcOverlay=constraint,olcDatabase={2}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcConstraintConfig
+olcOverlay: constraint
+olcConstraintAttribute: uidNumber regex ^[^0]+[0-9]*$
+olcConstraintAttribute: gidNumber regex ^[^0]+[0-9]*$
