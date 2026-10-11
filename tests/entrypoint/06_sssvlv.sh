@@ -4,10 +4,12 @@
 # Script to enable sssvlv overlay in OpenLDAP
 set -e
 
+CONFIG_DIR=/opt/bitnami/openldap/etc/slapd.d
+
 cat > /tmp/sssvlv-overlay.ldif << 'EOF'
 dn: cn=module{6},cn=config
 objectClass: olcModuleList
-cn: module{1}
+cn: module{6}
 olcModuleLoad: sssvlv
 
 dn: olcOverlay=sssvlv,olcDatabase={2}mdb,cn=config
@@ -20,14 +22,14 @@ olcSssVlvMaxPerConn: 5
 EOF
 
 echo "Enabling sssvlv overlay in OpenLDAP configuration..."
-if slapcat -F /opt/bitnami/openldap/etc/slapd.d -b cn=config | grep -q sssvlv
+if slapcat -F "$CONFIG_DIR" -b cn=config | grep -q sssvlv
 then
     echo "SSS VLV overlay is already configured."
     exit 0
 else
-    slapadd -F /opt/bitnami/openldap/etc/slapd.d -b cn=config -l /tmp/sssvlv-overlay.ldif || {
+    slapadd -F "$CONFIG_DIR" -b cn=config -l /tmp/sssvlv-overlay.ldif || {
         echo "NOTICE: slapadd failed to load sssvlv overlay. Check the cn=module{N}"
-        slapcat -F /opt/bitnami/openldap/etc/slapd.d -b cn=config | grep cn=module
+        slapcat -F "$CONFIG_DIR" -b cn=config | grep cn=module
         exit 1
     }
 fi
