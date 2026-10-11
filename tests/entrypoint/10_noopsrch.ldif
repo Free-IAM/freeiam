@@ -1,0 +1,8 @@
+dn: cn=module{10},cn=config
+objectClass: olcModuleList
+cn: module{10}
+olcModuleLoad: noopsrch
+
+dn: olcOverlay=noopsrch,olcDatabase={2}mdb,cn=config
+objectClass: olcOverlayConfig
+olcOverlay: noopsrch

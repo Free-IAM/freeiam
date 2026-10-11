@@ -1,0 +1,10 @@
+dn: cn=module{5},cn=config
+objectClass: olcModuleList
+cn: module{5}
+olcModuleLoad: refint
+
+dn: olcOverlay=refint,olcDatabase={2}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcRefintConfig
+olcOverlay: refint
+olcRefintAttribute: uniqueMember

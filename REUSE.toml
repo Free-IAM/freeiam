@@ -25,6 +25,7 @@ path = [
  "**/requirements.txt",
  "*.toml",
  "tests/certs/*",
+ "tests/entrypoint/*.ldif",
  ".github/workflows/*.yml",
 ]
 SPDX-FileCopyrightText = "2025 Florian Best <info@freeiam.org>"

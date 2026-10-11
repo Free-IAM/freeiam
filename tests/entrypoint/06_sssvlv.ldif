@@ -1,0 +1,12 @@
+dn: cn=module{6},cn=config
+objectClass: olcModuleList
+cn: module{6}
+olcModuleLoad: sssvlv
+
+dn: olcOverlay=sssvlv,olcDatabase={2}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcSssVlvConfig
+olcOverlay: sssvlv
+olcSssVlvMax: 100
+olcSssVlvMaxKeys: 20
+olcSssVlvMaxPerConn: 5
