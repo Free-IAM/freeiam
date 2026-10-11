@@ -5,11 +5,14 @@
 
 # uv run python3 ./ldapserver
 
+import logging
 import time
 
 
 if __name__ == '__main__':
     import tests.conftest
+
+    logging.basicConfig(level=logging.DEBUG)
 
     with tests.conftest._ldap_server() as server:
         ldap_uri = server['ldap_uri']
@@ -21,7 +24,7 @@ if __name__ == '__main__':
         ADMIN_PW = server['bind_pw']
         BASE_DN = server['base_dn']
 
-        print(f'docker logs -f {server["container"]._container.short_id}')
+        print(f'docker logs -f {server["container"].short_id}')
         print(f'openssl x509 -in {ca_cert} -text -noout')
         print(f'openssl s_client -starttls ldap -connect localhost:{port_ldap}')
         print(f'openssl s_client -connect localhost:{port_ldaps} -showcerts')
