@@ -10,12 +10,9 @@ from ldap.controls.deref import DereferenceControl
 from ldap.controls.libldap import AssertionControl, MatchedValuesControl
 from ldap.controls.openldap import SearchNoOpControl
 from ldap.controls.pagedresults import SimplePagedResultsControl
-
-# from ldap.controls.ppolicy import PasswordPolicyControl
+from ldap.controls.ppolicy import PasswordPolicyControl
 from ldap.controls.psearch import EntryChangeNotificationControl, PersistentSearchControl
-
-# from ldap.controls.pwdpolicy import PasswordExpiringControl
-# from ldap.controls.pwdpolicy import PasswordExpiredControl
+from ldap.controls.pwdpolicy import PasswordExpiredControl, PasswordExpiringControl
 from ldap.controls.readentry import PostReadControl, PreReadControl
 from ldap.controls.sessiontrack import SessionTrackingControl
 from ldap.controls.simple import (
@@ -46,6 +43,9 @@ __all__ = (
     'manage_dsa_information_tree',
     'matched_values',
     'no_op_search',
+    'password_expired',
+    'password_expiring',
+    'password_policy',
     'persistent_search',
     'post_read',
     'pre_read',
@@ -187,6 +187,25 @@ def no_op_search(*, criticality: bool = False) -> SearchNoOpControl:
 
 
 no_op_search.response = SearchNoOpControl
+
+
+@_control
+def password_policy(*, criticality: bool = False) -> PasswordPolicyControl:
+    """Create a Password Policy control."""
+    return PasswordPolicyControl(criticality)
+
+
+password_policy.response = PasswordPolicyControl
+
+
+def password_expired() -> PasswordExpiredControl:
+    """Create a Password Expired control."""
+    return PasswordExpiredControl()
+
+
+def password_expiring() -> PasswordExpiringControl:
+    """Create a Password Expiring control."""
+    return PasswordExpiringControl()
 
 
 def proxy_authorization(authz_id: str | DN, *, criticality: bool = False) -> ProxyAuthzControl:

@@ -14,6 +14,9 @@ from freeiam.ldap.controls import (
     manage_dsa_information_tree,
     matched_values,
     no_op_search,
+    password_expired,
+    password_expiring,
+    password_policy,
     persistent_search,
     post_read,
     pre_read,
@@ -202,3 +205,67 @@ def test_search_no_op_control(conn, base_dn):
     assert noop_response is not None
     assert noop_response.numSearchResults == 2
     assert noop_response.numSearchContinuations == 0
+
+
+def test_password_policy_control(conn, base_dn):
+    ctrl = password_policy(criticality=True)
+
+    result = conn.bind('cn=user01,ou=users,' + base_dn, 'iamfree1', controls=Controls([ctrl]))
+
+    response = result.controls.get(ctrl)
+    assert response is not None
+    assert response.error is None
+    assert response.timeBeforeExpiration is None
+    assert response.graceAuthNsRemaining is None
+
+
+def test_password_policy_control_expired(conn, base_dn):
+    conn.modify_ml(
+        f'uid=password-expired,ou=users,{base_dn}',
+        [(Mod.Replace, 'pwdChangedTime', b'20200101000000Z')],
+        controls=Controls([relax_rules(criticality=True)]),
+    )
+
+    ctrl = password_policy(criticality=True)
+    with pytest.raises(errors.InvalidCredentials) as exc:
+        conn.bind('uid=password-expired,ou=users,' + base_dn, 'expired-password', controls=Controls([ctrl]))
+
+    response = Controls(response=exc.value.controls).get(ctrl)
+    assert response is not None
+    assert response.error == 0
+    assert response.timeBeforeExpiration is None
+    assert response.graceAuthNsRemaining is None
+
+
+def test_password_policy_control_expiring(conn, base_dn):
+    conn.modify_ml(
+        f'uid=password-expiring,ou=users,{base_dn}',
+        [(Mod.Replace, 'pwdChangedTime', b'20250101000000Z')],
+        controls=Controls([relax_rules(criticality=True)]),
+    )
+
+    ctrl = password_policy(criticality=True)
+    result = conn.bind('uid=password-expiring,ou=users,' + base_dn, 'expiring-password', controls=Controls([ctrl]))
+
+    response = result.controls.get(ctrl)
+    assert response is not None
+    assert response.error is None
+    assert response.timeBeforeExpiration is not None
+    assert response.timeBeforeExpiration > 0
+    assert response.graceAuthNsRemaining is None
+    assert result.controls.get(password_expired()) is None
+    assert result.controls.get(password_expiring()) is None
+
+
+@pytest.mark.xfail(raises=errors.InsufficientAccess, reason='Missing ACL for password change')
+def test_password_policy_password_too_short(conn, base_dn):
+    dn = f'uid=password-too-short,ou=users,{base_dn}'
+    conn.bind(dn, 'change-password')
+    ctrl = password_policy(criticality=True)
+
+    with pytest.raises(errors.ConstraintViolation) as exc:
+        conn.change_password(dn, 'change-password', 'short', controls=Controls([ctrl]))
+
+    response = Controls(response=exc.value.controls).get(ctrl)
+    assert response is not None
+    assert response.error == 6  # passwordTooShort
