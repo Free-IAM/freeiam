@@ -8,9 +8,9 @@ from typing import Any, Protocol, TypeVar, cast
 from ldap.controls import DecodeControlTuples, RequestControl, ResponseControl
 from ldap.controls.deref import DereferenceControl
 from ldap.controls.libldap import AssertionControl, MatchedValuesControl
+from ldap.controls.openldap import SearchNoOpControl
 from ldap.controls.pagedresults import SimplePagedResultsControl
 
-# from ldap.controls.openldap import SearchNoOpControl
 # from ldap.controls.ppolicy import PasswordPolicyControl
 from ldap.controls.psearch import EntryChangeNotificationControl, PersistentSearchControl
 
@@ -45,6 +45,7 @@ __all__ = (
     'get_effective_rights',
     'manage_dsa_information_tree',
     'matched_values',
+    'no_op_search',
     'persistent_search',
     'post_read',
     'pre_read',
@@ -177,6 +178,15 @@ def manage_dsa_information_tree(*, criticality: bool = False) -> ManageDSAITCont
 def relax_rules(*, criticality: bool = False) -> RelaxRulesControl:
     """Create a Relax Rules control."""
     return RelaxRulesControl(criticality)
+
+
+@_control
+def no_op_search(*, criticality: bool = False) -> SearchNoOpControl:
+    """Create a Search No-Op control (to get result count)."""
+    return SearchNoOpControl(criticality)
+
+
+no_op_search.response = SearchNoOpControl
 
 
 def proxy_authorization(authz_id: str | DN, *, criticality: bool = False) -> ProxyAuthzControl:

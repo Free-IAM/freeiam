@@ -13,6 +13,7 @@ from freeiam.ldap.controls import (
     get_effective_rights,
     manage_dsa_information_tree,
     matched_values,
+    no_op_search,
     persistent_search,
     post_read,
     pre_read,
@@ -180,3 +181,24 @@ def test_proxy_authz_control(conn, base_dn):
     ctrl = proxy_authorization(DN(f'cn=admin,{base_dn}'), criticality=True)
     res = conn.search(f'{base_dn}', Scope.Base, '(objectClass=*)', controls=Controls([ctrl]))
     assert isinstance(res, list)
+
+
+def test_search_no_op_control(conn, base_dn):
+    ctrl = no_op_search(criticality=True)
+
+    controls = Controls([ctrl])
+    result = next(
+        conn.search_dn(
+            f'ou=users,{base_dn}',
+            Scope.Subtree,
+            '(|(cn=user01)(cn=user02))',
+            controls=controls,
+        ),
+        None,
+    )
+
+    assert result is None
+    noop_response = controls.get(ctrl)
+    assert noop_response is not None
+    assert noop_response.numSearchResults == 2
+    assert noop_response.numSearchContinuations == 0

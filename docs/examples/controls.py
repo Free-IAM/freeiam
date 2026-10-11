@@ -170,6 +170,29 @@ def example_matched_values(conn, base_dn):
     # end use MatchedValues Control
 
 
+def example_search_no_op(conn, base_dn):
+    # use Search No-Op Control to count matching entries without returning them
+    from freeiam.ldap.controls import Controls, search_no_op
+
+    ctrl = search_no_op(criticality=True)
+    controls = Controls([ctrl])
+    next(
+        conn.search_dn(
+            f'ou=users,{base_dn}',
+            Scope.Subtree,
+            '(objectClass=inetOrgPerson)',
+            controls=controls,
+        ),
+        None,
+    )
+
+    noop_response = controls.get(ctrl)
+    assert noop_response is not None
+    print(noop_response.numSearchResults)
+    print(noop_response.numSearchContinuations)
+    # end use Search No-Op Control
+
+
 def example_persistent_search(conn, base_dn):
     # use PersistentSearch Control (not supported by OpenLDAP)
     from freeiam.ldap.controls import Controls, persistent_search
