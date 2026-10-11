@@ -71,10 +71,10 @@ class _Response:
     """The list of python-ldap decoded response controls."""
 
     name: str | None = None
-    """The OID (responseName) of a extended operation response."""
+    """The OID (responseName) of an extended operation response."""
 
     value: bytes | None = None
-    """The raw ASN.1 encoded reponseValue of an extended operation response."""
+    """The raw ASN.1-encoded responseValue of an extended operation response."""
 
     def __post_init__(self) -> None:
         if not isinstance(self.type, ResponseType | None):
@@ -108,7 +108,7 @@ class Page:
 
 @dataclass
 class Result:
-    """The wrapped result of an operation. Allows accessing response controls."""
+    """The wrapped result of an operation, including its response controls."""
 
     dn: DN | None
     """The new or unchanged DN of the object."""

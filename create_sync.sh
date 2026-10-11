@@ -36,6 +36,7 @@ N
 }
 /^ *def _sync_connection(/,/^$/d
 s/self\._sync_connection\./self./g;
+s/ asynchronous / synchronous /g;
 "
 expr_py="
 s/pytest_asyncio/pytest/g;

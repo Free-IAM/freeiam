@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2025 Florian Best
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""LDAP Attributes."""
+"""LDAP attributes."""
 
 import contextlib
 import typing
@@ -9,7 +9,7 @@ from freeiam.ldap.schema import Schema
 
 
 class Attributes(dict[str, list[bytes]]):  # noqa: FURB189
-    """LDAP Attributes."""
+    """A mapping of LDAP attribute names to values."""
 
     ALIASES: typing.ClassVar[dict[str, str]] = {}
     SCHEMA: Schema | None = None
@@ -25,6 +25,6 @@ class Attributes(dict[str, list[bytes]]):  # noqa: FURB189
 
     @classmethod
     def set_schema(cls, subschema: Schema) -> None:
-        """Set aliases from schema."""
+        """Set attribute aliases from the schema."""
         cls.SCHEMA = subschema
         cls.ALIASES.update(subschema.get_attribute_aliases())

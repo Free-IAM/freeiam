@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2025 Florian Best
 # SPDX-License-Identifier: MIT OR Apache-2.0
-"""LDAP Server and Client controls."""
+"""LDAP server and client controls."""
 
 from collections.abc import Callable
 from typing import Any, Protocol, TypeVar, cast
@@ -76,7 +76,7 @@ def decode(ctrls: list[tuple[str, bool, bytes]]) -> list[ResponseControl]:
 
 
 def simple_paged_results(size: int = 10, cookie: str = '', *, criticality: bool = False) -> SimplePagedResultsControl:
-    """SimplePagedResults control."""
+    """Create a Simple Paged Results control."""
     return SimplePagedResultsControl(criticality, size, cookie)
 
 
@@ -84,7 +84,7 @@ def server_side_sorting(
     *ordering_rules: str | tuple[str, str | None, bool],
     criticality: bool = False,
 ) -> SSSRequestControl:
-    """Server Side Sorting."""
+    """Create a Server-Side Sorting control."""
     ordering_rules_ = []
     for rule in ordering_rules:
         if not isinstance(rule, str):
@@ -106,7 +106,7 @@ def virtual_list_view(
     *,
     criticality: bool = False,
 ) -> VLVRequestControl:
-    """Virtual List View."""
+    """Create a Virtual List View control."""
     return VLVRequestControl(criticality, before_count, after_count, offset, content_count, greater_than_or_equal, context_id)
 
 
@@ -114,14 +114,14 @@ virtual_list_view.response = VLVResponseControl
 
 
 def get_effective_rights(authz_id: DN | str, *, criticality: bool = False) -> GetEffectiveRightsControl:
-    """GetEffectiveRights control."""
+    """Create a GetEffectiveRights control."""
     authz_id = f'dn:{authz_id}' if isinstance(authz_id, DN) else authz_id
     return GetEffectiveRightsControl(criticality, authz_id.encode('UTF-8'))
 
 
 @_control
 def authorization_identity(*, criticality: bool = False) -> AuthorizationIdentityRequestControl:
-    """AuthorizationIdentityRequest control."""
+    """Create an Authorization Identity Request control."""
     return AuthorizationIdentityRequestControl(criticality)
 
 
@@ -129,17 +129,17 @@ authorization_identity.response = AuthorizationIdentityResponseControl
 
 
 def dereference(deref_specs: dict[str, list[str]], *, criticality: bool = False) -> DereferenceControl:
-    """Dereference control."""
+    """Create a Dereference control."""
     return DereferenceControl(criticality, deref_specs)
 
 
 def assertion(filter_expr: str, *, criticality: bool = False) -> AssertionControl:
-    """Get Assertion control."""
+    """Create an Assertion control."""
     return AssertionControl(criticality, filter_expr)
 
 
 def matched_values(filter_expr: str, *, criticality: bool = False) -> MatchedValuesControl:
-    """MatchedValues control."""
+    """Create a Matched Values control."""
     return MatchedValuesControl(criticality, filter_expr)
 
 
@@ -147,7 +147,7 @@ def matched_values(filter_expr: str, *, criticality: bool = False) -> MatchedVal
 def persistent_search(
     change_types: list[LDAPChangeType], changes_only: bool, return_entry_change_control: bool, *, criticality: bool = False
 ) -> PersistentSearchControl:
-    """PersistentSearch control."""
+    """Create a Persistent Search control."""
     return PersistentSearchControl(criticality, cast('list[int | str]', change_types), changes_only, return_entry_change_control)
 
 
@@ -155,38 +155,38 @@ persistent_search.response = EntryChangeNotificationControl
 
 
 def pre_read(attrs: list[str], *, criticality: bool = False) -> PreReadControl:
-    """PreRead control."""
+    """Create a Pre-Read control."""
     return PreReadControl(criticality, attrs)
 
 
 def post_read(attrs: list[str], *, criticality: bool = False) -> PostReadControl:
-    """PostRead control."""
+    """Create a Post-Read control."""
     return PostReadControl(criticality, attrs)
 
 
 def session_tracking(source_ip: str, source_name: str, format_oid: SessionTrackingFormat, tracking_identifier: str) -> SessionTrackingControl:
-    """SessionTracking control."""
+    """Create a Session Tracking control."""
     return SessionTrackingControl(source_ip, source_name, format_oid, tracking_identifier)
 
 
 def manage_dsa_information_tree(*, criticality: bool = False) -> ManageDSAITControl:
-    """ManageDSAIT control."""
+    """Create a Manage DSA IT control."""
     return ManageDSAITControl(criticality)
 
 
 def relax_rules(*, criticality: bool = False) -> RelaxRulesControl:
-    """RelaxRules control."""
+    """Create a Relax Rules control."""
     return RelaxRulesControl(criticality)
 
 
 def proxy_authorization(authz_id: str | DN, *, criticality: bool = False) -> ProxyAuthzControl:
-    """ProxyAuthz control."""
+    """Create a Proxy Authorization control."""
     authz_id = f'dn:{authz_id}' if isinstance(authz_id, DN) else authz_id
     return ProxyAuthzControl(criticality, authz_id.encode('UTF-8'))
 
 
 def transaction(transaction_id: bytes | None = None, *, criticality: bool = True) -> 'TransactionSpecificationControl':
-    """TransactionSpecification control."""
+    """Create a Transaction Specification control."""
     return TransactionSpecificationControl(criticality, transaction_id)
 
 

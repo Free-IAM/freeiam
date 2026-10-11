@@ -26,7 +26,7 @@ def _to_dn(dn: str) -> list[list[tuple[str, str, int]]]:
 
 
 class DN:
-    """A LDAP Distinguished Name."""
+    """An LDAP distinguished name."""
 
     _CASE_INSENSITIVE_ATTRIBUTES = ('c', 'cn', 'dc', 'l', 'o', 'ou', 'uid')
 
@@ -34,7 +34,7 @@ class DN:
 
     @classmethod
     def get(cls, dn: Self | str) -> Self:
-        """Get a DN from string or existing DN."""
+        """Create a DN from a string or return an existing DN unchanged."""
         return cls(dn) if isinstance(dn, str) else dn
 
     @classmethod

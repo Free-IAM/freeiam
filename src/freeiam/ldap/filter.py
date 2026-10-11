@@ -95,7 +95,7 @@ class EscapeMode(enum.IntEnum):
 
 
 class WalkStrategy(enum.IntEnum):
-    """Walk stategy."""
+    """Traversal strategy."""
 
     BOTH = 0
     POST = 1
@@ -228,7 +228,7 @@ class Comparison(Expression):
 
     @property
     def escaped(self) -> str:
-        """Get the value in a encoded/escaped form."""
+        """Get the value in an encoded or escaped form."""
         if self.is_escaped:
             return self.raw_value
         value = self.raw_value
@@ -276,14 +276,14 @@ class EqualityMatch(Comparison):
 
 
 class GreaterOrEqual(Comparison):
-    """Compare for greater or equals (attr>=value)."""
+    """Compare for greater than or equal to a value (attr>=value)."""
 
     operator = operator.ge
     expression = '>='
 
 
 class LessOrEqual(Comparison):
-    """Compare for less than or equals (attr<=value)."""
+    """Compare for less than or equal to a value (attr<=value)."""
 
     operator = operator.le
     expression = '<='
@@ -296,7 +296,7 @@ class ApproximateMatch(Comparison):
 
 
 class SubstringMatch(Comparison):
-    """Compare substring match (attr=val*)."""
+    """Compare a substring match (attr=val*)."""
 
     operator = operator.contains
     expression = '='
@@ -314,7 +314,7 @@ class PresenceMatch(Comparison):
 
 
 class ExtensibleMatch(Comparison):
-    """Compare with extensible match (attr:dn:rule:=value, optional: dn / Matching Rule OID)."""
+    """Compare with an extensible match (attr:dn:rule:=value)."""
 
     expression = ':='
     __slots__ = (*Comparison.__slots__, 'dn', 'matchingrule')
@@ -370,18 +370,18 @@ class Container(Expression):
         self._expressions.append(expression)
 
     def insert(self, expression: Expression, index: int = 0) -> None:
-        """Insert into the operator list."""
+        """Insert an expression into the operator list."""
         self._expressions.insert(index, expression)
 
     def replace(self, expression: Expression, replacement: Expression) -> None:
-        """Insert into the operator list."""
+        """Replace an expression in the operator list."""
         index = next((i for i, e in enumerate(self._expressions) if e is expression), None)
         if index is None:  # pragma: no cover
             raise ValueError('Not in expressions', expression)  # noqa: TRY003
         self._expressions[index] = replacement
 
     def remove(self, expression: Expression) -> None:
-        """Insert from the operator list."""
+        """Remove an expression from the operator list."""
         index = next((i for i, e in enumerate(self._expressions) if e is expression), None)
         if index is None:  # pragma: no cover
             raise ValueError('Not in expressions', expression)  # noqa: TRY003
@@ -430,7 +430,7 @@ class NOT(Operator):
 
 
 class Filter:
-    """A LDAP Filter according to RFC 4515."""
+    """An LDAP filter according to RFC 4515."""
 
     __slots__ = ('_debug', '_tree', 'ast', 'filter_expr')
 
@@ -483,11 +483,11 @@ class Filter:
             raise self.error()  # currently impossible, broken OWS
 
     def error(self) -> errors.FilterError:
-        """Get FilterError."""
+        """Create a filter parsing error."""
         return errors.FilterError({'result': -7, 'desc': 'Bad search filter', 'info': str(self.filter_expr), 'ctrls': []})
 
     def pretty(self, indent: int = 0) -> str:
-        """Transform into a pretty presentation."""
+        """Transform the filter into a pretty-formatted representation."""
 
         def _pretty(expr: Expression, level: int) -> str:
             pad = '  ' * level
@@ -541,7 +541,7 @@ class Filter:
 
     @classmethod
     def get_gt(cls, attr: str, value: str | int) -> NOT | GreaterOrEqual:
-        """Get greather then equivialent."""
+        """Create an expression greater than the given value."""
         if isinstance(value, str):
             return cls.get_not(cls.get_lt_eq(attr, value))
         return cls.get_gt_eq(attr, value + 1)
@@ -553,7 +553,7 @@ class Filter:
 
     @classmethod
     def get_lt(cls, attr: str, value: str | int) -> NOT | LessOrEqual:
-        """Get Lower than equivialent."""
+        """Create an expression less than the given value."""
         if isinstance(value, str):
             return cls.get_not(cls.get_gt_eq(attr, value))
         return cls.get_lt_eq(attr, value - 1)

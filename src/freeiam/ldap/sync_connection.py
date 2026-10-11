@@ -52,12 +52,12 @@ Sorting: TypeAlias = list[str | tuple[str, str | None, bool]]
 
 class Connection:
     """
-    A LDAP Connection.
+    An LDAP connection.
 
     :ivar str uri: The LDAP URI.
     :ivar int timelimit: The global timelimit.
     :ivar bool automatic_reconnect: Whether automatic reconnection is enabled.
-    :ivar int max_connection_attempts: number of connection attempt on connection loss.
+    :ivar int max_connection_attempts: Number of connection attempts after connection loss.
     :ivar float retry_delay: The retry delay (in seconds) between the reconnection attempts.
     """
 
@@ -122,7 +122,7 @@ class Connection:
         self._hide_parent_exception = _hide_parent_exception
 
     def __enter__(self) -> Self:
-        """Initialize asynchronous connection."""
+        """Initialize synchronous connection."""
         self.connect()
         return self
 
@@ -140,7 +140,7 @@ class Connection:
     def get_option(self, option: AnyOption) -> AnyOptionValue: ...
 
     def get_option(self, option: AnyOption) -> AnyOptionValue:
-        """Get a LDAP connection option."""
+        """Get a connection-scoped LDAP option."""
         with errors.LdapError.wrap(self._hide_parent_exception):
             return cast('AnyOptionValue', self.conn.get_option(option))
 
@@ -157,7 +157,7 @@ class Connection:
     def set_option(self, option: AnyOption, value: AnyOptionValue | Sequence[ldap.controls.RequestControl], *, append: bool = True) -> None: ...
 
     def set_option(self, option: AnyOption, value: AnyOptionValue | Sequence[ldap.controls.RequestControl], *, append: bool = True) -> None:
-        """Set a LDAP connection option."""
+        """Set a connection-scoped LDAP option."""
         if append:
             self._options.append((option, value))
         with errors.LdapError.wrap(self._hide_parent_exception):
@@ -202,17 +202,17 @@ class Connection:
 
     @property
     def dereference(self) -> int:
-        """Get the de-reference setting."""
+        """Get the alias dereferencing setting."""
         return self.get_option(Option.Dereference)
 
     @dereference.setter
     def dereference(self, value: int) -> None:
-        """Set the de-reference setting."""
+        """Set the alias dereferencing setting."""
         self.set_option(Option.Dereference, value)
 
     @property
     def follow_referrals(self) -> bool | None:
-        """Follow referrals enabled."""
+        """Whether referral following is enabled."""
         follow = self.get_option(Option.Referrals)
         if follow == -1:
             return None
@@ -225,12 +225,12 @@ class Connection:
 
     @property
     def sizelimit(self) -> int:
-        """Get the sizelimit setting."""
+        """Get the search size limit."""
         return self.get_option(Option.Sizelimit)
 
     @sizelimit.setter
     def sizelimit(self, value: int) -> None:
-        """Set the sizelimit setting."""
+        """Set the search size limit."""
         self.set_option(Option.Sizelimit, value)
 
     @classmethod
@@ -269,12 +269,12 @@ class Connection:
 
     @classmethod
     def get_global_option(cls, option: AnyOption) -> AnyOptionValue:
-        """Get a LDAP connection option."""
+        """Get a global, connection-independent LDAP option."""
         return cast('AnyOptionValue', ldap.get_option(option))
 
     @classmethod
     def set_global_option(cls, option: AnyOption, value: AnyOptionValue) -> None:
-        """Set a global LDAP option."""
+        """Set a global, connection-independent LDAP option."""
         ldap.set_option(option, value)
 
     def connect(self, fileno: bool | None = None) -> None:
@@ -306,7 +306,7 @@ class Connection:
             self.start_tls()
 
     def disconnect(self) -> None:
-        """Disconnect from LDAP server."""
+        """Disconnect from the LDAP server."""
         self._conn = None
         self.__conn_s = None
 
@@ -326,7 +326,7 @@ class Connection:
             self.conn.start_tls_s()
 
     def get_schema(self, subschema_dn: DN | str | None = None) -> Schema:
-        """Get LDAP Schema."""
+        """Get the LDAP schema."""
         conn = self.conn
         # cache schema by connection
         if isinstance(conn, ldap.ldapobject.ReconnectLDAPObject) and conn._reconnects_done > self.__reconnects_counter:
@@ -361,11 +361,11 @@ class Connection:
         return Result.from_response(None, None, controls, response)
 
     def bind_external(self, authz_id: str = '', *, controls: Controls | None = None) -> None:  # pragma: no cover
-        """Authenticate via EXTERNAL method e.g. UNIX socket or TLS client certificate."""
+        """Authenticate via the EXTERNAL method, for example using a UNIX socket or TLS client certificate."""
         return self.bind_sasl(ldap.sasl.external(authz_id), controls=controls)
 
     def bind_gssapi(self, authz_id: str = '', *, controls: Controls | None = None) -> None:  # pragma: no cover
-        """Authenticate via GSSAPI e.g. via Kerberos ticket."""
+        """Authenticate via GSSAPI, for example using a Kerberos ticket."""
         return self.bind_sasl(ldap.sasl.gssapi(authz_id), controls=controls)
 
     def bind_oauthbearer(self, token: str, authz_id: str = '', *, controls: Controls | None = None) -> None:  # pragma: no cover; unavailable lib
@@ -449,7 +449,7 @@ class Connection:
         unique: bool = False,
         controls: Controls | None = None,
     ) -> Result:
-        """Get a LDAP object."""
+        """Get an LDAP object."""
         for obj in self.search(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls):
             return obj
         raise AssertionError('unreachable')  # pragma: no cover
@@ -483,7 +483,7 @@ class Connection:
         controls: Controls | None = None,
         _attrsonly: bool = False,
     ) -> Generator[Result, None]:
-        """Search iterative for DN and Attributes of LDAP objects."""
+        """Search iteratively for the DNs and attributes of LDAP objects."""
         conn = self.conn
         all_results = []
         if sorting:
@@ -540,7 +540,7 @@ class Connection:
         controls: Controls | None = None,
         _attrsonly: bool = False,
     ) -> list[Result]:
-        """Search for DN and Attributes of LDAP objects."""
+        """Search for the DNs and attributes of LDAP objects."""
         conn = self.conn
         all_results = []
         if sorting:
@@ -583,7 +583,7 @@ class Connection:
         sorting: Sorting | None = None,
         controls: Controls | None = None,
     ) -> Generator[DN, None]:
-        """Search for DNs of LDAP objects."""
+        """Search for the DNs of LDAP objects."""
         # FIXME: the following hangs forever as the iterative search is unfinished while the FD reader is replaced
         # for result in self.search(
         #     base, scope, filter_expr, ['1.1'], unique=unique, sizelimit=sizelimit, sorting=sorting, controls=controls, _attrsonly=True
@@ -703,7 +703,7 @@ class Connection:
         *,
         controls: Controls | None = None,
     ) -> Result:
-        """Create a LDAP object."""
+        """Create an LDAP object."""
         al = ldap.modlist.addModlist(attrs)
         return self.add_al(dn, al, controls=controls)
 
@@ -714,7 +714,7 @@ class Connection:
         *,
         controls: Controls | None = None,
     ) -> Result:
-        """Create a LDAP object from addlist."""
+        """Create an LDAP object from an add-list."""
         conn = self.conn
         response = self._execute(conn, conn.add_ext, str(dn), al, **Controls.expand(controls))
         return Result.from_response(dn, None, controls, response)
@@ -727,7 +727,7 @@ class Connection:
         *,
         controls: Controls | None = None,
     ) -> Result:
-        """Modify a LDAP object."""
+        """Modify an LDAP object."""
         ml = ldap.modlist.modifyModlist(oldattr, newattr)
         return self.modify_ml(dn, ml, controls=controls)
 
@@ -738,7 +738,7 @@ class Connection:
         *,
         controls: Controls | None = None,
     ) -> Result:
-        """Modify a LDAP object from modlist."""
+        """Modify an LDAP object from a modification list."""
         conn = self.conn
         new_dn = self._compute_changed_dn(DN.get(dn), ml)
         if dn != new_dn:
@@ -784,7 +784,7 @@ class Connection:
         *,
         controls: Controls | None = None,
     ) -> Result:
-        """Move a LDAP object."""
+        """Move an LDAP object."""
         dn = DN.get(dn)
         newposition = DN.get(newposition)
         return self.rename(dn, dn[0] + newposition, delete_old=True, controls=controls)
@@ -797,7 +797,7 @@ class Connection:
         *,
         controls: Controls | None = None,
     ) -> Result:
-        """Rename a LDAP object."""
+        """Rename an LDAP object."""
         conn = self.conn
         newdn = DN.get(newdn)
         response = self._execute(conn, conn.rename, str(dn), str(newdn[0]), str(newdn.parent), int(delete_old), **Controls.expand(controls))
@@ -811,17 +811,17 @@ class Connection:
         *,
         controls: Controls | None = None,
     ) -> Result:
-        """Rename a LDAP object."""
+        """Rename an LDAP object."""
         return self.rename(dn, DN.get(newrdn) + cast('DN', DN.get(dn).parent), delete_old, controls=controls)
 
     def delete(self, dn: DN | str, *, controls: Controls | None = None) -> Result:
-        """Delete a LDAP object."""
+        """Delete an LDAP object."""
         conn = self.conn
         response = self._execute(conn, conn.delete_ext, str(dn), **Controls.expand(controls))
         return Result.from_response(dn, None, controls, response)
 
     def delete_recursive(self, dn: DN | str, *, controls: Controls | None = None) -> Result:
-        """Delete a LDAP object recursively."""
+        """Recursively delete an LDAP object."""
         try:
             return self.delete(dn, controls=controls)
         except errors.NotAllowedOnNonleaf:
@@ -837,7 +837,7 @@ class Connection:
         *,
         controls: Controls | None = None,
     ) -> bool:
-        """Compare the value of an LDAP object."""
+        """Compare an LDAP object's attribute value."""
         conn = self.conn
         try:
             self._execute(conn, conn.compare_ext, str(dn), attr, value, **Controls.expand(controls))
@@ -851,7 +851,7 @@ class Connection:
         raise RuntimeError()  # pragma: no cover; impossible
 
     def compare_dn(self, entry: DN | str, dn: DN | str) -> bool:
-        """Compare LDAP DN with existing entry."""
+        """Compare an LDAP DN with an existing entry."""
         dn = DN.get(dn)
         entry = DN.get(entry)
 
@@ -877,14 +877,14 @@ class Connection:
         return [x.decode('UTF-8') for x in result]
 
     def abandon(self, msgid: int, *, controls: Controls | None = None) -> Result:
-        """Abandon a LDAP operation."""
+        """Abandon an LDAP operation."""
         log.debug('Abandon: %s', msgid)
         conn = self.conn
         response = self._execute(conn, conn.abandon_ext, msgid, **Controls.expand(controls))
         return Result.from_response(None, None, controls, response)
 
     def cancel(self, msgid: int, *, controls: Controls | None = None) -> bool:
-        """Cancel a LDAP operation."""
+        """Cancel an LDAP operation."""
         log.debug('Cancel: %s', msgid)
         try:
             conn = self.conn
