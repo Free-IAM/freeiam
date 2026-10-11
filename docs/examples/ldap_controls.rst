@@ -94,6 +94,21 @@ MatchedValues Control
    :end-before: end use MatchedValues Control
 
 
+Search No-Op Control
+--------------------
+
+The Search No-Op control counts matching entries without returning the entries.
+The response also reports the number of search continuations generated while
+processing the search.
+
+.. literalinclude:: controls.py
+   :language: python
+   :dedent: 4
+   :caption: Search No-Op Control
+   :start-after: use Search No-Op Control
+   :end-before: end use Search No-Op Control
+
+
 PersistentSearch Control
 ------------------------
 
