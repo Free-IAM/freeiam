@@ -121,8 +121,8 @@ an LDAP error.
    :language: python
    :dedent: 4
    :caption: Password Policy Control
-   :start-after: use Password Policy controls
-   :end-before: end use Password Policy controls
+   :start-after: use Password Policy control
+   :end-before: end use Password Policy control
 
 
 Netscape Password Status Controls
