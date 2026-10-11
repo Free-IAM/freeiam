@@ -23,36 +23,49 @@ class Scope(IntEnum):
     """All possible search scopes."""
 
     Base = ldap.SCOPE_BASE
-    """Base entry scope"""
+    """Search only the base entry."""
 
     Onelevel = ldap.SCOPE_ONELEVEL
-    """Direct children scope"""
+    """Search the immediate children of the base entry, excluding the base entry itself."""
 
     Subtree = ldap.SCOPE_SUBTREE
-    """Whole subtree scope"""
+    """Search the base entry and all its descendants."""
 
     Subordinate = _getoptional('SCOPE_SUBORDINATE', 3)
+    """Search all descendants (children) of the base entry, excluding the base entry itself."""
 
     One = Onelevel
+    """Alias for :attr:`Onelevel`."""
     Sub = Subtree
+    """Alias for :attr:`Subtree`."""
+    Children = Subordinate
+    """Alias for :attr:`Subordinate`."""
 
     BASE = Base
+    """Alias for :attr:`Base`."""
     ONELEVEL = Onelevel
+    """Alias for :attr:`Onelevel`."""
     SUBTREE = Subtree
+    """Alias for :attr:`Subtree`."""
 
 
 class Mod(IntEnum):
     """Modification list entry."""
 
     Add = ldap.MOD_ADD
+    """Add values to an attribute."""
     BinaryValues = ldap.MOD_BVALUES
+    """Indicate that modification values are binary. Internal flag - don't use it!"""
     Delete = ldap.MOD_DELETE
+    """Delete values from an attribute."""
     Increment = ldap.MOD_INCREMENT
+    """Increment an integer-valued attribute."""
     Replace = ldap.MOD_REPLACE
+    """Replace all values of an attribute."""
 
 
 class Version(IntEnum):
-    """LDAP Protocol Version."""
+    """LDAP protocol version."""
 
     LDAPV1 = ldap.VERSION1
     """Version 1"""
@@ -64,18 +77,21 @@ class Version(IntEnum):
     """Version 3"""
 
     Max = ldap.VERSION_MAX
-    """Maximum protocol version"""
+    """Maximum supported protocol version."""
 
     Min = ldap.VERSION_MIN
-    """Minimum protocol version"""
+    """Minimum supported protocol version."""
 
     V1 = LDAPV1
+    """Alias for :attr:`LDAPV1`."""
     V2 = LDAPV2
+    """Alias for :attr:`LDAPV2`."""
     V3 = LDAPV3
+    """Alias for :attr:`LDAPV3`."""
 
 
 class Option(IntEnum):
-    """LDAP Options."""
+    """LDAP options."""
 
     # API / Info
     ApiFeatureInfo = ldap.OPT_API_FEATURE_INFO
@@ -86,7 +102,7 @@ class Option(IntEnum):
 
     # Debug / Diagnostics
     DebugLevel = ldap.OPT_DEBUG_LEVEL
-    """Sets the debug level within the underlying OpenLDAP C library (`int`).
+    """Set the debug level within the underlying OpenLDAP C library (`int`).
 
     libldap sends the log messages to stderr.
     """
@@ -169,46 +185,59 @@ class Option(IntEnum):
 
 
 class SASLOption(IntEnum):
-    """SASL Options (must be set per connection)."""
+    """SASL options, which must be set per connection."""
 
     AuthCID = ldap.OPT_X_SASL_AUTHCID
+    """SASL authentication identity."""
     AuthZID = ldap.OPT_X_SASL_AUTHZID
+    """SASL authorization identity."""
     Mechanism = ldap.OPT_X_SASL_MECH
+    """SASL mechanism to use."""
     NoCanonicalization = _getoptional('OPT_X_SASL_NOCANON', 24843)
     """If set to zero, SASL host name canonicalization is disabled."""
     Realm = ldap.OPT_X_SASL_REALM
+    """SASL realm."""
     Secprops = ldap.OPT_X_SASL_SECPROPS
+    """SASL security properties."""
     SSF = ldap.OPT_X_SASL_SSF
-    """Security Strength Factor"""
+    """Security strength factor."""
     SSFExternal = ldap.OPT_X_SASL_SSF_EXTERNAL
+    """External security strength factor."""
     SSFMax = ldap.OPT_X_SASL_SSF_MAX
-    """Maximum Security Strength Factor"""
+    """Maximum security strength factor."""
     SSFMin = ldap.OPT_X_SASL_SSF_MIN
-    """Minimum Security Strength Factor"""
+    """Minimum security strength factor."""
     Username = _getoptional('OPT_X_SASL_USERNAME', 24844)
-    """SASL Username"""
+    """SASL username."""
 
 
 class OptionValue(IntEnum):
-    """LDAP Option Values."""
+    """LDAP option values."""
 
     Off = ldap.OPT_OFF
+    """Disable the option."""
     On = ldap.OPT_ON
+    """Enable the option."""
     Success = ldap.OPT_SUCCESS
+    """Successful operation result."""
 
     NoLimit = ldap.NO_LIMIT
+    """No limit is imposed."""
 
 
 class KeepAlive(IntEnum):
-    """Keep Alive Option values."""
+    """Keep-alive option values."""
 
     Idle = _getoptional('OPT_X_KEEPALIVE_IDLE', 25344)
+    """Idle time before keep-alive probes start, in seconds."""
     Interval = _getoptional('OPT_X_KEEPALIVE_INTERVAL', 25346)
+    """Interval between keep-alive probes, in seconds."""
     Probes = _getoptional('OPT_X_KEEPALIVE_PROBES', 25345)
+    """Number of keep-alive probes before the connection is considered dead."""
 
 
 class TLSOption(IntEnum):
-    """TLS Options."""
+    """TLS options."""
 
     # Certificate files and directories
     CACertdir = ldap.OPT_X_TLS_CACERTDIR
@@ -279,37 +308,54 @@ class TLSCRLCheck(IntEnum):
     """Values for Certificate Revocation List checks (TLSOption.CRLCheck)."""
 
     None_ = ldap.OPT_X_TLS_CRL_NONE
+    """Do not check certificate revocation lists."""
     Peer = ldap.OPT_X_TLS_CRL_PEER
+    """Check the peer certificate against a certificate revocation list."""
     All = ldap.OPT_X_TLS_CRL_ALL
+    """Check all certificates against a certificate revocation list."""
 
 
 class TLSRequireCert(IntEnum):
     """Values for Certificate requirement or Subject Alternative Name (TLSOption.RequireCert and TLSOption.RequireSAN)."""
 
     Never = ldap.OPT_X_TLS_NEVER
+    """Never request or require a client certificate."""
     Allow = ldap.OPT_X_TLS_ALLOW
+    """Allow an unavailable or invalid client certificate."""
     Try = ldap.OPT_X_TLS_TRY
+    """Request a client certificate without requiring one."""
     Demand = ldap.OPT_X_TLS_DEMAND
+    """Require a valid client certificate."""
     Hard = ldap.OPT_X_TLS_HARD
+    """Require a valid client certificate and fail hard on errors."""
 
 
 class TLSProtocol(IntEnum):
     """Values for TLSOption.ProtocolMin / TLSOption.ProtocolMax."""
 
     SSL3 = _getoptional('OPT_X_TLS_PROTOCOL_SSL3', 0x300)
+    """SSL 3.0."""
     TLS10 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_0', 0x301)
+    """TLS 1.0."""
     TLS11 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_1', 0x302)
+    """TLS 1.1."""
     TLS12 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_2', 0x303)
+    """TLS 1.2."""
     TLS13 = _getoptional('OPT_X_TLS_PROTOCOL_TLS1_3', 0x304)
+    """TLS 1.3."""
 
 
 class Dereference(IntEnum):
     """Dereference options."""
 
     Always = ldap.DEREF_ALWAYS
+    """Always dereference aliases."""
     Never = ldap.DEREF_NEVER
+    """Never dereference aliases."""
     Searching = ldap.DEREF_SEARCHING
+    """Dereference aliases when searching below the base."""
     Finding = ldap.DEREF_FINDING
+    """Dereference aliases when locating the base object."""
 
 
 AnyOption: TypeAlias = Option | SASLOption | TLSOption | int
@@ -320,58 +366,94 @@ class DNFormat(IntEnum):
     """Used for DN-parsing functions."""
 
     LDAP = ldap.DN_FORMAT_LDAP
+    """Standard LDAP distinguished-name format."""
     LDAPV2 = ldap.DN_FORMAT_LDAPV2
+    """LDAPv2 distinguished-name format."""
     LDAPV3 = ldap.DN_FORMAT_LDAPV3
+    """LDAPv3 distinguished-name format."""
     DCE = ldap.DN_FORMAT_DCE
+    """DCE distinguished-name format."""
     UFN = ldap.DN_FORMAT_UFN
+    """User-friendly naming format."""
     ADCanonical = ldap.DN_FORMAT_AD_CANONICAL
+    """Active Directory canonical name format."""
     Mask = ldap.DN_FORMAT_MASK
+    """Mask for distinguished-name format flags."""
     Pretty = ldap.DN_PRETTY
+    """Format a distinguished name for display."""
     Skip = ldap.DN_SKIP
+    """Skip distinguished-name parsing."""
     NoLeadTrailSpaces = ldap.DN_P_NOLEADTRAILSPACES
+    """Do not allow leading or trailing spaces."""
     NoSpaceAfterDN = ldap.DN_P_NOSPACEAFTERRDN
+    """Do not allow spaces after an RDN separator."""
     Pedantic = ldap.DN_PEDANTIC
+    """Apply strict distinguished-name parsing rules."""
 
 
 class AVA(IntEnum):
     """Attribute Value Assertion formats."""
 
     Binary = ldap.AVA_BINARY
+    """Binary attribute value."""
     NonPrintable = ldap.AVA_NONPRINTABLE
+    """Non-printable attribute value."""
     Null = ldap.AVA_NULL
+    """Null attribute value."""
     String = ldap.AVA_STRING
+    """String attribute value."""
 
 
 class ResponseType(IntEnum):
-    """LDAP Response protocol operation."""
+    """LDAP response protocol operation."""
 
     Add = ldap.RES_ADD
+    """Add response."""
     Any = ldap.RES_ANY
+    """Any response type."""
     Bind = ldap.RES_BIND
+    """Bind response."""
     Compare = ldap.RES_COMPARE
+    """Compare response."""
     Delete = ldap.RES_DELETE
+    """Delete response."""
     Extended = ldap.RES_EXTENDED
+    """Extended operation response."""
     Intermediate = ldap.RES_INTERMEDIATE
+    """Intermediate response."""
     Modify = ldap.RES_MODIFY
+    """Modify response."""
     ModRDN = ldap.RES_MODRDN
+    """Modify RDN response."""
     SearchEntry = ldap.RES_SEARCH_ENTRY
+    """Search entry response."""
     SearchReference = ldap.RES_SEARCH_REFERENCE
+    """Search reference response."""
     SearchResult = ldap.RES_SEARCH_RESULT
+    """Search result response."""
     Unsolicited = ldap.RES_UNSOLICITED
+    """Unsolicited response."""
 
 
 class LDAPChangeType(IntEnum):
-    """LDAP change type for PersistentSearchControl control."""
+    """LDAP change type for the Persistent Search control."""
 
     Add = 1
+    """An entry was added."""
     Delete = 2
+    """An entry was deleted."""
     Modify = 4
+    """An entry was modified."""
     ModifyDN = 8
+    """An entry's distinguished name was modified."""
 
 
 class SessionTrackingFormat(StrEnum):
     """OID of format values for SessionTracking control."""
 
     RadiusAcctSessionID = SESSION_TRACKING_FORMAT_OID_RADIUS_ACCT_SESSION_ID
+    """RADIUS accounting session ID format."""
     RadiusAcctMultiSessionID = SESSION_TRACKING_FORMAT_OID_RADIUS_ACCT_MULTI_SESSION_ID
+    """RADIUS accounting multi-session ID format."""
     Username = SESSION_TRACKING_FORMAT_OID_USERNAME
+    """Username format."""
