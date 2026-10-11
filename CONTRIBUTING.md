@@ -94,10 +94,11 @@ Check coverage:
 pytest --cov
 ```
 
-Run a specific test locally:
+Run a specific test locally (e.g. with self-started LDAP server):
 
 ```bash
-uv run --group test pytest tests/test_ldap_connection.py -k test_search
+uv run python3 ./ldapserver
+uv run --group test pytest tests/test_ldap_connection.py -k test_search --reuse-ldap auto
 ```
 
 ---
