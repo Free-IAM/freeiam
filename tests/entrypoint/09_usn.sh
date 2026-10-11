@@ -5,6 +5,8 @@
 set -e
 exit 0
 
+CONFIG_DIR=/opt/bitnami/openldap/etc/slapd.d
+
 cat > /tmp/usn-overlay.ldif << 'EOF'
 dn: cn=module{9},cn=config
 objectClass: olcModuleList
@@ -17,14 +19,14 @@ olcOverlay: usn
 EOF
 
 echo "Enabling usn overlay in OpenLDAP configuration..."
-if slapcat -F /opt/bitnami/openldap/etc/slapd.d -b cn=config | grep -q usn
+if slapcat -F "$CONFIG_DIR" -b cn=config | grep -q usn
 then
     echo "usn overlay is already configured."
     exit 0
 else
-    slapadd -F /opt/bitnami/openldap/etc/slapd.d -b cn=config -l /tmp/usn-overlay.ldif || {
+    slapadd -F "$CONFIG_DIR" -b cn=config -l /tmp/usn-overlay.ldif || {
         echo "NOTICE: slapadd failed to load usn overlay. Check the cn=module{N}"
-        slapcat -F /opt/bitnami/openldap/etc/slapd.d -b cn=config | grep cn=module
+        slapcat -F "$CONFIG_DIR" -b cn=config | grep cn=module
         exit 1
     }
 fi

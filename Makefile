@@ -35,6 +35,7 @@ ruff-check:
 	$(PRE_COMMIT) run -a ruff
 
 ruff-fix:
+	$(PRE_COMMIT) run -a --hook-stage manual ruff-fix || true
 	$(PRE_COMMIT) run -a --hook-stage manual ruff-fix
 
 ruff-unsafe-fix:
@@ -53,6 +54,7 @@ format-check:
 	$(PRE_COMMIT) run -a ruff-format-check
 
 format:
+	$(PRE_COMMIT) run -a --hook-stage manual ruff-format-fix || true
 	$(PRE_COMMIT) run -a --hook-stage manual ruff-format-fix
 
 changelog:

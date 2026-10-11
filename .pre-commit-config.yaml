@@ -69,6 +69,10 @@ repos:
         alias: reuse-lint
         stages: [ manual ]
       - id: reuse-lint-file
+      - id: reuse
+        alias: reuse-download
+        args: ["download", "--all"]
+        stages: [ manual ]
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.4.0
     hooks:

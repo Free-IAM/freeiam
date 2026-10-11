@@ -94,6 +94,12 @@ Check coverage:
 pytest --cov
 ```
 
+Run a specific test locally:
+
+```bash
+uv run --group test pytest tests/test_ldap_connection.py -k test_search
+```
+
 ---
 
 ## Documentation

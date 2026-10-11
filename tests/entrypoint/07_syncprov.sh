@@ -4,10 +4,12 @@
 # Script to enable syncprov overlay in OpenLDAP
 set -e
 
+CONFIG_DIR=/opt/bitnami/openldap/etc/slapd.d
+
 cat > /tmp/syncprov-overlay.ldif << 'EOF'
 dn: cn=module{7},cn=config
 objectClass: olcModuleList
-cn: module{1}
+cn: module{7}
 olcModuleLoad: syncprov
 
 dn: olcOverlay=syncprov,olcDatabase={2}mdb,cn=config
@@ -22,14 +24,14 @@ olcSpSessionlog: 1000
 EOF
 
 echo "Enabling syncprov overlay in OpenLDAP configuration..."
-if slapcat -F /opt/bitnami/openldap/etc/slapd.d -b cn=config | grep -q syncprov
+if slapcat -F "$CONFIG_DIR" -b cn=config | grep -q syncprov
 then
     echo "syncprov overlay is already configured."
     exit 0
 else
-    slapadd -F /opt/bitnami/openldap/etc/slapd.d -b cn=config -l /tmp/syncprov-overlay.ldif || {
+    slapadd -F "$CONFIG_DIR" -b cn=config -l /tmp/syncprov-overlay.ldif || {
         echo "NOTICE: slapadd failed to load syncprov overlay. Check the cn=module{N}"
-        slapcat -F /opt/bitnami/openldap/etc/slapd.d -b cn=config | grep cn=module
+        slapcat -F "$CONFIG_DIR" -b cn=config | grep cn=module
         exit 1
     }
 fi

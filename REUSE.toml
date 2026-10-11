@@ -13,6 +13,7 @@ path = [
  "docs/**/*.rst",
  "docs/conf.py",
  "*.md",
+ "tests/*.md",
  ".gitignore",
  "tox.ini",
  "**/pyproject.toml",
@@ -38,3 +39,8 @@ SPDX-License-Identifier = "BSD-2-Clause"
 path = [ "stubs/ldap/**/*.pyi", "stubs/_ldap.pyi", "stubs/ldapurl.pyi", "stubs/ldif.pyi", "stubs/slapdtest/*.pyi" ]
 SPDX-FileCopyrightText = "python-ldap"
 SPDX-License-Identifier = "LicenseRef-python-ldap AND MIT"
+
+[[annotations]]
+path = [ "tests/entrypoint/noopsrch.so" ]
+SPDX-FileCopyrightText = "2010-2026 The OpenLDAP Foundation"
+SPDX-License-Identifier = "OLDAP-2.8"

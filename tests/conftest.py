@@ -255,6 +255,7 @@ def _ldap_server():  # noqa: PLR0915,PLR0914
         .with_volume_mapping(str(cert_dir_copy), '/opt/bitnami/openldap/certs', mode='rw')
         .with_volume_mapping(str(Path.cwd() / 'tests/ldifs/'), '/ldifs/', mode='ro')
         .with_volume_mapping(str(Path.cwd() / 'tests/entrypoint/'), '/docker-entrypoint-initdb.d/', mode='ro')
+        .with_volume_mapping(str(Path.cwd() / 'tests/entrypoint/noopsrch.so'), '/opt/bitnami/openldap/lib/openldap/noopsrch.so', mode='ro')
     )
     container_.start()
     container = container_
