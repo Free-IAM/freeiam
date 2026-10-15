@@ -19,6 +19,11 @@ Each example assumes the server’s hostname, port, and security requirements ar
 
 Establish connection
 --------------------
+The regular connection example shows the complete connection lifecycle:
+connect, bind, reconnect, unbind, and disconnect. A context manager is usually
+preferable because it closes the connection automatically when leaving the
+block.
+
 .. literalinclude:: connection.py
    :language: python
    :caption: Ways of establishing connections
@@ -27,6 +32,11 @@ Establish connection
 
 Using START TLS
 ---------------
+STARTTLS begins as a plaintext LDAP connection and upgrades that same session
+to TLS before authentication. Certificate verification should be enabled in
+production by using an appropriate CA certificate and a strict verification
+mode.
+
 .. literalinclude:: connection.py
    :language: python
    :caption: Establish connection using START TLS
@@ -35,14 +45,22 @@ Using START TLS
 
 Using TLS
 ---------
+Direct TLS establishes encryption during the initial connection, before any
+LDAP protocol exchange or bind credentials are sent. The LDAP server must
+provide a TLS listener, commonly on port 636.
+
 .. literalinclude:: connection.py
    :language: python
    :caption: Establish connection using TLS
    :start-after: start TLS
    :end-before: end TLS
 
-Unencrypted plaintext conncetion
+Unencrypted plaintext connection
 --------------------------------
+An unencrypted connection sends LDAP traffic, including simple-bind
+credentials, without transport protection. It can be useful for local tests
+or trusted development networks, but should not be used in production.
+
 .. literalinclude:: connection.py
    :language: python
    :caption: Establish insecure plaintext connection
@@ -51,6 +69,11 @@ Unencrypted plaintext conncetion
 
 Connection options
 ------------------
+
+Connection options control transport and protocol behavior such as referrals,
+timeouts, TLS verification, and automatic reconnects. Options can be set and
+read through the connection object before or after connecting, depending on
+the option.
 
 .. literalinclude:: options.py
    :language: python

@@ -19,6 +19,11 @@ may restrict certain attributes depending on the server’s configuration.
 
 Get Root Directory Server Entry (DSE)
 -------------------------------------
+The Root DSE is the server's entry point for capability discovery. It is not
+part of the directory information tree and is addressed with the empty base
+DN. The response can include supported LDAP versions, controls, extended
+operations, SASL mechanisms, and naming contexts.
+
 .. code-block:: python
 
     # Get Root DSE (Directory Server Entry)
@@ -27,6 +32,10 @@ Get Root Directory Server Entry (DSE)
 
 Get all LDAP databases
 ----------------------
+Naming contexts identify the base DNs served by the LDAP server. They are
+useful when an application needs to construct searches without assuming a
+particular directory layout.
+
 .. code-block:: python
 
     # Get all LDAP databases
@@ -35,6 +44,11 @@ Get all LDAP databases
 
 Get SubSchema
 -------------
+The subschema subentry describes the schema enforced by the server. It
+contains definitions for object classes, attributes, syntaxes, and matching
+rules, allowing clients to inspect which values are valid before constructing
+entries or filters.
+
 .. code-block:: python
 
     # Get SubSchema

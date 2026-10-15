@@ -94,6 +94,11 @@ FreeIAM provides the following mechanisms to safely and reliably work with LDAP 
 Comparing DNs of existing objects
 ---------------------------------
 
+``compare_dn()`` asks the LDAP server whether two DNs identify the same
+object. This applies the server's schema-aware matching rules instead of
+comparing the two input strings directly. The caller still needs compare
+access to the relevant RDN attributes.
+
 .. literalinclude:: dn.py
    :language: python
    :caption: Comparing DNs of objects
@@ -109,6 +114,10 @@ validating, normalizing, and manipulating LDAP Distinguished Names.
 Creating and normalizing a DN
 -----------------------------
 
+Constructing a ``DN`` parses the string and normalizes its formatting. The
+object can then be safely passed to code that needs a structured DN instead
+of repeatedly parsing a string.
+
 .. code-block:: pycon
 
    >>> from freeiam.ldap.dn import DN
@@ -123,6 +132,10 @@ Creating and normalizing a DN
 Handling invalid user input
 ---------------------------
 
+User-provided DN strings can be malformed. Constructing a ``DN`` raises
+``InvalidDN`` for invalid syntax, which lets an application reject the input
+before using it in an LDAP operation.
+
 .. code-block:: pycon
 
    >>> import freeiam.errors
@@ -135,6 +148,10 @@ Handling invalid user input
 
 Hierarchy and navigation
 ------------------------
+
+DN objects expose their parent and support prefix and suffix checks. These
+operations work on DN components, so they do not rely on naïve string
+matching.
 
 .. code-block:: pycon
 
@@ -153,6 +170,10 @@ Hierarchy and navigation
 Constructing new DNs
 --------------------
 
+Use ``DN.escape()`` for values that will be inserted into an RDN. ``DN.compose``
+and DN concatenation then make it possible to construct a new DN while
+preserving correct escaping and component boundaries.
+
 .. code-block:: pycon
 
    >>> base = DN('dc=freeiam,dc=org')
@@ -169,6 +190,10 @@ Constructing new DNs
 Working with DN sequences
 -------------------------
 
+DN objects behave like sequences of RDN components. Indexing selects a
+component, and slicing returns a DN containing the selected part of the
+hierarchy.
+
 .. code-block:: pycon
 
    >>> len(dn)
@@ -182,6 +207,10 @@ Working with DN sequences
 Accessing attributes and values
 --------------------------------
 
+For a single-valued RDN, ``rdn``, ``attribute``, and ``value`` expose its
+parsed attribute type and value without requiring the caller to split the
+string manually.
+
 .. code-block:: pycon
 
    >>> dn.rdn
@@ -194,6 +223,10 @@ Accessing attributes and values
 
 Multi-Valued RDNs
 -----------------
+
+An RDN can contain multiple attribute-value assertions separated by ``+``.
+The DN class exposes the complete RDN as well as its individual attribute
+types and values.
 
 .. code-block:: pycon
 
@@ -209,6 +242,9 @@ Multi-Valued RDNs
 Checking membership
 -------------------
 
+Membership tests whether an RDN or a DN is a component of another DN. This is
+useful for checking whether an entry belongs below a particular base DN.
+
 .. code-block:: pycon
 
    >>> 'cn=users' in dn
@@ -222,7 +258,9 @@ Checking membership
 Handling broken DNs
 -------------------
 
-Samba 4 returns broken DNs. This gets fixed.
+Some directory integrations, including Samba 4, can return non-standard DN
+escaping. The DN parser accepts this representation and produces a usable
+normalized DN.
 
 .. code-block:: pycon
 
@@ -232,6 +270,10 @@ Samba 4 returns broken DNs. This gets fixed.
 
 Inspecting RDNs
 ---------------
+
+The ``rdns`` property returns all RDNs together with the type of each value.
+This is useful when code needs to inspect the parsed structure rather than
+only its string representation.
 
 .. code-block:: pycon
 
@@ -248,6 +290,10 @@ Inspecting RDNs
 Traversing a DN
 ---------------
 
+``walk()`` yields the base DN and each descendant DN up to the complete DN.
+It is useful for traversing the hierarchy or checking each possible parent
+entry.
+
 .. code-block:: pycon
 
    >>> list(dn.walk('dc=freeiam,dc=org'))
@@ -259,7 +305,8 @@ Traversing a DN
 Using DN as Dictionary Keys
 ---------------------------
 
-DN objects are hashable and suitable for use as dictionary keys.
+DN objects are hashable and suitable for use as dictionary keys. Equivalent
+DN representations resolve to the same key according to DN equality rules.
 
 .. code-block:: pycon
 
@@ -269,6 +316,10 @@ DN objects are hashable and suitable for use as dictionary keys.
 
 Utility methods
 ---------------
+
+The utility methods normalize strings and convert either strings or existing
+DN objects to a DN instance. They are useful at API boundaries where callers
+may provide either representation.
 
 .. code-block:: pycon
 
@@ -283,7 +334,9 @@ Utility methods
 Comparisons
 -----------
 
-Comparisons can be done, please respect the notes above about the limits of comparing.
+DN comparisons apply LDAP-aware normalization, including attribute aliases,
+case rules, escaped values, and multi-valued RDN ordering. The schema-specific
+matching rules still determine whether two values are equivalent.
 
 .. code-block:: pycon
 
@@ -307,6 +360,10 @@ Comparisons can be done, please respect the notes above about the limits of comp
 
 Removing duplicates
 -------------------
+
+``get_unique()`` removes equivalent DNs from a collection. The string variant
+returns normalized strings, which is convenient when results must be serialized
+or compared.
 
 .. code-block:: pycon
 

@@ -24,6 +24,11 @@ information, or cleaning up obsolete entries.
 
 Create
 ------
+The Add operation creates a new directory entry at the specified DN. The
+entry must contain all attributes required by its object classes. The example
+shows both a dictionary-based form and an LDAP add-list form, and handles the
+case where the entry already exists.
+
 .. literalinclude:: crud.py
    :language: python
    :caption: Create objects
@@ -33,6 +38,11 @@ Create
 
 Modify
 ------
+
+The Modify operation updates attributes on an existing entry. The first form
+compares an old and a new attribute state, while the modification-list form
+expresses individual add, delete, and replace operations. The latter is useful
+when the application already knows the exact changes to apply.
 
 .. literalinclude:: crud.py
    :language: python
@@ -44,6 +54,12 @@ Modify
 Move, rename, modify RDN
 ------------------------
 
+LDAP distinguishes changing an entry's relative distinguished name from
+moving it to another parent. ``modrdn()`` changes the RDN, ``rename()`` can
+apply a complete new DN, and ``move()`` changes the parent while preserving
+the RDN. Changing an RDN attribute with a modify operation can also trigger an
+implicit rename, depending on the server and schema.
+
 .. literalinclude:: crud.py
    :language: python
    :caption: Move, rename, modrdn objects
@@ -53,6 +69,11 @@ Move, rename, modify RDN
 
 Remove
 ------
+The Delete operation removes a single leaf entry. A non-leaf entry cannot be
+deleted while it still has children; the server reports this condition as
+``AllowedOnNonleaf``. Applications must remove the children first or use a
+recursive operation where appropriate.
+
 .. literalinclude:: crud.py
    :language: python
    :caption: Remove objects
@@ -62,6 +83,10 @@ Remove
 
 Remove recursive
 ----------------
+The recursive delete helper removes an entry and all entries below it. Use it
+carefully because the operation can remove an entire subtree and usually
+requires elevated permissions.
+
 .. literalinclude:: crud.py
    :language: python
    :caption: Remove objects recursive
