@@ -667,6 +667,11 @@ def test_paged_search_close(conn, page_users, base_dn):
         next(gen)
 
 
+def test_count(conn, base_dn):
+    count = conn.count(f'ou=users,{base_dn}', Scope.Subtree, '(|(cn=user01)(cn=user02))')
+    assert count == 2
+
+
 @pytest.mark.xfail(raises=_ldap.PROTOCOL_ERROR, match='unsupported extended operation', reason='LDAP Test setup')
 @pytest.mark.timeout(5)  # used to block when msgid == None was not handled
 def test_cancel(conn, page_users, base_dn):

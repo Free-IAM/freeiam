@@ -24,6 +24,14 @@ async def ldap_search_examples():
             print(entry.dn, entry.attr)
         # end ITERSEARCH
 
+        # start COUNT
+        # count matching entries without returning them
+        count = await conn.count(
+            search_base, Scope.SUBTREE, '(&(uid=*)(objectClass=person))'
+        )
+        print(count)
+        # end COUNT
+
         # start DNSEARCH
         # search for DN
         async for entry in conn.search_dn(

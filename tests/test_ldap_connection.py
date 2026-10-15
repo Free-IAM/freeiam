@@ -722,6 +722,12 @@ async def test_paged_search_close(conn, page_users, base_dn):
         await anext(gen)
 
 
+@pytest.mark.asyncio
+async def test_count(conn, base_dn):
+    count = await conn.count(f'ou=users,{base_dn}', Scope.Subtree, '(|(cn=user01)(cn=user02))')
+    assert count == 2
+
+
 @pytest.mark.xfail(raises=_ldap.PROTOCOL_ERROR, match='unsupported extended operation', reason='LDAP Test setup')
 @pytest.mark.timeout(5)  # used to block when msgid == None was not handled
 @pytest.mark.asyncio

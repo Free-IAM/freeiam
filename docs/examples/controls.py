@@ -171,7 +171,8 @@ def example_matched_values(conn, base_dn):
 
 
 def example_search_no_op(conn, base_dn):
-    # use Search No-Op Control to count matching entries without returning them
+    # use Search No-Op Control directly to count matching entries without returning them
+    # prefer conn.count() for this use case
     from freeiam.ldap.controls import Controls, search_no_op
 
     ctrl = search_no_op(criticality=True)

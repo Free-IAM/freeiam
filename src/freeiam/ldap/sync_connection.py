@@ -10,6 +10,7 @@ from collections.abc import Callable, Generator, Sequence
 from types import TracebackType
 from typing import Any, Literal, Self, TypeAlias, cast, overload
 
+import ldap.controls.openldap
 import ldap.controls.pagedresults
 import ldap.controls.vlv
 import ldap.ldapobject
@@ -34,7 +35,7 @@ from freeiam.ldap.constants import (
     TLSRequireCert,
     Version,
 )
-from freeiam.ldap.controls import Controls, server_side_sorting, simple_paged_results, transaction, virtual_list_view
+from freeiam.ldap.controls import Controls, no_op_search, server_side_sorting, simple_paged_results, transaction, virtual_list_view
 from freeiam.ldap.dn import DN
 from freeiam.ldap.extended_operations import ExtendedRequest, ExtendedResponse, refresh_ttl, transaction_commit, transaction_start
 from freeiam.ldap.schema import Schema
@@ -928,6 +929,24 @@ class Connection:
         result = self.extended(req, refresh_ttl.response)
         result.dn = DN.get(dn)
         return result
+
+    def count(
+        self,
+        base: DN | str = '',
+        scope: Scope = Scope.SUBTREE,
+        filter_expr: str = '(objectClass=*)',
+        *,
+        unique: bool = False,
+        sizelimit: bool | None = None,
+        sorting: Sorting | None = None,
+        controls: Controls | None = None,
+    ) -> int:
+        """Count the number of found search results using the OpenLDAP No-Op search control."""
+        noop = no_op_search(criticality=True)
+        controls = Controls.set_server(controls, noop)
+        next(self.search_dn(base, scope, filter_expr, unique=unique, sizelimit=sizelimit, sorting=sorting, controls=controls), None)
+        control = controls.get(noop)
+        return cast('ldap.controls.openldap.SearchNoOpControl', control).numSearchResults
 
     def extended(self, request: ExtendedRequest, response_class: type[ExtendedResponse] | None = None, *, controls: Controls | None = None) -> Result:
         """Perform extended operation."""
