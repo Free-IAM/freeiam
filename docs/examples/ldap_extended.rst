@@ -26,9 +26,10 @@ available directly as a method of the connection.
 
 .. literalinclude:: extended.py
    :language: python
+   :caption: Using the Who Am I? extended operation
+   :dedent: 8
    :start-after: start WHOAMI
    :end-before: end WHOAMI
-   :caption: Using the Who Am I? extended operation
 
 Automatic object removal (refresh Time to Live (TTL))
 -----------------------------------------------------
@@ -41,9 +42,10 @@ effectively extending the entry's lifetime until the next refresh.
 
 .. literalinclude:: extended.py
    :language: python
+   :caption: Refreshing the TTL of a dynamic entry
+   :dedent: 8
    :start-after: start REFRESH
    :end-before: end REFRESH
-   :caption: Refreshing the TTL of a dynamic entry
 
 Transactions
 ------------
@@ -54,17 +56,19 @@ operations are used to start, commit, or abort transactions.
 
 .. literalinclude:: extended.py
    :language: python
+   :caption: Executing a transactional update
+   :dedent: 8
    :start-after: start TRANSACTION
    :end-before: end TRANSACTION
-   :caption: Executing a transactional update
 
 This can also be achieved with a context manager:
 
 .. literalinclude:: extended.py
    :language: python
+   :caption: Executing a transactional update
+   :dedent: 8
    :start-after: start CONTEXT TRANSACTION
    :end-before: end CONTEXT TRANSACTION
-   :caption: Executing a transactional update
 
 Sync Replication
 ----------------
@@ -76,9 +80,10 @@ replication metadata.
 
 .. literalinclude:: extended.py
    :language: python
+   :caption: Using extended operations for SyncRepl replication
+   :dedent: 8
    :start-after: start SYNCREPL
    :end-before: end SYNCREPL
-   :caption: Using extended operations for SyncRepl replication
 
 Perform extended operations by OID
 ----------------------------------
@@ -89,6 +94,7 @@ invoked using existing request and response implementations or by providing cust
 
 .. literalinclude:: extended.py
    :language: python
+   :caption: Performing a custom LDAP extended operation by OID
+   :dedent: 8
    :start-after: start EXTENDED
    :end-before: end EXTENDED
-   :caption: Performing a custom LDAP extended operation by OID
