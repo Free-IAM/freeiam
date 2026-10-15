@@ -133,7 +133,9 @@ Search No-Op Control
 
 The Search No-Op control evaluates a search without returning matching
 entries. It counts matching entries and reports the number of search
-continuations generated while processing the search.
+continuations generated while processing the search. For counting entries,
+prefer the ``Connection.count()`` convenience method. Use the control
+directly when the response control or its continuation count is needed.
 
 .. literalinclude:: controls.py
    :language: python

@@ -14,8 +14,8 @@ class SearchNoOpControl(ValueLessRequestControl, ResponseControl):
     def __init__(self, criticality: bool = False) -> None: ...
     class SearchNoOpControlValue(univ.Sequence): ...
     resultCode: Incomplete
-    numSearchResults: Incomplete
-    numSearchContinuations: Incomplete
+    numSearchResults: int
+    numSearchContinuations: int
 
     def decodeControlValue(self, encodedControlValue: bytes) -> None: ...
 

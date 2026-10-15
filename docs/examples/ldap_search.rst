@@ -13,6 +13,7 @@ The examples below cover:
 * **Basic searches** -- retrieving entries and attributes within a
   specified subtree or scope.
 * **Iterative searches** -- streaming results as they arrive.
+* **Counting** -- counting matching entries without returning them.
 * **Specialized searches** -- retrieving only the distinguished names,
   single attributes, or asserting result uniqueness.
 * **Pagination** -- splitting large result sets into manageable chunks
@@ -130,6 +131,20 @@ the server or schema.
    :dedent: 8
    :start-after: start GETATTR
    :end-before: end GETATTR
+
+Count search results
+--------------------
+The ``count()`` convenience method returns the number of entries matching a
+search without transferring the entries themselves. It uses the OpenLDAP
+Search No-Op control internally and is preferable to handling that control
+manually when only the count is needed.
+
+.. literalinclude:: search.py
+   :language: python
+   :caption: count search results
+   :dedent: 8
+   :start-after: start COUNT
+   :end-before: end COUNT
 
 Search for unique results
 -------------------------
