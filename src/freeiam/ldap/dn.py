@@ -326,8 +326,8 @@ class DN:
         if self._cached_hash is None:
             self._cached_hash = hash(tuple(
                 tuple(sorted(
-                    (attr.lower(), val.lower() if attr.lower() in self._CASE_INSENSITIVE_ATTRIBUTES else val, ava)
-                    for attr, val, ava in rdn
+                    (attr.lower(), val.lower() if attr.lower() in self._CASE_INSENSITIVE_ATTRIBUTES else val)
+                    for attr, val, _ava in rdn
                 )) for rdn in self._dn
             ))  # fmt: skip
         return self._cached_hash
