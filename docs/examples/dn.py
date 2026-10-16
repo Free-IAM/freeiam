@@ -42,6 +42,17 @@ repr(dn)  # DN('uid=Max.Mustermann,cn=users,dc=freeiam,dc=org')
 some_user_input_dn: str = ...
 try:
     DN(some_user_input_dn)
+    DN('foo')  # not a DN at all
+
+    # Most often made mistakes: An unescaped comma, plus, equals sign,
+    # or backslash in an attribute value
+    DN('cn={},dc=freeiam,dc=org'.format('foo, (1 + 2) = 3, "bar"'))
+
+    # Legacy LDAPv2 DN syntax is not accepted by default
+    DN('OID.1.1=jsmith')  # uses an invalid attribute type name
+    DN('UID=jsmith;O=example;C=US')  # uses semicolons instead of RDN separators
+    DN('<UID=jsmith,O=example,C=US>')  # adds brackets that are not part of DN syntax
+    DN('CN="John Smith",O=example,C=US')  # LDAPv2 Quoted values
 except freeiam.errors.InvalidDN as exc:
     print(exc)  # gives: Malformed DN syntax: "foo"
 
