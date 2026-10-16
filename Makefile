@@ -10,7 +10,7 @@ test:
 	-tox
 
 docs:
-	-tox -e docs
+	tox -e docs
 
 docs-open:
 	-xdg-open docs/_build/html/index.html
