@@ -46,8 +46,11 @@ Working with LDAP DNs in applications is not always straightforward. There are s
 
 4. **Attribute aliases and OIDs**
 
-   LDAP attributes may have aliases. For example, ``cn=foo`` is equivalent to ``commonName=foo``.
-   It's also valid to specify attribute types using their object identifier (OID), making the DN ``2.5.4.3=foo`` also equivalent.
+   LDAP attributes may have aliases. For example, a server schema can define
+   ``cn=foo`` and ``commonName=foo`` as equivalent. It is also valid to
+   specify an attribute type by its object identifier, such as
+   ``2.5.4.3=foo`` for ``cn=foo``. Whether these forms compare equal depends
+   on the server schema and matching rules.
 
 5. **Attribute-specific constraints**
 
@@ -64,55 +67,101 @@ Working with LDAP DNs in applications is not always straightforward. There are s
      ``uid=max.mustermann,ou=Developers,dc=freeiam,dc=org``  
      This is the formal string representation used in protocols and schemas.
 
-     Attribute values may also be written as hexadecimal octets. For example,
-     ``cn=#666f6f`` represents the same value as ``cn=foo``.
+   - **LDAPv2 format** (legacy):
+      ``<OID.2.5.4.3="John Smith";o=example;c=US>``
+      Older implementations may accept quoted values and other LDAPv2 syntax.
+
+   - **AD Canonical Name format** (used in Microsoft Active Directory):  
+     ``freeiam.org/Developers/max.mustermann``  
+     Commonly used by Active Directory tools and user interfaces, but is not an LDAP protocol DN.
+
+   - **DCE format** (Directory Cell Name / X.500 style):  
+     ``/org/freeiam/Developers/max.mustermann``  
+     Common in older X.500 or DCE environments.
 
    - **User-Friendly Name (UFN)** (deprecated):  
      ``max.mustermann, Developers, freeiam.org``  
      A more human-readable form, not standardized in modern LDAP.
 
-   - **DCE format** (Directory Cell Name / X.500 style):  
-     ``/.../org/freeiam/Developers/max.mustermann``  
-     Common in older X.500 or DCE environments.
-
-   - **AD Canonical Name format** (used in Microsoft Active Directory):  
-     ``freeiam.org/Developers/max.mustermann``  
-     Often seen in UI contexts (e.g., PowerShell, admin consoles), but not a valid DN in protocol operations.
-
    - **URL notation** (LDAP URLs):  
      ``ldap://ldap.freeiam.org/uid=max.mustermann,ou=Developers,dc=freeiam,dc=org``  
-     Used to specify DNs as part of a full LDAP URL, including host and options.
+     Combines a server location with a DN and possibly search options.
 
    Applications must normalize and convert these forms to proper LDAPv3 syntax before using them in directory operations.
 
 7. **UTF-8 encoding**
 
-   At least all LDAP DNs must be valid UTF-8 encoded strings :-).
+   At least all LDAP DNs must have a valid UTF-8 string representation :-).
+   Binary attribute values (such as ``jpegPhoto``) cannot appear as raw bytes in a DN, nor can Latin-1-encoded characters.
+   However, RFC 4514 also supports hexadecimal representations of BER-encoded attribute values (e.g. ``jpegPhoto=#C3BFC398C3BFC3A000104A46494600,dc=freeiam,dc=org``).
 
-Due to these many nuances, DNs should never be manually parsed, compared, or interpreted in security-sensitive contexts.
-Always let the LDAP server handle DN logic and comparisons.
-
-FreeIAM provides the following mechanisms to safely and reliably work with LDAP DNs:
-
-Comparing DNs of existing objects
+Equivalent LDAPv3 representations
 ---------------------------------
 
-``compare_dn()`` asks the LDAP server whether two DNs identify the same
-object. This applies the server's schema-aware matching rules instead of
-comparing the two input strings directly. The caller still needs compare
-access to the relevant RDN attributes.
+The following example forms below have the same structure or can compare as equal when the
+referenced attribute syntax defines the corresponding matching rule:
 
-.. literalinclude:: dn.py
-   :language: python
-   :caption: Comparing DNs of objects
-   :start-after: start COMPARE EXISTS
-   :end-before: end COMPARE EXISTS
+.. code-block:: text
+   :caption: Original DN. Special DN-separator chars (``+,=\"<>;``) must be backslash-escaped.
+
+   uid=Dirk T. Tree,cn=users,ou=Identity \+ Access Management,dc=freeiam,dc=org
+
+.. code-block:: text
+   :caption: Attribute type names are case-insensitive.
+
+   Uid=Dirk T. Tree,Cn=users,Ou=Identity \+ Access Management,Dc=freeiam,Dc=org
+   UID=Dirk T. Tree,CN=users,OU=Identity \+ Access Management,DC=freeiam,DC=org
+
+.. code-block:: text
+   :caption: Attribute values may compare case-insensitively, depending on their matching rules (requires schema).
+
+   UID=DIRK T. TREE,CN=USERS,OU=IDENTITY \+ ACCESS MANAGEMENT,DC=FREEIAM,DC=ORG
+
+.. code-block:: text
+   :caption: Characters can be escaped as hexadecimal UTF-8 octets.
+
+   UID=DIRK T. TREE,CN=USERS,OU=IDENTITY \2B ACCESS MANAGEMENT,DC=FREEIAM,DC=ORG
+   UID=DIRK T. TREE,CN=\55\53\65\52\53,OU=IDENTITY \2B ACCESS MANAGEMENT,DC=FREEIAM,DC=ORG
+   UID=DIRK T. TREE,CN=#5553655253,OU=IDENTITY \2B ACCESS MANAGEMENT,DC=FREEIAM,DC=ORG
+
+.. code-block:: text
+   :caption: Attribute type aliases can denote the same attribute (``commonName`` and ``cn`` refer to the same attribute type)
+
+   UID=DIRK T. TREE,commonName=\55\53\65\52\53,OU=IDENTITY \2B ACCESS MANAGEMENT,DC=FREEIAM,DC=ORG
+
+.. code-block:: text
+   :caption: Attribute types can also be identified by their numeric OIDs. For example, ``2.5.4.3`` identifies ``commonName`` (``cn``).
+
+   UID=DIRK T. TREE,2.5.4.3=\55\53\65\52\53,OU=IDENTITY \2B ACCESS MANAGEMENT,DC=FREEIAM,DC=ORG
+
+.. code-block:: text
+   :caption: Matching rules such as ``caseIgnoreMatch`` can ignore insignificant whitespace within attribute values.
+
+   UID=DIRK    T.    TREE,2.5.4.3=\55\53\65\52\53,OU=IDENTITY \2B ACCESS MANAGEMENT,DC=FREEIAM,DC=ORG
+
+.. code-block:: text
+   :caption: Additional whitespace around attribute types, equals signs, and RDN separators is tolerated (not guaranteed by RFC 4514).
+
+   UID  =  DIRK    T.    TREE  ,  2.5.4.3  =  \55\53\65\52\53  ,  OU  =  IDENTITY \2B ACCESS MANAGEMENT  ,  DC  =  FREEIAM  ,  DC  =  ORG
+
+
+Additionaly the order of AVAs in a multi-valued RDN is not significant:
+
+.. code-block:: text
+
+   givenName=Dirk+SN=Tree
+   SN=Tree+givenName=Dirk
+
+Due to these many nuances, DNs should never be manually parsed, compared, or interpreted in security-sensitive contexts.
+Instead let the LDAP server handle DN logic and comparisons.
 
 Object oriented DN class
 ------------------------
 
 The :class:`~freeiam.ldap.dn.DN` class provides utilities for parsing,
-validating, normalizing, and manipulating LDAP Distinguished Names.
+validating, normalizing, comparing and manipulating LDAP Distinguished Names.
+It provides local, partly schema-aware comparisons. Server-side comparison is
+covered below.
 
 Creating and normalizing a DN
 -----------------------------
@@ -131,6 +180,46 @@ of repeatedly parsing a string.
    >>> repr(dn)
    'DN('uid=Max.Mustermann,cn=users,dc=freeiam,dc=org')'
 
+Client-side DN comparison
+--------------------------
+
+:class:`~freeiam.ldap.dn.DN` can compare parsed DN objects locally. This is
+useful for ordinary application logic, such as checking hierarchy membership or
+deduplicating search results. The local rules do not contain the complete
+schema of a connected server, so local equality is not a substitute for a
+server-side authorization decision.
+
+.. important::
+
+   This is not safe for authorization, access control, identity matching, and
+   other security-sensitive decisions.
+
+.. code-block:: pycon
+   :caption: Local DN comparison without schema awareness
+
+   >>> a = DN(r'uid=Dirk T. Tree,cn=users,ou=Identity \+ Access Management,dc=freeiam,dc=org')
+   >>> b = DN(r'UID  =  DIRK T. TREE  ,  CN  =  \55\53\65\52\53  ,  OU  =  IDENTITY \2B ACCESS MANAGEMENT  ,  DC  =  FREEIAM  ,  DC  =  ORG')
+   >>> a == b
+   True
+   >>> c = DN(r'UID=DIRK T. TREE,commonName=\55\53\65\52\53,OU=IDENTITY \2B ACCESS MANAGEMENT,DC=FREEIAM,DC=ORG')
+   >>> a == c
+   False
+
+Comparing DNs of existing objects
+---------------------------------
+
+``compare_dn()`` asks the LDAP server whether two DNs identify the same
+object. This applies the server's schema-aware matching rules instead of
+comparing the two input strings directly. The caller still needs compare access
+to the relevant RDN attributes. This is the recommended operation for
+correctness-sensitive comparisons. The result might be wrong for objects
+having multi valued attributes as RDN.
+
+.. literalinclude:: dn.py
+   :language: python
+   :caption: Comparing DNs of objects
+   :start-after: start COMPARE EXISTS
+   :end-before: end COMPARE EXISTS
 
 Handling invalid user input
 ---------------------------
@@ -143,7 +232,17 @@ before using it in an LDAP operation.
 
    >>> import freeiam.errors
    >>> try:
-   ...     DN('foo')
+   ...     DN('foo')  # not a DN at all
+   ...
+   ...     # Most often made mistakes: An unescaped comma, plus, equals sign,
+   ...     # or backslash in an attribute value
+   ...     DN('cn=%s,dc=freeiam,dc=org' % ('foo, (1 + 2) = 3, "bar"'))
+   ...
+   ...     # Legacy LDAPv2 DN syntax is not accepted by default
+   ...     DN('OID.1.1=jsmith')  # uses an invalid attribute type name
+   ...     DN('UID=jsmith;O=example;C=US')  # uses semicolons instead of RDN separators
+   ...     DN('<UID=jsmith,O=example,C=US>')  # adds brackets that are not part of DN syntax
+   ...     DN('CN="John Smith",O=example,C=US')  # LDAPv2 Quoted values
    ... except freeiam.errors.InvalidDN as exc:
    ...     print(exc)
    Malformed DN syntax: "foo"
