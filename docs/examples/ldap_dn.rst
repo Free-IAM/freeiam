@@ -64,6 +64,9 @@ Working with LDAP DNs in applications is not always straightforward. There are s
      ``uid=max.mustermann,ou=Developers,dc=freeiam,dc=org``  
      This is the formal string representation used in protocols and schemas.
 
+     Attribute values may also be written as hexadecimal octets. For example,
+     ``cn=#666f6f`` represents the same value as ``cn=foo``.
+
    - **User-Friendly Name (UFN)** (deprecated):  
      ``max.mustermann, Developers, freeiam.org``  
      A more human-readable form, not standardized in modern LDAP.
@@ -341,6 +344,8 @@ matching rules still determine whether two values are equivalent.
 .. code-block:: pycon
 
    >>> DN('cn=foo,dc=freeiam,dc=org') == DN('cn=foo,dc=freeiam,dc=org')
+   True
+   >>> DN('cn=#666f6f') == DN('cn=foo')
    True
    >>> DN('cn=foo,dc=freeiam,dc=org') != DN('cn=bar,dc=freeiam,dc=org')
    True

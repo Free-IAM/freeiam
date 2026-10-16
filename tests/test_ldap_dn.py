@@ -125,6 +125,22 @@ def test_equal():
     assert DN('bar=2+foo=1') == DN('foo=1+bar=2')
     assert DN('bar=2+Foo=1') == DN('foo=1+Bar=2')
     assert DN(f'foo={chr(92)}31') == DN(r'foo=1')
+    assert DN('cn=#666f6f') == DN('cn=foo')
+
+
+@pytest.mark.parametrize(
+    'representation,canonical',
+    [
+        ('cn=foo', 'cn=foo'),
+        ('cn = foo', 'cn=foo'),
+        ('CN=Foo', 'cn=foo'),
+        (r'cn=\66oo', 'cn=foo'),
+        ('cn=#666f6f', 'cn=foo'),
+        ('cn=foo+uid=bar', 'uid=bar+cn=foo'),
+    ],
+)
+def test_equivalent_representations(representation, canonical):
+    assert DN(representation) == DN(canonical)
 
 
 def test_getitem(user_dn):
