@@ -5,6 +5,49 @@ from freeiam.ldap.constants import AVA
 from freeiam.ldap.dn import DN
 
 
+# see https://www.openldap.org/ietf/ldapbis/dn.txt
+VALID_DN_TEST_CASES = [
+    '',
+    'UID=jsmith,DC=example,DC=net',
+    'OU=Sales+CN=J. Smith,DC=example,DC=net',
+    r'CN=John Smith\, III,DC=example,DC=net',
+    r'CN=John Smith\2C III,DC=example,DC=net',
+    r'CN=Before\0dAfter,DC=example,DC=net',
+    r'CN=\23John Smith\20,DC=example,DC=net',
+    r'CN=\#John Smith\ ,DC=example,DC=net',
+    '1.3.6.1.4.1.1466.0=#04024869,DC=example,DC=com',
+    r'CN=Lu\C4\8Di\C4\87',
+    r'CN=CN=Lu\C4\8Di\C4\87',
+    '1.1.1=',
+]
+
+INVALID_DN_TEST_CASES = [
+    pytest.param('uid;x-option=jsmith', marks=pytest.mark.xfail(reason='')),
+    'at_tr=jsmith',
+    '-attr=jsmith',
+    '1..1=jsmith',
+    '1.1.=jsmith',
+    pytest.param('01.1=jsmith', marks=pytest.mark.xfail(reason='')),
+    '1.ff=jsmith',
+    '1.1.1=#GG',
+    '1.1.1=#000',
+    '1.1.1=#F',
+    '1.1.1=#',
+    'UID=jsmith,,DC=example,DC=net',
+    'UID=john,smith',
+    'UID=john+smith',
+    pytest.param(r'UID=john\?smith', marks=pytest.mark.xfail(reason='')),
+    r'UID=john\Fsmith',
+    r'UID=john\GGsmith',
+    ' ',
+    'OID.1.1=jsmith',
+    pytest.param('UID=jsmith, O=example, C=US', marks=pytest.mark.xfail(reason='')),
+    pytest.param('UID=jsmith;O=example;C=US', marks=pytest.mark.xfail(reason='')),
+    '<UID=jsmith,O=example,C=US>',
+    pytest.param('CN="John Smith",O=example,C=US', marks=pytest.mark.xfail(reason='')),
+]
+
+
 @pytest.fixture(scope='session')
 def dn_user_container(base_dn):
     return f'cn=users,{base_dn}'
@@ -18,6 +61,17 @@ def user_dn(dn_user_container):
 def test_invalid_dn():
     with pytest.raises(InvalidDN, match="Malformed DN syntax: 'foo'"):
         DN('foo')
+
+
+@pytest.mark.parametrize('dn', VALID_DN_TEST_CASES)
+def test_dn_spec_valid_cases(dn):
+    DN(dn)
+
+
+@pytest.mark.parametrize('dn', INVALID_DN_TEST_CASES)
+def test_dn_spec_invalid_cases(dn):
+    with pytest.raises(InvalidDN):
+        DN(dn)
 
 
 def test_broken_samba_dn():
