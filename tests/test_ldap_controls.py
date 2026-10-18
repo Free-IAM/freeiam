@@ -1,3 +1,5 @@
+from uuid import UUID
+
 import ldap as _ldap
 import pytest
 from ldap.controls import RelaxRulesControl, SimplePagedResultsControl
@@ -130,10 +132,64 @@ def test_bind_with_authzid_control(conn, base_dn):
     assert DN(dn.removeprefix('dn:')) == conn.whoami()
 
 
-@pytest.mark.xfail(raises=errors.UnavailableCriticalExtension)
-def test_dereference_control_not_supported(conn, base_dn):
-    ctrl = dereference({'member': ['cn']}, criticality=True)
-    conn.search(f'ou=groups,{base_dn}', Scope.Subtree, '(objectClass=groupOfNames)', controls=Controls([ctrl]))
+def test_dereference_control(conn, base_dn):
+    ctrl = dereference(
+        {'member': ['mail', 'displayName', 'entryUUID']},
+        criticality=True,
+    )
+
+    expected = {
+        DN(f'cn=developers,ou=groups,{base_dn}'): {
+            DN(f'cn=John Doe,ou=people,{base_dn}'): {
+                'mail': [b'john@example.org'],
+                'displayName': [b'John Doe (Engineering)'],
+            },
+            DN(f'cn=Jane Smith,ou=people,{base_dn}'): {
+                'mail': [b'jane@example.org'],
+                'displayName': [b'Jane Smith (Team Lead)'],
+            },
+        },
+        DN(f'cn=admins,ou=groups,{base_dn}'): {
+            DN(f'cn=Jane Smith,ou=people,{base_dn}'): {
+                'mail': [b'jane@example.org'],
+                'displayName': [b'Jane Smith (Team Lead)'],
+            },
+        },
+    }
+
+    entries = conn.search(
+        f'ou=groups,{base_dn}',
+        Scope.Subtree,
+        '(objectClass=groupOfNames)',
+        controls=Controls([ctrl]),
+    )
+
+    assert len(entries) == len(expected)
+
+    for entry in entries:
+        group_dn = entry.dn
+        assert group_dn in expected
+
+        response = entry.controls.get(dereference.response)
+        assert response is not None
+        assert set(response.refs) == {'member'}
+
+        member_refs = response.refs['member']
+        expected_members = expected[group_dn]
+
+        member_dns = {DN(value.decode('utf-8')) for value in entry.attr['member']}
+
+        assert member_dns == set(expected_members)
+        assert set(member_refs) == member_dns
+
+        for member_dn, attrs in member_refs.items():
+            expected_attrs = expected_members[member_dn]
+
+            assert attrs['mail'] == expected_attrs['mail']
+            assert attrs['displayName'] == expected_attrs['displayName']
+
+            assert len(attrs['entryUUID']) == 1
+            UUID(attrs['entryUUID'][0].decode('ascii'))
 
 
 def test_matched_values_control(conn, base_dn):

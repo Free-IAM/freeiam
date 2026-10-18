@@ -1,0 +1,8 @@
+dn: cn=module{11},cn=config
+objectClass: olcModuleList
+cn: module{11}
+olcModuleLoad: deref
+
+dn: olcOverlay=deref,olcDatabase={2}mdb,cn=config
+objectClass: olcOverlayConfig
+olcOverlay: deref
