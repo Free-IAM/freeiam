@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Any, Protocol, TypeVar, cast
 
 from ldap.controls import DecodeControlTuples, RequestControl, ResponseControl
-from ldap.controls.deref import DereferenceControl
+from ldap.controls.deref import DEREF_CONTROL_OID, DereferenceControl, DerefResultControlValue
 from ldap.controls.libldap import AssertionControl, MatchedValuesControl
 from ldap.controls.openldap import SearchNoOpControl
 from ldap.controls.pagedresults import SimplePagedResultsControl
@@ -27,8 +27,10 @@ from ldap.controls.simple import (
 # from ldap.controls.libldap import SimplePagedResultsControl
 from ldap.controls.sss import SSSRequestControl
 from ldap.controls.vlv import VLVRequestControl, VLVResponseControl
+from pyasn1.codec.ber import decoder
 
 from freeiam.ldap._wrapper import Controls
+from freeiam.ldap.attr import Attributes
 from freeiam.ldap.constants import LDAPChangeType, SessionTrackingFormat
 from freeiam.ldap.dn import DN
 
@@ -129,9 +131,47 @@ def authorization_identity(*, criticality: bool = False) -> AuthorizationIdentit
 authorization_identity.response = AuthorizationIdentityResponseControl
 
 
+class DereferenceResponseControl(ResponseControl):
+    controlType = DEREF_CONTROL_OID  # noqa: N815
+
+    def __init__(
+        self,
+        criticality: bool = False,
+    ) -> None:
+        super().__init__(self.controlType, criticality)
+        self.refs: dict[str, dict[DN, Attributes]] = {}
+
+    def decodeControlValue(self, encodedControlValue: bytes) -> None:  # noqa: N802, N803
+        return self.decode(encodedControlValue)
+
+    def decode(self, value: bytes) -> None:
+        decoded_value, _ = decoder.decode(value, asn1Spec=DerefResultControlValue())
+        for deref_res in decoded_value:
+            deref_attr, deref_dn, deref_vals = deref_res[0], deref_res[1], deref_res[2]
+            attr = bytes(deref_attr).decode('ASCII')
+            dn = DN(bytes(deref_dn).decode('UTF-8'))
+            attrs = Attributes({
+                bytes(attrib_description[0]).decode('ASCII'): [bytes(val) for val in attrib_description[1]] for attrib_description in deref_vals or []
+            })
+            attributes = self.refs.setdefault(attr, {}).setdefault(dn, Attributes({}))
+            self.refs[attr][dn] = Attributes(attributes | attrs)
+
+
+try:
+    from ldap.controls import KNOWN_RESPONSE_CONTROLS
+
+    KNOWN_RESPONSE_CONTROLS[DereferenceResponseControl.controlType] = DereferenceResponseControl
+except ImportError:  # pragma: no cover
+    pass  # who konws what happens in the future
+
+
+@_control
 def dereference(deref_specs: dict[str, list[str]], *, criticality: bool = False) -> DereferenceControl:
     """Create a Dereference control."""
     return DereferenceControl(criticality, deref_specs)
+
+
+dereference.response = DereferenceResponseControl
 
 
 def assertion(filter_expr: str, *, criticality: bool = False) -> AssertionControl:
