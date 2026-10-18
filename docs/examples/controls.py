@@ -142,17 +142,33 @@ def example_authorization_identity(conn, base_dn):
 
 
 def example_dereference(conn, base_dn):
-    # use Dereference Control (not supported by OpenLDAP)
+    # use Dereference Control
     from freeiam.ldap.controls import Controls, dereference
 
-    ctrl = dereference({'member': 'cn'}, criticality=True)
-    conn.search(
+    ctrl = dereference(
+        {'member': ['mail', 'displayName', 'entryUUID']}, criticality=True
+    )
+    entries = conn.search(
         f'ou=groups,{base_dn}',
         Scope.Subtree,
         '(objectClass=groupOfNames)',
         controls=Controls([ctrl]),
     )
-    # end use Dereference Control (not supported by OpenLDAP)
+
+    for entry in entries:
+        response = entry.controls.get(dereference.response)
+
+        if response is None:
+            continue
+
+        print('Group: {entry.dn}')
+        for member_dn, attrs in response.refs['member'].items():
+            print(f'  Member: {member_dn}')
+            print(f'    Email: {attrs["mail"][0].decode("utf-8")}')
+            print(f'    Name:  {attrs["displayName"][0].decode("utf-8")}')
+            print(f'    UUIID:  {attrs["entryUUID"][0].decode("utf-8")}')
+
+    # end use Dereference Control
 
 
 def example_matched_values(conn, base_dn):

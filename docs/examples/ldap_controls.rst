@@ -242,17 +242,33 @@ authorization.
 Dereference Control
 -------------------
 
-The Dereference control asks the server to resolve referenced entries while
-returning a search result. It can include selected attributes from the
-referenced entries. The example is not supported by OpenLDAP.
+LDAP entries can contain distinguished names (DNs) that reference other entries.
+For example, the ``member`` attribute of a ``groupOfNames`` entry contains the DNs of its members.
+Retrieving the attributes of these members normally requires additional LDAP searches for each referenced entry.
+The Dereference Control allows the server to resolve these references
+and return selected attributes of the referenced entries as part of the original search response.
 
 .. literalinclude:: controls.py
    :language: python
    :dedent: 4
-   :caption: Dereference Control (not supported by OpenLDAP)
+   :caption: Dereference Control
    :start-after: use Dereference Control
    :end-before: end use Dereference Control
 
+Example output:
+
+.. code-block:: text
+
+    Group: cn=developers,ou=groups,dc=freeiam,dc=org
+      Member: cn=John Doe,ou=people,dc=freeiam,dc=org
+        Email: john@example.org
+        Name:  John Doe (Engineering)
+        UUID: 7e129a34-cb32-11f1-8000-98fa9bea90fd
+      Member: cn=Jane Smith,ou=people,dc=freeiam,dc=org
+        Email: jane@example.org
+        Name:  Jane Smith (Team Lead)
+        UUID: a0f81c2c-5f73-1041-9a17-d534d2ec15ce
+    ...
 
 Manage DSA Information Tree Control
 -----------------------------------
