@@ -20,7 +20,7 @@ import ldap.schema
 from ldap.schema import SCHEMA_ATTRS
 
 from freeiam import errors
-from freeiam.ldap._wrapper import Page, Result, _Response
+from freeiam.ldap._wrapper import Controls, Page, Result, _Response
 from freeiam.ldap.attr import Attributes
 from freeiam.ldap.constants import (
     AnyOption,
@@ -35,7 +35,7 @@ from freeiam.ldap.constants import (
     TLSRequireCert,
     Version,
 )
-from freeiam.ldap.controls import Controls, no_op_search, server_side_sorting, simple_paged_results, transaction, virtual_list_view
+from freeiam.ldap.controls import no_op_search, server_side_sorting, simple_paged_results, transaction, virtual_list_view
 from freeiam.ldap.dn import DN
 from freeiam.ldap.extended_operations import ExtendedRequest, ExtendedResponse, refresh_ttl, transaction_commit, transaction_start
 from freeiam.ldap.schema import Schema
@@ -505,7 +505,7 @@ class Connection:
             ):
                 Result.set_controls(response, controls)
                 assert response.data is not None  # noqa: S101
-                results = [Result.from_response(dn, attributes, controls, response) for dn, attributes in response.data]
+                results = [Result.from_response(dn, attributes, controls, response, entry_controls=ctrls) for dn, attributes, ctrls in response.data]
                 all_results.extend(results)
                 if unique and len(all_results) > 1:
                     raise errors.NotUnique(all_results)
@@ -561,7 +561,7 @@ class Connection:
             )
             Result.set_controls(response, controls)
             assert response.data is not None  # noqa: S101
-            results = [Result.from_response(dn, attributes, controls, response) for dn, attributes in response.data]
+            results = [Result.from_response(dn, attributes, controls, response, entry_controls=ctrls) for dn, attributes, ctrls in response.data]
             all_results.extend(results)
             if unique and len(all_results) > 1:
                 raise errors.NotUnique(all_results)
@@ -986,7 +986,7 @@ class Connection:
         if msgid is None:  # abandon_ext, unbind_ext
             return _Response(None, None, msgid, [], None, None)
         response: _Response | None = None
-        for resp in self._poll(conn, msgid, 1):
+        for resp in self._poll(conn, msgid, all_results=True):
             if response is not None:  # pragma: no cover
                 raise RuntimeError('Wrong method used! Use _execute_iter instead!')  # noqa: TRY003
             response = resp
@@ -1000,14 +1000,14 @@ class Connection:
         msgid = self._retry(self.request, operation, *args, **kwargs, **Controls.expand(controls))
         if msgid is None:  # abandon_ext, unbind_ext
             return
-        yield from self._poll(conn, msgid, 0)
+        yield from self._poll(conn, msgid, all_results=False)
 
-    def get_result(self, conn: LDAPObject, msgid: int = ResponseType.Any, _all: int = 0, timeout: int = 0) -> _Response:
+    def get_result(self, conn: LDAPObject, msgid: int = ResponseType.Any, all_results: bool = False, timeout: int = 0) -> _Response:
         """Get the LDAP result for the given msgid."""
-        log.debug('result(%r, timeout=%r)', msgid, timeout, extra={'MSGID': msgid, 'ALL': _all, 'TIMEOUT': timeout, 'FUNC': 'result'})
+        log.debug('result(%r, timeout=%r)', msgid, timeout, extra={'MSGID': msgid, 'ALL': all_results, 'TIMEOUT': timeout, 'FUNC': 'result'})
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
-                rtype, data, msgid_ret, ctrls, name, value = conn.result4(msgid, all=_all, timeout=timeout, add_extop=1)
+                rtype, data, msgid_ret, ctrls, name, value = conn.result4(msgid, all=all_results, timeout=timeout, add_extop=True, add_ctrls=True)
                 response = _Response(ResponseType(rtype) if rtype is not None else None, data, msgid_ret, ctrls, name, value)
         except (errors.LdapError, OSError) as exc:
             log.debug('result(%r) -> raised %r', msgid, exc, extra={'MSGID': msgid, 'OPERATION': 'result', 'EXCEPTION': str(exc)})
@@ -1049,12 +1049,14 @@ class Connection:
                 time.sleep(self.retry_delay)
         raise RuntimeError()  # pragma: no cover; impossible
 
-    def _poll(self, conn: LDAPObject, msgid: ResponseType = ResponseType.Any, _all: int = 0) -> Generator[_Response, None, None]:  # pragma: no cover
+    def _poll(
+        self, conn: LDAPObject, msgid: int = ResponseType.Any, all_results: bool = False
+    ) -> Generator[_Response, None, None]:  # pragma: no cover
         """Wait synchronously for operation to succeed."""
         # this method must only used by the synchronous variant of this class
         while True:
             try:
-                response: _Response = cast('_Response', self._retry(self.get_result, conn, msgid, _all=_all, timeout=self.timeout))
+                response: _Response = cast('_Response', self._retry(self.get_result, conn, msgid, all_results=all_results, timeout=self.timeout))
             except errors.NoResultsReturned:  # pragma: no cover
                 break
 

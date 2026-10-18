@@ -61,8 +61,8 @@ class _Response:
     type: ResponseType | None
     """The response protocol operation."""
 
-    data: list[tuple[str, dict[str, list[bytes]]]] | None
-    """The response data for the corresponding operation."""
+    data: list[tuple[str, dict[str, list[bytes]], LDAPResponseControlList]] | None
+    """The response data (DN, attributes, entry-controls) for the corresponding operation."""
 
     msgid: int | None
     """The unique message ID."""
@@ -130,11 +130,17 @@ class Result:
 
     @classmethod
     def from_response(
-        cls, dn: DN | str | None, attr: dict[str, list[bytes]] | None, controls: Controls | None, response: _Response, **kwargs: Any
+        cls,
+        dn: DN | str | None,
+        attr: dict[str, list[bytes]] | None,
+        controls: Controls | None,
+        response: _Response,
+        entry_controls: LDAPResponseControlList | None = None,
+        **kwargs: Any,
     ) -> Self:
         dn = dn if dn is None else DN.get(dn)
         attrs = attr if attr is None else Attributes(attr)
-        return cls(dn, attrs, cls._control_response(controls, response.ctrls), response, **kwargs)
+        return cls(dn, attrs, cls._control_response(controls, (entry_controls or []) + (response.ctrls or [])), response, **kwargs)
 
     @classmethod
     def set_controls(cls, response: _Response, controls: Controls | None) -> None:
