@@ -358,7 +358,7 @@ class Connection:
         """Authenticate via plaintext credentials."""
         conn = self.conn
         self._last_auth_state = ('simple_bind_s', authc_id, password)
-        response = self._execute(conn, conn.simple_bind, authc_id, password, **Controls.expand(controls))
+        response = self._execute(conn, conn.simple_bind, authc_id, password, controls=controls)
         return Result.from_response(None, None, controls, response)
 
     def bind_external(self, authz_id: str = '', *, controls: Controls | None = None) -> None:  # pragma: no cover
@@ -409,7 +409,7 @@ class Connection:
         except RuntimeError:  # not connected
             return None
         try:
-            response = self._execute(conn, conn.unbind_ext, **Controls.expand(controls))
+            response = self._execute(conn, conn.unbind_ext, controls=controls)
         except AttributeError as exc:  # duplicated unbind
             if exc.args and exc.args[0] == "ReconnectLDAPObject has no attribute '_l'":
                 return None
@@ -430,7 +430,7 @@ class Connection:
     def change_password(self, dn: DN | str, old_password: str, new_password: str, *, controls: Controls | None = None) -> Result:
         """Change password."""
         conn = self.conn
-        response = self._execute(conn, conn.passwd, str(dn), old_password, new_password, **Controls.expand(controls))
+        response = self._execute(conn, conn.passwd, str(dn), old_password, new_password, controls=controls)
         return Result.from_response(dn, None, controls, response)  # pragma: no cover
 
     def exists(self, dn: DN | str, unique: bool = False, *, controls: Controls | None = None) -> bool:
@@ -499,7 +499,7 @@ class Connection:
                 filterstr=filter_expr,
                 attrlist=attrs,
                 attrsonly=int(_attrsonly),
-                **Controls.expand(controls),
+                controls=controls,
                 timeout=self.timeout,
                 sizelimit=sizelimit or OptionValue.NoLimit,
             ):
@@ -555,7 +555,7 @@ class Connection:
                 filterstr=filter_expr,
                 attrlist=attrs,
                 attrsonly=int(_attrsonly),
-                **Controls.expand(controls),
+                controls=controls,
                 timeout=self.timeout,
                 sizelimit=sizelimit or OptionValue.NoLimit,
             )
@@ -717,7 +717,7 @@ class Connection:
     ) -> Result:
         """Create an LDAP object from an add-list."""
         conn = self.conn
-        response = self._execute(conn, conn.add_ext, str(dn), al, **Controls.expand(controls))
+        response = self._execute(conn, conn.add_ext, str(dn), al, controls=controls)
         return Result.from_response(dn, None, controls, response)
 
     def modify(
@@ -744,7 +744,7 @@ class Connection:
         new_dn = self._compute_changed_dn(DN.get(dn), ml)
         if dn != new_dn:
             dn = cast('DN', (self.rename(dn, new_dn)).dn)
-        response = self._execute(conn, conn.modify_ext, str(dn), ml, **Controls.expand(controls))
+        response = self._execute(conn, conn.modify_ext, str(dn), ml, controls=controls)
         return Result.from_response(dn, None, controls, response)
 
     @classmethod
@@ -801,7 +801,7 @@ class Connection:
         """Rename an LDAP object."""
         conn = self.conn
         newdn = DN.get(newdn)
-        response = self._execute(conn, conn.rename, str(dn), str(newdn[0]), str(newdn.parent), int(delete_old), **Controls.expand(controls))
+        response = self._execute(conn, conn.rename, str(dn), str(newdn[0]), str(newdn.parent), int(delete_old), controls=controls)
         return Result.from_response(newdn, None, controls, response)
 
     def modrdn(
@@ -818,7 +818,7 @@ class Connection:
     def delete(self, dn: DN | str, *, controls: Controls | None = None) -> Result:
         """Delete an LDAP object."""
         conn = self.conn
-        response = self._execute(conn, conn.delete_ext, str(dn), **Controls.expand(controls))
+        response = self._execute(conn, conn.delete_ext, str(dn), controls=controls)
         return Result.from_response(dn, None, controls, response)
 
     def delete_recursive(self, dn: DN | str, *, controls: Controls | None = None) -> Result:
@@ -841,7 +841,7 @@ class Connection:
         """Compare an LDAP object's attribute value."""
         conn = self.conn
         try:
-            self._execute(conn, conn.compare_ext, str(dn), attr, value, **Controls.expand(controls))
+            self._execute(conn, conn.compare_ext, str(dn), attr, value, controls=controls)
         except errors.NoSuchObject as no_object_error:
             no_object_error.base_dn = DN.get(dn)
             raise
@@ -881,7 +881,7 @@ class Connection:
         """Abandon an LDAP operation."""
         log.debug('Abandon: %s', msgid)
         conn = self.conn
-        response = self._execute(conn, conn.abandon_ext, msgid, **Controls.expand(controls))
+        response = self._execute(conn, conn.abandon_ext, msgid, controls=controls)
         return Result.from_response(None, None, controls, response)
 
     def cancel(self, msgid: int, *, controls: Controls | None = None) -> bool:
@@ -892,7 +892,7 @@ class Connection:
         except RuntimeError:
             return False
         try:
-            self._execute(conn, conn.cancel, msgid, **Controls.expand(controls))
+            self._execute(conn, conn.cancel, msgid, controls=controls)
         except errors.NoSuchOperation:
             log.warning('Cancel failed', extra={'msgid': msgid})
             raise
@@ -951,7 +951,7 @@ class Connection:
     def extended(self, request: ExtendedRequest, response_class: type[ExtendedResponse] | None = None, *, controls: Controls | None = None) -> Result:
         """Perform extended operation."""
         conn = self.conn
-        response = self._execute(conn, conn.extop, request, **Controls.expand(controls))
+        response = self._execute(conn, conn.extop, request, controls=controls)
 
         decoded_value = None
         if response_class:
@@ -980,9 +980,9 @@ class Connection:
             self._restore_options()
         self._restore_auth_state()
 
-    def _execute(self, conn: LDAPObject, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> _Response:
+    def _execute(self, conn: LDAPObject, operation: Callable[..., Any], *args: Any, controls: Controls | None = None, **kwargs: Any) -> _Response:
         """Execute the operation and wait asynchronously for the result."""
-        msgid = self._retry(self.request, operation, *args, **kwargs)
+        msgid = self._retry(self.request, operation, *args, **kwargs, **Controls.expand(controls))
         if msgid is None:  # abandon_ext, unbind_ext
             return _Response(None, None, msgid, [], None, None)
         response: _Response | None = None
@@ -993,9 +993,11 @@ class Connection:
         assert response is not None  # noqa: S101
         return response
 
-    def _execute_iter(self, conn: LDAPObject, operation: Callable[..., Any], *args: Any, **kwargs: Any) -> Generator[_Response, None]:
+    def _execute_iter(
+        self, conn: LDAPObject, operation: Callable[..., Any], *args: Any, controls: Controls | None = None, **kwargs: Any
+    ) -> Generator[_Response, None]:
         """Execute the operation and yield the results asynchronously."""
-        msgid = self._retry(self.request, operation, *args, **kwargs)
+        msgid = self._retry(self.request, operation, *args, **kwargs, **Controls.expand(controls))
         if msgid is None:  # abandon_ext, unbind_ext
             return
         yield from self._poll(conn, msgid, 0)
