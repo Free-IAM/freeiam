@@ -2,6 +2,43 @@
 
 <!-- version list -->
 
+## v0.13.0 (2026-10-19)
+
+### Bug Fixes
+
+- **ldap.dn**: Normalize equivalent AVA encodings equally
+  ([`32bfffd`](https://github.com/Free-IAM/freeiam/commit/32bfffd66978cc289de025cf537480a3286cdf91))
+
+### Documentation
+
+- **ldap**: Improve descriptions of example code
+  ([`508e016`](https://github.com/Free-IAM/freeiam/commit/508e01685c03de4d8bb5a6ffe3d19631ee1b77cc))
+
+- **ldap.controls**: Add descriptions for all controls
+  ([`52771a5`](https://github.com/Free-IAM/freeiam/commit/52771a5af5143259a1da8006baac43cb7c235535))
+
+- **ldap.controls**: Add practical dereference-control example
+  ([`944d553`](https://github.com/Free-IAM/freeiam/commit/944d553dd12e8b66d4d407050799e4447a73f05c))
+
+- **ldap.dn**: Add example for hexadecimal DN representation
+  ([`a3aef86`](https://github.com/Free-IAM/freeiam/commit/a3aef86de6b32f86e014c7f19f9931a955df49a9))
+
+- **ldap.dn**: Expand DN representation and comparison guidance
+  ([`c02e050`](https://github.com/Free-IAM/freeiam/commit/c02e050a85ba3393a6007f053930db11dad1e2a2))
+
+### Features
+
+- **ldap.connection**: Add `count()` method to perform a search which only returns the number of
+  matching entries
+  ([`291086e`](https://github.com/Free-IAM/freeiam/commit/291086ee0450720db0e2c303851a2469337fab16))
+
+- **ldap.connection**: Allow receiving of response controls for each search entry
+  ([`4a4d779`](https://github.com/Free-IAM/freeiam/commit/4a4d779646dd089993d48f737c97e77f51371bd1))
+
+- **ldap.controls**: Add Dereference response control which fixes the broken one from python-ldap
+  ([`85fd75f`](https://github.com/Free-IAM/freeiam/commit/85fd75febb48abb4a07bdadbb7af958b55921a2a))
+
+
 ## v0.12.0 (2026-10-12)
 
 ### Documentation
