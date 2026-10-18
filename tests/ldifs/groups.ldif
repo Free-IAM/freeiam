@@ -1,0 +1,35 @@
+# SPDX-FileCopyrightText: 2025 Florian Best
+# SPDX-License-Identifier: CC0-1.0
+
+dn: ou=people,dc=freeiam,dc=org
+objectClass: organizationalUnit
+ou: people
+
+dn: cn=John Doe,ou=people,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+cn: John Doe
+sn: Doe
+displayName: John Doe (Engineering)
+mail: john@example.org
+
+dn: cn=Jane Smith,ou=people,dc=freeiam,dc=org
+objectClass: inetOrgPerson
+cn: Jane Smith
+sn: Smith
+displayName: Jane Smith (Team Lead)
+mail: jane@example.org
+
+dn: ou=groups,dc=freeiam,dc=org
+objectClass: organizationalUnit
+ou: groups
+
+dn: cn=developers,ou=groups,dc=freeiam,dc=org
+objectClass: groupOfNames
+cn: developers
+member: cn=John Doe,ou=people,dc=freeiam,dc=org
+member: cn=Jane Smith,ou=people,dc=freeiam,dc=org
+
+dn: cn=admins,ou=groups,dc=freeiam,dc=org
+objectClass: groupOfNames
+cn: admins
+member: cn=Jane Smith,ou=people,dc=freeiam,dc=org
