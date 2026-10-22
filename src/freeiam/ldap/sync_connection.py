@@ -28,6 +28,7 @@ from freeiam.ldap.constants import (
     Option,
     OptionValue,
     ResponseType,
+    RetrievalMode,
     Scope,
     TLSCRLCheck,
     TLSOption,
@@ -102,7 +103,7 @@ class Connection:
         uri: str | None = '',
         *,
         start_tls: bool = False,
-        timeout: int = -1,
+        timeout: float = -1,
         automatic_reconnect: bool = True,
         max_connection_attempts: int = 10,
         retry_delay: float = 0.0,
@@ -986,7 +987,7 @@ class Connection:
         if msgid is None:  # abandon_ext, unbind_ext
             return _Response(None, None, msgid, [], None, None)
         response: _Response | None = None
-        for resp in self._poll(conn, msgid, all_results=True):
+        for resp in self._poll(conn, msgid, retrieval_mode=RetrievalMode.All):
             if response is not None:  # pragma: no cover
                 raise RuntimeError('Wrong method used! Use _execute_iter instead!')  # noqa: TRY003
             response = resp
@@ -1000,14 +1001,16 @@ class Connection:
         msgid = self._retry(self.request, operation, *args, **kwargs, **Controls.expand(controls))
         if msgid is None:  # abandon_ext, unbind_ext
             return
-        yield from self._poll(conn, msgid, all_results=False)
+        yield from self._poll(conn, msgid, retrieval_mode=RetrievalMode.One)
 
-    def get_result(self, conn: LDAPObject, msgid: int = ResponseType.Any, all_results: bool = False, timeout: int = 0) -> _Response:
+    def get_result(
+        self, conn: LDAPObject, msgid: int = ResponseType.Any, retrieval_mode: RetrievalMode = RetrievalMode.All, timeout: float = 0
+    ) -> _Response:
         """Get the LDAP result for the given msgid."""
-        log.debug('result(%r, timeout=%r)', msgid, timeout, extra={'MSGID': msgid, 'ALL': all_results, 'TIMEOUT': timeout, 'FUNC': 'result'})
+        log.debug('result(%r, timeout=%r)', msgid, timeout, extra={'MSGID': msgid, 'ALL': retrieval_mode, 'TIMEOUT': timeout, 'FUNC': 'result'})
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
-                rtype, data, msgid_ret, ctrls, name, value = conn.result4(msgid, all=all_results, timeout=timeout, add_extop=True, add_ctrls=True)
+                rtype, data, msgid_ret, ctrls, name, value = conn.result4(msgid, all=retrieval_mode, timeout=timeout, add_extop=True, add_ctrls=True)
                 response = _Response(ResponseType(rtype) if rtype is not None else None, data, msgid_ret, ctrls, name, value)
         except (errors.LdapError, OSError) as exc:
             log.debug('result(%r) -> raised %r', msgid, exc, extra={'MSGID': msgid, 'OPERATION': 'result', 'EXCEPTION': str(exc)})
@@ -1050,13 +1053,15 @@ class Connection:
         raise RuntimeError()  # pragma: no cover; impossible
 
     def _poll(
-        self, conn: LDAPObject, msgid: int = ResponseType.Any, all_results: bool = False
+        self, conn: LDAPObject, msgid: int = ResponseType.Any, retrieval_mode: RetrievalMode = RetrievalMode.One
     ) -> Generator[_Response, None, None]:  # pragma: no cover
         """Wait synchronously for operation to succeed."""
         # this method must only used by the synchronous variant of this class
         while True:
             try:
-                response: _Response = cast('_Response', self._retry(self.get_result, conn, msgid, all_results=all_results, timeout=self.timeout))
+                response: _Response = cast(
+                    '_Response', self._retry(self.get_result, conn, msgid, retrieval_mode=retrieval_mode, timeout=self.timeout)
+                )
             except errors.NoResultsReturned:  # pragma: no cover
                 break
 
