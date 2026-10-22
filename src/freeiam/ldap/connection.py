@@ -26,6 +26,7 @@ from freeiam.ldap.attr import Attributes
 from freeiam.ldap.constants import (
     AnyOption,
     AnyOptionValue,
+    MessageId,
     Option,
     OptionValue,
     ResponseType,
@@ -1043,7 +1044,7 @@ class Connection:
             yield response
 
     def get_result(
-        self, conn: LDAPObject, msgid: int = ResponseType.Any, retrieval_mode: RetrievalMode = RetrievalMode.All, timeout: float = 0
+        self, conn: LDAPObject, msgid: MessageId | int = MessageId.Any, retrieval_mode: RetrievalMode = RetrievalMode.All, timeout: float = 0
     ) -> _Response:
         """Get the LDAP result for the given msgid."""
         log.debug('result(%r, timeout=%r)', msgid, timeout, extra={'MSGID': msgid, 'ALL': retrieval_mode, 'TIMEOUT': timeout, 'FUNC': 'result'})
@@ -1092,7 +1093,7 @@ class Connection:
         raise RuntimeError()  # pragma: no cover; impossible
 
     def _poll_s(
-        self, conn: LDAPObject, msgid: int = ResponseType.Any, retrieval_mode: RetrievalMode = RetrievalMode.One
+        self, conn: LDAPObject, msgid: MessageId | int = MessageId.Any, retrieval_mode: RetrievalMode = RetrievalMode.One
     ) -> Generator[_Response, None, None]:  # pragma: no cover
         """Wait synchronously for operation to succeed."""
         # this method must only used by the synchronous variant of this class
@@ -1116,7 +1117,7 @@ class Connection:
             break
 
     async def _poll(
-        self, conn: LDAPObject, msgid: int = ResponseType.Any, retrieval_mode: RetrievalMode = RetrievalMode.One
+        self, conn: LDAPObject, msgid: MessageId | int = MessageId.Any, retrieval_mode: RetrievalMode = RetrievalMode.One
     ) -> AsyncGenerator[_Response, None]:
         """Wait asynchronously for operation to succeed."""
         loop = asyncio.get_running_loop()
@@ -1147,7 +1148,7 @@ class Connection:
                 break
             break
 
-    def _ready(self, fd: int, conn: LDAPObject, msgid: int, fut: asyncio.Future[_Response], retrieval_mode: RetrievalMode) -> None:
+    def _ready(self, fd: int, conn: LDAPObject, msgid: MessageId | int, fut: asyncio.Future[_Response], retrieval_mode: RetrievalMode) -> None:
         log.debug('FD %s is ready', fd)
         try:
             os.fstat(fd)

@@ -25,6 +25,7 @@ from freeiam.ldap.attr import Attributes
 from freeiam.ldap.constants import (
     AnyOption,
     AnyOptionValue,
+    MessageId,
     Option,
     OptionValue,
     ResponseType,
@@ -1004,7 +1005,7 @@ class Connection:
         yield from self._poll(conn, msgid, retrieval_mode=RetrievalMode.One)
 
     def get_result(
-        self, conn: LDAPObject, msgid: int = ResponseType.Any, retrieval_mode: RetrievalMode = RetrievalMode.All, timeout: float = 0
+        self, conn: LDAPObject, msgid: MessageId | int = MessageId.Any, retrieval_mode: RetrievalMode = RetrievalMode.All, timeout: float = 0
     ) -> _Response:
         """Get the LDAP result for the given msgid."""
         log.debug('result(%r, timeout=%r)', msgid, timeout, extra={'MSGID': msgid, 'ALL': retrieval_mode, 'TIMEOUT': timeout, 'FUNC': 'result'})
@@ -1053,7 +1054,7 @@ class Connection:
         raise RuntimeError()  # pragma: no cover; impossible
 
     def _poll(
-        self, conn: LDAPObject, msgid: int = ResponseType.Any, retrieval_mode: RetrievalMode = RetrievalMode.One
+        self, conn: LDAPObject, msgid: MessageId | int = MessageId.Any, retrieval_mode: RetrievalMode = RetrievalMode.One
     ) -> Generator[_Response, None, None]:  # pragma: no cover
         """Wait synchronously for operation to succeed."""
         # this method must only used by the synchronous variant of this class
