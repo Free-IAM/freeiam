@@ -58,5 +58,5 @@ ruff check  --fixable RUF100 --fix src/freeiam/ldap/sync_connection.py
 sed "${expr}${expr_py}" tests/test_ldap_connection.py > tests/test_ldap_connection_sync.py
 ruff format tests/test_ldap_connection_sync.py
 ruff check --add-noqa --select SIM113,SIM117 tests/test_ldap_connection_sync.py
-ruff check --fix --unsafe-fixes --select I001,PT,C416,SIM117,RUF100 tests/test_ldap_connection_sync.py
+ruff check --fix --ignore RUF100 --unsafe-fixes --select I001,PT,C416,SIM117,RUF100 tests/test_ldap_connection_sync.py
 ruff check  --fixable RUF100 --fix tests/test_ldap_connection_sync.py

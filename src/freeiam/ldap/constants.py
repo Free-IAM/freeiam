@@ -435,6 +435,19 @@ class ResponseType(IntEnum):
     """Unsolicited response."""
 
 
+class RetrievalMode(IntEnum):
+    """Control how LDAP message results are retrieved (``all`` parameter of ``ldap_result()``)."""
+
+    All = ldap.MSG_ALL
+    """Wait for the operation to complete and return all messages as a single chain."""
+
+    One = ldap.MSG_ONE
+    """Return as soon as a single result message is available."""
+
+    Received = ldap.MSG_RECEIVED
+    """Return all result messages received so far without waiting for completion."""
+
+
 class LDAPChangeType(IntEnum):
     """LDAP change type for the Persistent Search control."""
 
