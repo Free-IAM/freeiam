@@ -405,12 +405,10 @@ class AVA(IntEnum):
 
 
 class ResponseType(IntEnum):
-    """LDAP response protocol operation."""
+    """LDAP response message types as defined by RFC 4511."""
 
     Add = ldap.RES_ADD
     """Add response."""
-    Any = ldap.RES_ANY
-    """Any response type."""
     Bind = ldap.RES_BIND
     """Bind response."""
     Compare = ldap.RES_COMPARE
@@ -431,6 +429,14 @@ class ResponseType(IntEnum):
     """Search reference response."""
     SearchResult = ldap.RES_SEARCH_RESULT
     """Search result response."""
+
+
+class MessageId(IntEnum):
+    """Special message IDs used to select LDAP responses."""
+
+    Any = ldap.RES_ANY
+    """Any response type."""
+
     Unsolicited = ldap.RES_UNSOLICITED
     """Unsolicited response."""
 
