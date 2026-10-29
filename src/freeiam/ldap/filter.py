@@ -8,7 +8,7 @@ import re
 import string
 from collections import deque
 from collections.abc import Callable, Sequence
-from typing import Protocol, Self, cast
+from typing import Any, Protocol, Self, cast
 
 import ldap.filter
 
@@ -20,6 +20,7 @@ __all__ = (
     'ApproximateMatch',
     'Assertion',
     'EqualityMatch',
+    'EscapeMode',
     'ExtensibleMatch',
     'Filter',
     'GreaterOrEqual',
@@ -27,6 +28,7 @@ __all__ = (
     'Operator',
     'PresenceMatch',
     'SubstringMatch',
+    'WalkStrategy',
 )
 
 _ASCII_LIMIT = 128
@@ -69,6 +71,10 @@ class Token(str):  # noqa: FURB189
 
     def copy(self) -> Self:
         return self  # pragma: no cover
+
+
+def _bytes(string: str | bytes) -> bytes:
+    return string.encode('UTF-8') if isinstance(string, str) else string
 
 
 class Attribute:
@@ -368,14 +374,13 @@ class SubstringMatch(Assertion):
         obj._raw_escaped_value = value
         return obj
 
-    def decode(self, encoding: str = 'utf-8', errors: str = 'strict') -> tuple[str, ...]:
-        """Get decoded values."""
-        return tuple(val.decode(encoding, errors) for val in self.values)
-
-    @property
-    def values(self) -> tuple[bytes, ...]:
-        """Return substring assertion values."""
-        return (self.initial or b'', *self.any, self.final or b'')
+    def decode(self, encoding: str = 'utf-8', errors: str = 'strict') -> tuple[str | None, ...]:
+        """Decode the substring components."""
+        return (
+            self.initial.decode(encoding, errors) if self.initial is not None else None,
+            *tuple(value.decode(encoding, errors) for value in self.any),
+            self.final.decode(encoding, errors) if self.final is not None else None,
+        )
 
     @property
     def escaped(self) -> str:
@@ -444,7 +449,7 @@ class PresenceMatch(Assertion):
 
 
 class ExtensibleMatch(ValueAssertion):
-    """Comparison with an extensible match (attr:dn:rule:=value)."""
+    """Assertion with an extensible match (attr:dn:rule:=value)."""
 
     expression = ':='
     __slots__ = ('dn', 'matchingrule')
@@ -493,6 +498,8 @@ class Container(Expression):
     __slots__ = ('_expressions', '_sep')
     operator: Callable[..., bool] | None = None
     expression = ''
+    _min: int = 0
+    _max: int = 0
 
     @property
     def operators(self) -> tuple['AND | OR | NOT', ...]:
@@ -512,6 +519,11 @@ class Container(Expression):
     def __init__(self, /, expressions: list[Expression | Token], *, sep: Token | None = None):
         self._expressions = expressions
         self._sep = sep
+
+        length = len(self.expressions)
+        if (self._min > 0 and length < self._min) or (self._max > 0 and length > self._max):
+            msg = f'{type(self).__name__} requires between {self._min} and {self._max} expressions, got {length}'
+            raise ValueError(msg)
 
     def copy(self) -> Self:
         """Copy the object (without preserving optional whitespace)."""
@@ -579,13 +591,14 @@ class NOT(Operator):
 
     operator = operator.not_
     expression = '!'
+    _min = 1
+    _max = 1
 
 
 class Filter:
-    """An LDAP filter according to RFC 4515."""
+    """An LDAP filter AST according to RFC 4515."""
 
     __slots__ = ('_debug', 'ast', 'filter_expr')
-
     RE_HEXESCAPE = re.compile(rb'\\([0-9A-Fa-f]{2})')
 
     def __init__(self, /, filter_expr: str | None, *, strict: bool = False, parser: str = 'lark', _debug: bool = False) -> None:
@@ -623,10 +636,43 @@ class Filter:
 
             return LarkParser(self, strict)
 
+        if name == 'libldap':
+            from freeiam.ldap._filter.ber import LibldapParser  # noqa: PLC0415
+
+            return LibldapParser(strict)
+
         # pragma: no cover
         msg = f'Unknown parser: {name!r}'
         raise ValueError(msg)
 
+    @classmethod
+    def from_ast(cls, expression: Expression) -> Self:
+        """Create a filter directly from an AST expression."""
+        obj = cls.__new__(cls)
+        obj.ast = Container([expression])
+        obj.filter_expr = str(obj)
+        obj._debug = False
+        return obj
+
+    @classmethod
+    def from_ber(cls, data: bytes) -> Self:
+        """Create a filter from an LDAP BER-encoded expression."""
+        from freeiam.ldap._filter.ber import _expression_from_ber  # noqa: PLC0415
+
+        expression = _expression_from_ber(data)
+
+        if isinstance(expression, Assertion):
+            expression = Group([expression])
+
+        return cls.from_ast(expression)
+
+    def to_ber(self) -> bytes:
+        """Encode the filter as an LDAP BER filter."""
+        from freeiam.ldap._filter.ber import expression_to_ber  # noqa: PLC0415
+
+        if self.root is None:
+            raise ValueError('Empty LDAP filter')  # noqa: TRY003
+        return expression_to_ber(self.root)
 
     def pretty(self, indent: int = 0) -> str:
         """Transform the filter into a pretty-formatted representation."""
@@ -636,20 +682,18 @@ class Filter:
             if isinstance(expr, Assertion):
                 return f'{pad}({expr})'
             if isinstance(expr, (AND, OR)):
-                head = f'{pad}({expr.expression}'
-                children = '\n'.join(render(e, level + 1) for e in expr._expressions if not isinstance(e, Token))
-                return f'{head}\n{children}\n{pad})'
+                children = '\n'.join(render(x, level + 1) for x in expr.expressions)
+                return f'{pad}({expr.expression}\n{children}\n{pad})'
             if isinstance(expr, NOT):
-                head = f'{pad}({expr.expression}'
-                children = ''.join(render(e, 0) for e in expr._expressions if not isinstance(e, Token))
-                return f'{head}{children})'
-            if isinstance(expr, (Group, Container)):
-                return '\n'.join(render(e, level) for e in expr._expressions if not isinstance(e, Token))
-            raise TypeError(f'Unexpected expression: {type(expr)}')  # noqa: TRY003,EM102  # pragma: no cover
+                return f'{pad}(!{render(expr.expressions[0], 0)})'
+            raise TypeError(type(expr))
 
         if self.root is None:
             return ''
-        return render(self.root, indent)
+        expression = self.root
+        if isinstance(expression, (Group, Container)) and not isinstance(expression, Operator):
+            return '\n'.join(render(x, indent) for x in expression.expressions)
+        return render(expression, indent)
 
     @classmethod
     def attr(cls, attr: str, matchingrule: str | None = None, dn: bool = False) -> Attribute:
@@ -657,14 +701,14 @@ class Filter:
         return Attribute(attr, matchingrule, dn=dn)
 
     @classmethod
-    def get_eq(cls, attr: str, value: str) -> EqualityMatch:
+    def get_eq(cls, attr: str, value: str | bytes) -> EqualityMatch:
         """Get EqualityMatch."""
-        return EqualityMatch(attr, value.encode('UTF-8'))
+        return EqualityMatch(attr, _bytes(value))
 
     @classmethod
-    def get_approx(cls, attr: str, value: str) -> ApproximateMatch:
+    def get_approx(cls, attr: str, value: str | bytes) -> ApproximateMatch:
         """Get ApproximateMatch."""
-        return ApproximateMatch(attr, value.encode('UTF-8'))
+        return ApproximateMatch(attr, _bytes(value))
 
     @classmethod
     def get_pres(cls, attr: str) -> PresenceMatch:
@@ -672,46 +716,43 @@ class Filter:
         return PresenceMatch(attr)
 
     @classmethod
-    def get_substring(cls, attr: str, *values: str) -> SubstringMatch:
+    def get_substring(cls, attr: str, *values: str | bytes) -> SubstringMatch:
         """Get SubstringMatch."""
         if len(values) < 2:  # noqa: PLR2004
             raise ValueError('Substring filter requires at least two parts')  # noqa: TRY003
 
+        parts = tuple(_bytes(value) for value in values)
         return SubstringMatch(
             attr,
-            initial=values[0].encode('UTF-8') or None,
-            any=tuple(av.encode('UTF-8') for av in values[1:-1]),
-            final=values[-1].encode('UTF-8') or None,
+            initial=parts[0] or None,
+            any=parts[1:-1],
+            final=parts[-1] or None,
         )
 
     @classmethod
-    def get_gt_eq(cls, attr: str, value: str | int) -> GreaterOrEqual:
+    def get_gt_eq(cls, attr: str, value: str | bytes | int) -> GreaterOrEqual:
         """Get GreaterOrEqual."""
-        return GreaterOrEqual(attr, str(value).encode('UTF-8'))
+        return GreaterOrEqual(attr, _bytes(str(value) if isinstance(value, int) else value))
 
     @classmethod
     def get_gt(cls, attr: str, value: str | int) -> NOT | GreaterOrEqual:
         """Create an expression greater than the given value."""
-        if isinstance(value, str):
-            return cls.get_not(cls.get_lt_eq(attr, value))
-        return cls.get_gt_eq(attr, value + 1)
+        return cls.get_not(cls.get_lt_eq(attr, value)) if isinstance(value, str) else cls.get_gt_eq(attr, value + 1)
 
     @classmethod
-    def get_lt_eq(cls, attr: str, value: str | int) -> LessOrEqual:
+    def get_lt_eq(cls, attr: str, value: str | bytes | int) -> LessOrEqual:
         """Get LessOrEqual."""
-        return LessOrEqual(attr, str(value).encode('UTF-8'))
+        return LessOrEqual(attr, _bytes(str(value) if isinstance(value, int) else value))
 
     @classmethod
-    def get_lt(cls, attr: str, value: str | int) -> NOT | LessOrEqual:
+    def get_lt(cls, attr: str, value: str | bytes | int) -> NOT | LessOrEqual:
         """Create an expression less than the given value."""
-        if isinstance(value, str):
-            return cls.get_not(cls.get_gt_eq(attr, value))
-        return cls.get_lt_eq(attr, value - 1)
+        return cls.get_not(cls.get_gt_eq(attr, _bytes(value))) if not isinstance(value, int) else cls.get_lt_eq(attr, value - 1)
 
     @classmethod
-    def get_extensible(cls, attr: str, matchingrule: str | None, value: str, dn: bool = False) -> ExtensibleMatch:
+    def get_extensible(cls, attr: str, matchingrule: str | None, value: str | bytes, dn: bool = False) -> ExtensibleMatch:
         """Get ExtensibleMatch."""
-        return ExtensibleMatch(attr, value.encode('UTF-8'), matchingrule, dn=dn)
+        return ExtensibleMatch(attr, _bytes(value), matchingrule, dn=dn)
 
     @classmethod
     def get_not(cls, expression: Expression) -> NOT:
@@ -729,9 +770,9 @@ class Filter:
         return OR(list(expressions))
 
     @classmethod
-    def from_format(cls, format_string: str, values: list[str]) -> Self:
+    def from_format(cls, format_string: str, values: list[str], **kwargs: Any) -> Self:
         """Get a Filter from a filter format string."""
-        return cls(cls.escape_formatted(format_string, values))
+        return cls(cls.escape_formatted(format_string, values), **kwargs)
 
     @classmethod
     def escape(cls, value: str, escape_mode: EscapeMode = EscapeMode.RESTRICTED) -> str:
@@ -770,7 +811,7 @@ class Filter:
         """Reverse the escaping of filter characters."""
         return cls.RE_HEXESCAPE.sub(
             lambda m: bytes([int(m.group(1), 16)]),
-            value,
+            value.encode('UTF-8') if isinstance(value, str) else value,
         )
 
     @classmethod
@@ -802,19 +843,12 @@ class Filter:
                 if is_pre_visit:
                     if operator_callback and strategy in {WalkStrategy.PRE, WalkStrategy.BOTH} and isinstance(expression, (AND, OR, NOT)):
                         operator_callback(self, parent, expression)
-
                     if operator_callback and strategy in {WalkStrategy.POST, WalkStrategy.BOTH} and isinstance(expression, (AND, OR, NOT)):
                         stack.append((parent, expression, False))
-
-                    for child_expression in expression.expressions[::-1]:
+                    for child_expression in reversed(expression.expressions):
                         stack.append((expression, child_expression, True))
-                else:
-                    assert operator_callback is not None  # noqa: S101
+                elif operator_callback:  # pragma: no branch - queued only with a callback
                     operator_callback(self, parent, expression)
-            elif isinstance(expression, Token):  # pragma: no cover
-                pass  # not possible in the root!?
-            else:  # pragma: no cover
-                raise TypeError(expression)
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}({self.root!r})'

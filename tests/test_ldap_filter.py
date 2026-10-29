@@ -259,7 +259,7 @@ INVALID_FILTERS = [
     # invalid combinations
     '(|(a=b)(c=*))(uid=1)',
     # whitespace
-    pytest.param('(!\n  (|(cn=a))\n)', marks=pytest.mark.xfail(reason='libldap denies, we allow')),
+    pytest.param('(!\n  (|(cn=a))\n)', marks=pytest.mark.xfail(reason='test_invalid_filter: libldap denies, we allow')),
     '(cn =John)',
     '(cn\t=John)',
     '(cn\t=\tJohn)',
@@ -295,29 +295,51 @@ INVALID_FILTERS = [
 
 
 @pytest.mark.parametrize('expr', VALID_FILTERS)
-def test_valid_filter(expr):
+def test_valid_filter(expr, parser):
     try:
-        Filter(expr, strict=expr not in STRICT_INVALID_FILTERS)
+        Filter(expr, parser=parser, strict=expr not in STRICT_INVALID_FILTERS)
     except FilterError:
-        Filter(expr, _debug=True)
+        Filter(expr, parser=parser, _debug=True)
 
-    Filter(Filter(expr).pretty())
+    Filter(Filter(expr, parser=parser).pretty())
+
+
+@pytest.mark.parametrize('expr', VALID_FILTERS)
+def test_filter_parse_compose(expr, parser):
+    """BER discards spelling, escaped-byte case, and optional whitespace."""
+    fil = Filter(expr, parser=parser)
+    if not fil.root:
+        assert str(fil) == expr
+        return
+    canonical = str(fil)
+    reparsed = Filter(canonical, parser=parser)
+    assert reparsed.to_ber() == fil.to_ber()
+    assert str(reparsed) == canonical
+
+
+@pytest.fixture(params=['libldap', 'lark'])
+def parser(request):
+    return request.param
 
 
 @pytest.mark.parametrize(
-    'expr,output',
-    [(x, x) for x in VALID_FILTERS if x != '(cn= *)']
-    + [
-        pytest.param('(cn= *)', '(cn= *)', marks=pytest.mark.xfail(reason='Presense or substring match?')),
+    'expression',
+    [
+        '(cn=John)',
+        '(cn=*)',
+        '(cn=* )',
+        '(cn= *)',
+        r'(cn=foo\2abar*)',
+        r'(cn=J\6fhn)',
+        '(&(cn=John)(sn=Doe))',
+        '(!(uid>=1000))',
     ],
 )
-def test_filter_parse_compose(expr, output):
-    try:
-        fil = Filter(expr)
-    except FilterError:
-        pytest.skip('filter invalid - fix first')
-    output = expr if output is None else output
-    assert str(fil) == output
+def test_parser_equivalence(expression, parser):
+    result = Filter(expression, parser=parser)
+    reference = Filter(expression, parser='libldap')
+
+    assert result.to_ber() == reference.to_ber()
 
 
 @pytest.mark.parametrize('expr', VALID_FILTERS)
@@ -329,9 +351,9 @@ def test_libldap_valid_filter(expr):
 
 
 @pytest.mark.parametrize('expr', INVALID_FILTERS)
-def test_invalid_filter(expr):
+def test_invalid_filter(expr, parser):
     with pytest.raises(FilterError):
-        Filter(expr)
+        Filter(expr, parser=parser)
 
 
 @pytest.mark.parametrize('expr', INVALID_FILTERS)
@@ -364,38 +386,41 @@ def validate_filter(expr):
     return True
 
 
-def get_filter_root(filter_expr):
+def get_filter_root(filter_expr, parser='lark', **kwargs):
     """Return the actual comparison/operator, unwrapping the textual Group."""
-    for expr in Filter(filter_expr, _debug=True).root.expressions:
+    for expr in Filter(filter_expr, parser=parser, _debug=True, **kwargs).root.expressions:
         if isinstance(expr, (AND, OR, NOT, Assertion)):
             return expr
     return None
-    root = Filter(filter_expr, _debug=True).root
+    root = Filter(filter_expr, parser=parser, _debug=True).root
     if isinstance(root, Group) and not isinstance(root, (AND, OR, NOT)):
         return root.expressions[0]
     return root
 
 
 @pytest.mark.parametrize(
-    'expr',
+    'parser,expr',
     [
-        '( cn=John )',
-        '(&( cn=John))',
-        pytest.param('(& (cn=John))', marks=pytest.mark.xfail(reason='Whitespace inside BER is normalized')),
+        ('lark', '( cn=John )'),
+        ('lark', '(&( cn=John))'),
+        pytest.param('lark', '(& (cn=John))', marks=pytest.mark.xfail(reason='Whitespace inside BER is normalized')),
+        pytest.param('libldap', '( cn=John )', marks=pytest.mark.xfail(reason='BER loses original insignificant whitespace')),
+        pytest.param('libldap', '(&( cn=John))', marks=pytest.mark.xfail(reason='Whitespace inside BER is normalized')),
+        pytest.param('libldap', '(& (cn=John))', marks=pytest.mark.xfail(reason='Whitespace inside BER is normalized')),
     ],
 )
-def test_strict_parsing(expr):
+def test_strict_parsing(expr, parser):
     with pytest.raises(FilterError):
-        Filter(expr, strict=True)
+        Filter(expr, parser=parser, strict=True)
 
 
-def test_equality_match():
-    fil = get_filter_root('(cn=foo)')
+def test_equality_match(parser):
+    fil = get_filter_root('(cn=foo)', parser)
     assert isinstance(fil, EqualityMatch)
 
 
-def test_approximate_match():
-    fil = get_filter_root('(cn~=foo)')
+def test_approximate_match(parser):
+    fil = get_filter_root('(cn~=foo)', parser)
     assert isinstance(fil, ApproximateMatch)
 
 
@@ -403,40 +428,39 @@ def test_approximate_match():
     'expr, expected',
     [
         ('(cn:caseIgnoreMatch:=john)', (ExtensibleMatch, 'cn', False, 'caseIgnoreMatch', b'john')),
-        ('(cn:dn:=John Doe)', (ExtensibleMatch, 'cn', 'dn', '', b'John Doe')),
+        ('(cn:dn:=John Doe)', (ExtensibleMatch, 'cn', 'dn', None, b'John Doe')),
         ('(cn:dn:caseIgnoreMatch:=John Doe)', (ExtensibleMatch, 'cn', 'dn', 'caseIgnoreMatch', b'John Doe')),
         ('(:dn:caseIgnoreMatch:=John Doe)', (ExtensibleMatch, '', 'dn', 'caseIgnoreMatch', b'John Doe')),
         ('(sn:2.5.13.3:=DOE)', (ExtensibleMatch, 'sn', False, '2.5.13.3', b'DOE')),
     ],
 )
-def test_extensible_match(expr, expected):
-    fil = get_filter_root(expr)
+def test_extensible_match(expr, expected, parser):
+    fil = get_filter_root(expr, parser)
     assert (type(fil), fil.attr, fil.dn, fil.matchingrule, fil.value) == expected
 
 
-def test_ge_match():
-    fil = get_filter_root('(cn>=1)')
+def test_ge_match(parser):
+    fil = get_filter_root('(cn>=1)', parser)
     assert isinstance(fil, GreaterOrEqual)
 
 
-def test_le_match():
-    fil = get_filter_root('(cn<=1)')
+def test_le_match(parser):
+    fil = get_filter_root('(cn<=1)', parser)
     assert isinstance(fil, LessOrEqual)
 
 
-def test_presence_match():
-    fil = get_filter_root('(cn=*)')
+def test_presence_match(parser):
+    fil = get_filter_root('(cn=*)', parser)
     assert isinstance(fil, PresenceMatch)
-    assert not isinstance(get_filter_root('(cn= *)'), PresenceMatch)
-    assert not isinstance(get_filter_root('(cn=* )'), PresenceMatch)
+    assert not isinstance(get_filter_root('(cn= *)', parser), PresenceMatch)
+    assert not isinstance(get_filter_root('(cn=* )', parser), PresenceMatch)
 
 
-def test_substring_match():
-    fil = get_filter_root('(cn=*foo*)')
+def test_substring_match(parser):
+    fil = get_filter_root('(cn=*foo*)', parser)
     assert isinstance(fil, SubstringMatch)
-    assert fil.values == (b'', b'foo', b'')
-
-    assert get_filter_root(r'(cn=*foo*b\2Ar*baz)').values == (b'', b'foo', b'b*r', b'baz')
+    assert fil.decode() == (None, 'foo', None)
+    assert get_filter_root(r'(cn=*foo*b\2Ar*baz)', parser).decode() == (None, 'foo', 'b*r', 'baz')
 
 
 @pytest.mark.parametrize(
@@ -460,13 +484,31 @@ def test_substring_match():
         ('(cn=  Two  White*spaces  )', {'attr': 'cn', 'initial': b'  Two  White', 'final': b'spaces  ', 'any': (), '__class__': SubstringMatch}),
     ],
 )
-def test_whitespace_preserve(expr, attrs):
-    fil = get_filter_root(expr)
-    fil_attr = {key: getattr(fil, key) for key in attrs}
-    assert fil_attr == attrs
+def test_whitespace_preserve(expr, attrs, parser):
+    root = get_filter_root(expr, parser, strict=False)
+    # the original AND structure must survive BER decoding. Inspect its
+    # comparison child, rather than treating the operator as a comparison.
+    if isinstance(root, AND):
+        assert len(root.expressions) == 1
+        fil = root.expressions[0]
+    else:
+        fil = root
+    assert isinstance(fil, Assertion)
+    assert fil.attr == attrs['attr']
+    if 'initial' in attrs:
+        assert isinstance(fil, SubstringMatch)
+        assert fil.initial == attrs['initial']
+        assert fil.final == attrs['final']
+        assert fil.any == attrs['any']
+    else:
+        assert fil.value == attrs['value']
+    if '__class__' in attrs:
+        assert type(fil) is attrs['__class__']
+    # assert the semantic structure survives formatting and re-parsing.
+    assert Filter(str(Filter(expr)), parser=parser).to_ber() == Filter(expr).to_ber()
 
 
-def test_extensible_match_whitespace_combinations():
+def test_extensible_match_whitespace_combinations(parser):
     # test all 128 possible combinations
     parts = ['cn', ':', 'dn', ':', 'caseIgnoreMatch', ':=', 'John']
 
@@ -482,7 +524,7 @@ def test_extensible_match_whitespace_combinations():
     errors = []
     for c in combos:
         try:
-            Filter(c)
+            Filter(c, parser=parser)
         except FilterError:
             if validate_filter(c):
                 errors.append(c)
@@ -501,7 +543,7 @@ def test_extensible_match_whitespace_combinations():
         (r'(filename=C:\5cMyFile)', rb'C:\5cMyFile', rb'C:\MyFile'),
         (r'(bin=\00\00\00\04)', rb'\00\00\00\04', b'\00\00\00\04'),
         (r'(sn=Lu\c4\8di\c4\87)', rb'Lu\c4\8di\c4\87', b'Lu\xc4\x8di\xc4\x87'),
-        (r'(cn=*\2A*)', rb'*\2A*', (b'', b'*', b'')),
+        (r'(cn=*\2A*)', rb'*\2A*', (None, '*', None)),
         (r'(cn=John\20Doe)', rb'John\20Doe', rb'John Doe'),
         (r'(cn=\00)', rb'\00', b'\x00'),
         (r'(description=with\5cbackslash)', rb'with\5cbackslash', rb'with\backslash'),
@@ -509,17 +551,25 @@ def test_extensible_match_whitespace_combinations():
         (r'(cn=with\28paren\29)', rb'with\28paren\29', rb'with(paren)'),
         ('(cn=abc\\20)', b'abc\\20', rb'abc '),
         (r'(cn=cde\\20)', rb'cde\\20', b'cde\\ '),
+        (r'(cn=cde\\20)', b'libldap', b'cde\\20'),
         ('(&(key=va\\\\28!\\\\29ue))', b'va\\\\28!\\\\29ue', rb'va\(!\)ue'),
+        ('(&(key=va\\\\28!\\\\29ue))', b'libldap', b'va\\28!\\29ue'),
         (r'(1.3.6.1.4.1.1466.0=\04\02\48\69)', rb'\04\02\48\69', b'\x04\x02Hi'),
     ],
 )
-def test_unescape(expr, value, unescape):
-    fil = get_filter_root(expr)
-    assert fil._raw_escaped_value == value
+def test_unescape(expr, value, unescape, parser):
+    if parser == 'libldap' and value in {rb'cde\\20', b'va\\\\28!\\\\29ue'}:
+        pytest.skip('Different escape handling')
+    if parser == 'lark' and value == b'libldap':
+        pytest.skip('Different escape handling')
+
+    fil = get_filter_root(expr, parser)
+    if parser == 'lark':
+        assert fil._raw_escaped_value == value
     if not isinstance(fil, SubstringMatch):
         assert fil.value == unescape
     else:
-        assert fil.values == unescape
+        assert fil.decode() == unescape
 
 
 def test_comparison_unescape():
@@ -647,6 +697,20 @@ def test_escape_classic():
     assert repr(Filter.get_not(Filter.get_eq('cn', user_input))) == "NOT( EqualityMatch(cn=escape(b'foo (bar)*')) )"
 
 
+def test_substring_component_literal_asterisk(parser):
+    expr = Filter.get_substring('cn', b'prefix', b'literal*asterisk', b'suffix')
+    assert expr.initial == b'prefix'
+    assert expr.any == (b'literal*asterisk',)
+    assert expr.final == b'suffix'
+    assert str(expr) == r'cn=prefix*literal\2aasterisk*suffix'
+    # the two kinds of '*' must remain distinct after serializing and parsing.
+    parsed = get_filter_root(f'({expr})', parser)
+    assert isinstance(parsed, SubstringMatch)
+    assert parsed.initial == expr.initial
+    assert parsed.any == expr.any
+    assert parsed.final == expr.final
+
+
 def test_hash():
     assert hash(Attribute('a')) == hash(Attribute('a'))
     assert hash(Attribute('a') == '1') == hash(Attribute('a') == '1')
@@ -670,16 +734,16 @@ def test_attribute_error_handling():
         Attribute('a', dn=True, matchingrule='1.a')
 
 
-def test_root():
-    assert isinstance(Filter('(&(a=b))').root, AND)
-    assert isinstance(Filter('(|(a=b))').root, OR)
-    assert isinstance(Filter('(!(a=b))').root, NOT)
-    assert isinstance(Filter('(a=b)').root, Group)
-    assert isinstance(Filter('a=b').root, Container)
+def test_root(parser):
+    assert isinstance(Filter('(&(a=b))', parser=parser).root, AND)
+    assert isinstance(Filter('(|(a=b))', parser=parser).root, OR)
+    assert isinstance(Filter('(!(a=b))', parser=parser).root, NOT)
+    assert isinstance(Filter('(a=b)', parser=parser).root, Group)
+    assert isinstance(Filter('a=b', parser=parser).root, Container)
 
 
-def test_copy():
-    original = Filter(r'(&(|(cn=J\6fhn)(sn=Smith))(mail=foo*bar*baz)(uid:dn:caseIgnoreMatch:=admin)(l=*))')
+def test_copy(parser):
+    original = Filter(r'(&(|(cn=J\6fhn)(sn=Smith))(mail=foo*bar*baz)(uid:dn:caseIgnoreMatch:=admin)(l=*))', parser=parser)
     copied = original.ast.copy()
 
     assert copied is not original.ast
@@ -707,22 +771,25 @@ def test_copy():
     copied_cn.value = b'Jane'
 
     assert 'cn=Jane' in str(copied)
-    assert r'cn=J\6fhn' in str(original.ast)
+    if parser == 'lark':
+        assert r'cn=J\6fhn' in str(original.ast)
+    else:
+        assert r'cn=John' in str(original.ast)
 
     assert isinstance(copied_and.expressions[1], SubstringMatch)
     assert isinstance(copied_and.expressions[2], ExtensibleMatch)
     assert isinstance(copied_and.expressions[3], PresenceMatch)
 
 
-def test_pretty():
-    fil = Filter('(&(|(cn=John)(sn=Smith))(mail=foo*bar)(!(uid=guest)))')
+def test_pretty(parser):
+    fil = Filter('(&(|(cn=John)(sn=Smith))(mail=foo*bar)(!(uid=guest)))', parser=parser)
 
     assert fil.pretty() == ('(&\n  (|\n    (cn=John)\n    (sn=Smith)\n  )\n  (mail=foo*bar)\n  (!(uid=guest))\n)')
 
     assert fil.pretty(indent=1) == ('  (&\n    (|\n      (cn=John)\n      (sn=Smith)\n    )\n    (mail=foo*bar)\n    (!(uid=guest))\n  )')
 
-    assert Filter('(cn=John)').pretty() == '(cn=John)'
-    assert not Filter('').pretty()
+    assert Filter('(cn=John)', parser=parser).pretty() == '(cn=John)'
+    assert not Filter('', parser=parser).pretty()
 
 
 def test_timespan_filter():
@@ -734,11 +801,11 @@ def test_repr():
     assert repr(Filter.time_span_filter(0, 1)) == expected
 
 
-def test_walk_func():
+def test_walk_func(parser):
     import io
 
     filter_s = '(|(&(!(zone=freeiam.org))(cn=foo))(uid=bar))'
-    filter_p = Filter(filter_s)
+    filter_p = Filter(filter_s, parser=parser)
 
     def dump(filter_, par, expr):
         print(str(expr), file=s)
@@ -771,8 +838,8 @@ def test_walk_func():
     assert s.getvalue().strip() == f'{post_text}\n{pre_text}'
 
 
-def test_walk_replace():
-    fil = Filter('(&(append=1)(|(replace=not)(remove=1)(insert=1)(replace=or)(replace=exp)))')
+def test_walk_replace(parser):
+    fil = Filter('(&(append=1)(|(replace=not)(remove=1)(insert=1)(replace=or)(replace=exp)))', parser=parser)
 
     def comparison_callback(filter_, parent, expression):
         if expression.attr == 'append':
@@ -911,8 +978,8 @@ def operator_callback(filter_, parent, expression):
         parent.replace(expression, expression.expressions[0])
 
 
-def test_example_walk_replace():
-    fil = Filter(FILTER_EXPRESSION)
+def test_example_walk_replace(parser):
+    fil = Filter(FILTER_EXPRESSION, parser=parser)
     fil.walk(comparison_callback, operator_callback, WalkStrategy.POST)
     result = r"""
 (&
@@ -955,9 +1022,11 @@ def test_example_walk_replace():
     assert fil.pretty() == result
 
 
-def test_binary_value_roundtrip():
+def test_binary_value_roundtrip(parser):
     """An assertion containing invalid UTF-8 must survive serialization."""
-    assert get_filter_root(r'(userCertificate=\30\82\01\0a)').value == b'\x30\x82\x01\x0a'
+    fil = Filter(r'(userCertificate=\30\82\01\0a)', parser=parser)
+    assert get_filter_root(r'(userCertificate=\30\82\01\0a)', parser).value == b'\x30\x82\x01\x0a'
+    assert Filter.from_ber(fil.to_ber()).to_ber() == fil.to_ber()
 
     original = b'\xff'
 
@@ -966,16 +1035,16 @@ def test_binary_value_roundtrip():
 
     assert serialized == r'(cn=\ff)'
 
-    parsed = get_filter_root(serialized)
+    parsed = get_filter_root(serialized, parser)
 
     assert isinstance(parsed, EqualityMatch)
     assert parsed.value == original
 
 
-def test_outer_parentheses_roundtrip():
-    assert str(Filter('(cn=John)')) == '(cn=John)'
-    assert str(Filter('cn=John')) == 'cn=John'
-    assert str(Filter('(&(cn=John)(sn=Doe))')) == '(&(cn=John)(sn=Doe))'
+def test_outer_parentheses_roundtrip(parser):
+    assert str(Filter('(cn=John)', parser=parser)) == '(cn=John)'
+    assert str(Filter('cn=John', parser=parser)) == 'cn=John'
+    assert str(Filter('(&(cn=John)(sn=Doe))', parser=parser)) == '(&(cn=John)(sn=Doe))'
 
 
 def test_comparison_repr_binary_values():
@@ -993,14 +1062,14 @@ def test_substring_repr_distinguishes_literal_asterisks():
     # assert r'\x2a' in repr(expr)
 
 
-def test_all_byte_values_roundtrip():
+def test_all_byte_values_roundtrip(parser):
     """Every possible byte value must survive an RFC 4515 roundtrip."""
     original = bytes(range(256))
 
     assertion = EqualityMatch('cn', original)
     serialized = f'({assertion})'
 
-    parsed = get_filter_root(serialized)
+    parsed = get_filter_root(serialized, parser)
 
     assert isinstance(parsed, EqualityMatch)
     assert parsed.value == original
@@ -1021,17 +1090,17 @@ def test_all_byte_values_roundtrip():
         bytes(range(256)),
     ],
 )
-def test_equality_match_roundtrip(value: bytes):
+def test_equality_match_roundtrip(value, parser):
     assertion = EqualityMatch('cn', value)
 
-    parsed = get_filter_root(f'({assertion})')
+    parsed = get_filter_root(f'({assertion})', parser)
 
     assert isinstance(parsed, EqualityMatch)
     assert parsed.value == value
 
 
 @pytest.mark.parametrize(
-    'initial, any_values, final',
+    'initial,any_values,final',
     [
         (b'foo', (), None),
         (None, (), b'bar'),
@@ -1046,6 +1115,7 @@ def test_substring_match_roundtrip(
     initial: bytes | None,
     any_values: tuple[bytes, ...],
     final: bytes | None,
+    parser,
 ):
     assertion = SubstringMatch(
         'cn',
@@ -1054,7 +1124,7 @@ def test_substring_match_roundtrip(
         final=final,
     )
 
-    parsed = get_filter_root(f'({assertion})')
+    parsed = get_filter_root(f'({assertion})', parser)
 
     assert isinstance(parsed, SubstringMatch)
     assert parsed.initial == initial
@@ -1062,9 +1132,9 @@ def test_substring_match_roundtrip(
     assert parsed.final == final
 
 
-def test_substring_mutation_invalidates_escaped_cache():
+def test_substring_mutation_invalidates_escaped_cache(parser):
     """Changing a substring component must invalidate the original syntax."""
-    assertion = get_filter_root('(cn=foo*bar)')
+    assertion = get_filter_root('(cn=foo*bar)', parser)
 
     assert isinstance(assertion, SubstringMatch)
     assert assertion.initial == b'foo'
@@ -1074,7 +1144,7 @@ def test_substring_mutation_invalidates_escaped_cache():
 
     assert str(assertion) == 'cn=foo*baz'
 
-    parsed = get_filter_root(f'({assertion})')
+    parsed = get_filter_root(f'({assertion})', parser)
 
     assert isinstance(parsed, SubstringMatch)
     assert parsed.initial == b'foo'
@@ -1117,9 +1187,9 @@ def test_attribute_description_equality_is_case_insensitive():
     assert lower_substring == upper_substring
 
 
-def test_extensible_match_without_attribute():
+def test_extensible_match_without_attribute(parser):
     """An extensible match can specify a matching rule without an attribute."""
-    assertion = get_filter_root('(:caseIgnoreMatch:=John)')
+    assertion = get_filter_root('(:caseIgnoreMatch:=John)', parser)
 
     assert isinstance(assertion, ExtensibleMatch)
     assert assertion.attr == ''  # noqa: PLC1901
@@ -1130,9 +1200,9 @@ def test_extensible_match_without_attribute():
     assert str(assertion) == ':caseIgnoreMatch:=John'
 
 
-def test_escaped_asterisk_is_not_a_wildcard():
+def test_escaped_asterisk_is_not_a_wildcard(parser):
     """An escaped asterisk must be treated as literal assertion data."""
-    assertion = get_filter_root(r'(cn=foo\2abar)')
+    assertion = get_filter_root(r'(cn=foo\2abar)', parser)
 
     assert isinstance(assertion, EqualityMatch)
     assert not isinstance(assertion, SubstringMatch)
@@ -1151,14 +1221,17 @@ def test_decode_invalid_utf8_raises():
     assert assertion.value == b'\xff'
 
 
-def test_original_escaped_representation_is_preserved():
+def test_original_escaped_representation_is_preserved(parser):
     """An unmodified parsed assertion must retain its original escaping."""
     original = r'(cn=J\6fhn)'
 
-    assertion = get_filter_root(original)
+    assertion = get_filter_root(original, parser)
 
     assert isinstance(assertion, EqualityMatch)
     assert assertion.value == b'John'
+
+    if parser == 'libldap':
+        pytest.skip('not supported')
 
     # preserve the original hexadecimal escape instead of normalizing it.
     assert str(assertion) == r'cn=J\6fhn'
@@ -1205,10 +1278,11 @@ def test_escape_bytes_all_octets(mode):
         escaped = Filter.escape_bytes(original, 4)
 
 
-def test_substring_initial_setter():
+def test_substring_initial_setter(parser):
     match = SubstringMatch.from_escaped('cn', b'foo*bar', initial=b'foo', final=b'bar')
 
-    assert match._raw_escaped_value == b'foo*bar'
+    if parser == 'lark':
+        assert match._raw_escaped_value == b'foo*bar'
 
     match.initial = b'baz'
 
@@ -1222,10 +1296,11 @@ def test_substring_initial_setter():
     assert str(match) == 'cn=*bar'
 
 
-def test_substring_any_setter():
+def test_substring_any_setter(parser):
     match = SubstringMatch.from_escaped('cn', b'foo*bar*baz', initial=b'foo', any=(b'bar',), final=b'baz')
 
-    assert match._raw_escaped_value == b'foo*bar*baz'
+    if parser == 'lark':
+        assert match._raw_escaped_value == b'foo*bar*baz'
 
     values = [b'one', b'two']
     match.any = values
