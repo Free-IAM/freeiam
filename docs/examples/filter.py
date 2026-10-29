@@ -74,7 +74,7 @@ def comparison_callback(filter_, parent, expression):
         expression.attr = 'sn'
     elif expression.attr == 'fqdn':
         # ``(fqdn=ldap.freeiam.org)`` → ``(&(cn=ldap)(associatedDomain=freeiam.org))`
-        host, _, domain = expression.value.partition('.')
+        host, _, domain = expression.decode().partition('.')
         parent.replace(
             expression, (a('cn') == host) & (a('associatedDomain') == domain)
         )
@@ -90,24 +90,25 @@ def comparison_callback(filter_, parent, expression):
         # ``(ip=0000:0000:0000:0000:0000:0000:0000:0001)`` → ``(aAAARecord=::1)``
         import ipaddress
 
-        ip = ipaddress.ip_address(expression.value)
+        ip = ipaddress.ip_address(expression.decode())
         ip4 = 4
         expression.attr = 'aRecord' if ip.version == ip4 else 'aAAARecord'
-        expression.value = str(ip)
+        expression.value = str(ip).encode()
     elif expression.attr == 'mail':
         # ``(mail=User@Example.com)`` → ``(mail:caseIgnoreMatch:=User@Example.com)``
         parent.replace(
-            expression, a(expression.attr, '', 'caseIgnoreMatch') == expression.value
+            expression,
+            a(expression.attr, False, 'caseIgnoreMatch') == expression.decode(),
         )
     elif expression.attr == 'birthdate':
         # ``(birthdate=2025-07-04)``
         # → ``(dateOfBirth:generalizedTimeMatch:=20250704000000Z)``
         from datetime import datetime
 
-        dt = datetime.strptime(expression.value, '%Y-%m-%d')  # noqa: DTZ007
+        dt = datetime.strptime(expression.decode(), '%Y-%m-%d')  # noqa: DTZ007
         parent.replace(
             expression,
-            a('dateOfBirth', '', 'generalizedTimeMatch')
+            a('dateOfBirth', False, 'generalizedTimeMatch')
             == dt.strftime('%Y%m%d%H%M%SZ'),
         )
     elif expression.attr == 'unlocked':
@@ -116,7 +117,7 @@ def comparison_callback(filter_, parent, expression):
         parent.replace(expression, NOT([expression]))
     elif expression.attr == 'app' and isinstance(expression, SubstringMatch):
         # ``(app=app*)`` → (|(app=app01)(app=app02)(app=app03))
-        if expression.initial == 'app' and not expression.any and not expression.final:
+        if expression.initial == b'app' and not expression.any and not expression.final:
             parent.replace(
                 expression,
                 (a('app') == 'app01') | [(a('app') == 'app02'), (a('app') == 'app03')],
@@ -127,14 +128,14 @@ def comparison_callback(filter_, parent, expression):
         # ``(&(shadowExpire=1)(krb5KDCFlags:1.2.840.113556.1.4.803:=128)
         #   (|(sambaAcctFlags=[UD       ])(sambaAcctFlags=[ULD       ])))``
         disabled = (a('shadowExpire') == '1') & [
-            (a('krb5KDCFlags', '', '1.2.840.113556.1.4.803') == '128'),
+            (a('krb5KDCFlags', False, '1.2.840.113556.1.4.803') == '128'),
             (
                 (a('sambaAcctFlags') == '[UD       ]')
                 | (a('sambaAcctFlags') == '[ULD       ]')
             ),
         ]
         enabled = (a('shadowExpire') != '1') & [
-            (a('krb5KDCFlags', '', '1.2.840.113556.1.4.803') != '128'),
+            (a('krb5KDCFlags', False, '1.2.840.113556.1.4.803') != '128'),
             (
                 (a('sambaAcctFlags') != '[UD       ]')
                 & (a('sambaAcctFlags') != '[ULD       ]')
@@ -142,7 +143,7 @@ def comparison_callback(filter_, parent, expression):
         ]
         parent.replace(
             expression,
-            disabled.copy() if expression.value in {'1', 'TRUE'} else enabled.copy(),
+            disabled.copy() if expression.decode() in {'1', 'TRUE'} else enabled.copy(),
         )
     else:
         return
@@ -154,14 +155,14 @@ def comparison_callback(filter_, parent, expression):
 def operator_callback(filter_, parent, expression):
     if any(
         expr.attr.lower() == 'objectClass'.lower()
-        and expr.value.lower() == 'inetOrgPerson'.lower()
+        and expr.decode().lower() == 'inetOrgPerson'.lower()
         for expr in expression.expressions
         if isinstance(expr, Assertion)
     ):
         # ``(&(objectClass=top)(objectClass=person)(objectClass=inetOrgPerson))``
         # → ``(objectClass=inetOrgPerson)``
         for expr in expression.comparisons:
-            if expr.attr.lower() == 'objectClass'.lower() and expr.value.lower() in {
+            if expr.attr.lower() == 'objectClass'.lower() and expr.decode().lower() in {
                 'top',
                 'person',
             }:
