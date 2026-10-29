@@ -79,6 +79,8 @@ ws: WS
 %import common.HEXDIGIT
 """
 
+_ASCII_LIMIT = 128
+
 
 class EscapeMode(enum.IntEnum):
     """Escape mode."""
@@ -209,8 +211,8 @@ class Assertion(Expression):
     expression = ''
     operator: Callable[..., bool] | None = None
 
-    _raw_escaped_value: str | None
-    """The raw original escaped(!) value."""
+    _raw_escaped_value: bytes | None
+    """The original raw escaped(!) value - not suitable for comparison."""
 
     def __init__(self, attr: str) -> None:
         self.attr = attr
@@ -218,7 +220,7 @@ class Assertion(Expression):
         self._lead = ''
 
     @property
-    def _assertion_value(self) -> str | None:
+    def _assertion_value(self) -> bytes | None:
         return self._raw_escaped_value
 
     @property
@@ -229,8 +231,8 @@ class Assertion(Expression):
     def escaped(self) -> str:
         """Get the value in an encoded or escaped representation."""
         if self._raw_escaped_value is not None:
-            return self._raw_escaped_value
-        return self.escape(self._assertion_value or '')
+            return self._raw_escaped_value.decode('UTF-8')
+        return self.escape_bytes(self._assertion_value or b'')
 
     def copy(self) -> Self:
         """Copy the object (without preserving optional whitespace)."""
@@ -241,23 +243,39 @@ class Assertion(Expression):
 
     def __repr__(self) -> str:
         val = self._assertion_value
-        val = f'escape({val!r})' if val else ''
-        return f'{type(self).__name__}({self.attr}{self._extensible_suffix}{self.expression}{val})'
+        value = f'escape({val!r})' if val else ''
+        return f'{type(self).__name__}({self.attr}{self._extensible_suffix}{self.expression}{value})'
 
     def __hash__(self) -> int:
         return hash((type(self), self.attr.casefold(), self._assertion_value))
 
     def __eq__(self, other: object) -> bool:
-        if isinstance(other, Assertion):
-            return (type(self), self.attr, self._assertion_value) == (type(other), other.attr, other._assertion_value)
-        return NotImplemented
+        if not isinstance(other, Assertion):
+            return NotImplemented
+
+        return (
+            type(self),
+            self.attr.casefold(),
+            self._assertion_value,
+        ) == (
+            type(other),
+            other.attr.casefold(),
+            other._assertion_value,
+        )
+
+    # @classmethod
+    # def escape(cls, value: str) -> str:
+    #     """Escaped value for use in filter."""
+    #     if value != value.strip():
+    #         return Filter.escape(value, EscapeMode.RESTRICTED)
+    #     return Filter.escape(value, EscapeMode.SPECIAL)
 
     @classmethod
-    def escape(cls, value: str) -> str:
+    def escape_bytes(cls, value: bytes) -> str:
         """Escaped value for use in filter."""
         if value != value.strip():
-            return Filter.escape(value, EscapeMode.RESTRICTED)
-        return Filter.escape(value, EscapeMode.SPECIAL)
+            return Filter.escape_bytes(value, EscapeMode.RESTRICTED)
+        return Filter.escape_bytes(value, EscapeMode.SPECIAL)
 
 
 class ValueAssertion(Assertion):
@@ -266,32 +284,42 @@ class ValueAssertion(Assertion):
     __slots__ = ('_value',)
 
     @classmethod
-    def from_escaped(cls, attr: str, value: str) -> Self:
+    def from_escaped(cls, attr: str, value: bytes) -> Self:
         """Create an assertion from an RFC 4515 escaped value."""
         obj = cls(attr, Filter.unescape(value))
         obj._raw_escaped_value = value
         return obj
 
-    def __init__(self, attr: str, value: str) -> None:
+    def __init__(self, attr: str, value: bytes) -> None:
         super().__init__(attr)
         self._value = value
+
+    def decode(self, encoding: str = 'utf-8', errors: str = 'strict') -> str:
+        """
+        Decode the assertion bytes using the specified character encoding.
+
+        The caller is responsible for choosing an encoding appropriate
+        for the LDAP attribute syntax.
+        """
+        return self.value.decode(encoding, errors)
 
     def copy(self) -> Self:
         """Copy the object (without preserving optional whitespace)."""
         return type(self)(self.attr, self._value)
 
     @property
-    def _assertion_value(self) -> str:
+    def _assertion_value(self) -> bytes:
         return self._value
 
     @property
-    def value(self) -> str:
-        """Get the value in a decoded form."""
+    def value(self) -> bytes:
+        """Get the value in a unescaped representation."""
         return self._value
 
     @value.setter
-    def value(self, value: str) -> None:
-        self._value = value
+    def value(self, _value: bytes) -> None:
+        """Set the value in a unescaped representation."""
+        self._value = _value
         self._raw_escaped_value = None
 
 
@@ -325,45 +353,82 @@ class ApproximateMatch(ValueAssertion):
 class SubstringMatch(Assertion):
     """Compare a substring match (attr=*val*ue*)."""
 
-    __slots__ = ('any', 'final', 'initial')
+    __slots__ = ('_any', '_final', '_initial')
 
     expression = '='
     operator = operator.contains
 
-    def __init__(self, attr: str, *, initial: str | None = None, any: Sequence[str] = (), final: str | None = None) -> None:  # noqa: A002
+    @property
+    def initial(self) -> bytes | None:
+        """Return the initial substring component."""
+        return self._initial
+
+    @initial.setter
+    def initial(self, value: bytes | None) -> None:
+        self._initial = value
+        self._raw_escaped_value = None
+
+    @property
+    def any(self) -> tuple[bytes, ...]:
+        """Return the intermediate substring components."""
+        return self._any
+
+    @any.setter  # noqa: A003
+    def any(self, values: Sequence[bytes]) -> None:
+        self._any = tuple(values)
+        self._raw_escaped_value = None
+
+    @property
+    def final(self) -> bytes | None:
+        """Return the final substring component."""
+        return self._final
+
+    @final.setter
+    def final(self, value: bytes | None) -> None:
+        self._final = value
+        self._raw_escaped_value = None
+
+    def __init__(self, attr: str, *, initial: bytes | None = None, any: Sequence[bytes] = (), final: bytes | None = None) -> None:  # noqa: A002
         super().__init__(attr)
 
-        self.initial = initial
-        self.any = any
-        self.final = final
+        self._initial = initial
+        self._any = tuple(any)
+        self._final = final
 
-        if self.initial is None and not self.any and self.final is None:
+        if self._initial is None and not self._any and self._final is None:
             raise ValueError('SubstringMatch requires at least one component')  # noqa: TRY003
 
     @classmethod
-    def from_escaped(cls, attr: str, value: str, *, initial: str | None = None, any: Sequence[str] = (), final: str | None = None) -> Self:  # noqa: A002
+    def from_escaped(cls, attr: str, value: bytes, *, initial: bytes | None = None, any: Sequence[bytes] = (), final: bytes | None = None) -> Self:  # noqa: A002
         """Create an assertion from an RFC 4515 escaped value."""
-        initial = Filter.unescape(initial) if initial is not None else initial
-        final = Filter.unescape(final) if final is not None else final
-        any_ = tuple(Filter.unescape(val) for val in any)
-        obj = cls(attr, initial=initial, any=any_, final=final)
+        obj = cls(
+            attr,
+            initial=Filter.unescape(initial) if initial is not None else initial,
+            any=tuple(Filter.unescape(val) for val in any),
+            final=Filter.unescape(final) if final is not None else final,
+        )
         obj._raw_escaped_value = value
         return obj
 
+    def decode(self, encoding: str = 'utf-8', errors: str = 'strict') -> tuple[str, ...]:
+        """Get decoded values."""
+        return tuple(val.decode(encoding, errors) for val in self.values)
+
     @property
-    def values(self) -> tuple[str, ...]:
+    def values(self) -> tuple[bytes, ...]:
         """Return substring assertion values."""
-        return (self.initial or '', *self.any, self.final or '')
+        return (self.initial or b'', *self.any, self.final or b'')
 
     @property
     def escaped(self) -> str:
         """Get the value in an encoded or escaped representation."""
         if self._raw_escaped_value is not None:
-            return self._raw_escaped_value
+            # we already have the original escaped representation
+            return self._raw_escaped_value.decode('UTF-8')
         return '*'.join([
-            self.escape(self.initial or ''),
-            *(Filter.escape(part, EscapeMode.SPECIAL) for part in self.any),
-            self.escape(self.final or ''),
+            self.escape_bytes(self.initial or b''),
+            *(Filter.escape_bytes(part) for part in self.any),
+            self.escape_bytes(self.final or b''),
         ])
 
     def __repr__(self) -> str:
@@ -374,10 +439,22 @@ class SubstringMatch(Assertion):
         if not isinstance(other, SubstringMatch):
             return NotImplemented
 
-        return (self.attr, self.initial, self.any, self.final) == (other.attr, other.initial, other.any, other.final)
+        return (
+            type(self),
+            self.attr.casefold(),
+            self.initial,
+            self.any,
+            self.final,
+        ) == (
+            type(other),
+            other.attr.casefold(),
+            other.initial,
+            other.any,
+            other.final,
+        )
 
     def __hash__(self) -> int:
-        return hash((type(self), self.attr, self.initial, self.any, self.final))
+        return hash((type(self), self.attr.casefold(), self.initial, self.any, self.final))
 
     def copy(self) -> Self:
         """Copy the object (without preserving optional whitespace)."""
@@ -415,19 +492,21 @@ class ExtensibleMatch(ValueAssertion):
     __slots__ = ('dn', 'matchingrule')
 
     @classmethod
-    def from_escaped(cls, attr: str, value: str, dn: bool | str = False, matchingrule: str | None = None) -> Self:
+    def from_escaped(cls, attr: str, value: bytes, dn: bool | str = False, matchingrule: str | None = None) -> Self:
         """Create an assertion from an RFC 4515 escaped value."""
         obj = cls(attr, Filter.unescape(value), dn, matchingrule)
         obj._raw_escaped_value = value
         return obj
 
-    def __init__(self, attr: str, value: str, dn: bool | str, matchingrule: str | None) -> None:
+    def __init__(self, attr: str, value: bytes, dn: bool | str, matchingrule: str | None) -> None:
         super().__init__(attr, value)
         self.dn = dn if isinstance(dn, str) else ('dn' if dn else False)
         self.matchingrule = matchingrule
+        if not self.attr and not self.matchingrule:
+            raise ValueError()
 
     @property
-    def _extensible_suffix(self):
+    def _extensible_suffix(self) -> str:
         suffix = f':{self.dn}' if self.dn else ''
         if self.matchingrule:
             suffix += f':{self.matchingrule}'
@@ -549,7 +628,7 @@ class Filter:
     __slots__ = ('_debug', '_tree', 'ast', 'filter_expr')
 
     parser = Lark(LDAP_FILTER_GRAMMAR)
-    RE_HEXESCAPE = re.compile(r'\\([0-9A-Fa-f]{2})')
+    RE_HEXESCAPE = re.compile(rb'\\([0-9A-Fa-f]{2})')
 
     def __init__(self, /, filter_expr: str | None, *, strict: bool = False, _debug: bool = False) -> None:
         # TODO: security: restrict length
@@ -631,12 +710,12 @@ class Filter:
     @classmethod
     def get_eq(cls, attr: str, value: str) -> EqualityMatch:
         """Get EqualityMatch."""
-        return EqualityMatch(attr, value)
+        return EqualityMatch(attr, value.encode('UTF-8'))
 
     @classmethod
     def get_approx(cls, attr: str, value: str) -> ApproximateMatch:
         """Get ApproximateMatch."""
-        return ApproximateMatch(attr, value)
+        return ApproximateMatch(attr, value.encode('UTF-8'))
 
     @classmethod
     def get_pres(cls, attr: str) -> PresenceMatch:
@@ -651,15 +730,15 @@ class Filter:
 
         return SubstringMatch(
             attr,
-            initial=values[0] or None,
-            any=values[1:-1],
-            final=values[-1] or None,
+            initial=values[0].encode('UTF-8') or None,
+            any=tuple(av.encode('UTF-8') for av in values[1:-1]),
+            final=values[-1].encode('UTF-8') or None,
         )
 
     @classmethod
     def get_gt_eq(cls, attr: str, value: str | int) -> GreaterOrEqual:
         """Get GreaterOrEqual."""
-        return GreaterOrEqual(attr, str(value))
+        return GreaterOrEqual(attr, str(value).encode('UTF-8'))
 
     @classmethod
     def get_gt(cls, attr: str, value: str | int) -> NOT | GreaterOrEqual:
@@ -671,7 +750,7 @@ class Filter:
     @classmethod
     def get_lt_eq(cls, attr: str, value: str | int) -> LessOrEqual:
         """Get LessOrEqual."""
-        return LessOrEqual(attr, str(value))
+        return LessOrEqual(attr, str(value).encode('UTF-8'))
 
     @classmethod
     def get_lt(cls, attr: str, value: str | int) -> NOT | LessOrEqual:
@@ -683,7 +762,7 @@ class Filter:
     @classmethod
     def get_extensible(cls, attr: str, dn: bool, matchingrule: str | None, value: str) -> ExtensibleMatch:
         """Get ExtensibleMatch."""
-        return ExtensibleMatch(attr, value, dn, matchingrule)
+        return ExtensibleMatch(attr, value.encode('UTF-8'), dn, matchingrule)
 
     @classmethod
     def get_not(cls, expression: Expression) -> NOT:
@@ -711,10 +790,37 @@ class Filter:
         return ldap.filter.escape_filter_chars(value, escape_mode)
 
     @classmethod
-    def unescape(cls, value: str) -> str:
+    def escape_bytes(
+        cls,
+        value: bytes,
+        escape_mode: EscapeMode = EscapeMode.SPECIAL,
+    ) -> str:
+        """
+        Escape assertion bytes according to RFC 4515.
+
+        :param value: Unescaped LDAP assertion bytes.
+        :param escape_mode: Controls which bytes are escaped.
+        :return: An RFC 4515 filter assertion value.
+        """
+        special = b'\x00\\*()'
+
+        if escape_mode == EscapeMode.SPECIAL:
+            return ''.join(f'\\{byte:02x}' if byte in special or byte >= _ASCII_LIMIT else chr(byte) for byte in value)
+
+        if escape_mode == EscapeMode.RESTRICTED:
+            return ''.join(chr(byte) if ord('0') <= byte <= ord('z') and byte not in special else f'\\{byte:02x}' for byte in value)
+
+        if escape_mode == EscapeMode.ALL:
+            return ''.join(f'\\{byte:02x}' for byte in value)
+
+        msg = f'Invalid escape mode: {escape_mode!r}'
+        raise ValueError(msg)
+
+    @classmethod
+    def unescape(cls, value: bytes) -> bytes:
         """Reverse the escaping of filter characters."""
         return cls.RE_HEXESCAPE.sub(
-            lambda m: bytes([int(m.group(1), 16)]).decode('utf-8', errors='replace'),
+            lambda m: bytes([int(m.group(1), 16)]),
             value,
         )
 
@@ -822,7 +928,7 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
 
     @classmethod
     def equality(cls, attr: str, value: str) -> EqualityMatch:
-        return EqualityMatch.from_escaped(attr, value)
+        return EqualityMatch.from_escaped(attr, value.encode('UTF-8'))
 
     @classmethod
     def presence(cls, attr: str, _star: Token) -> PresenceMatch:
@@ -832,7 +938,13 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
     def substring(cls, attr: str, value: tuple[str | None, tuple[str, ...], str | None]) -> SubstringMatch:
         initial, any_values, final = value
         val = '*'.join([initial or '', *any_values, final or ''])
-        return SubstringMatch.from_escaped(attr, val, initial=initial, any=any_values, final=final)
+        return SubstringMatch.from_escaped(
+            attr,
+            val.encode('UTF-8'),
+            initial=initial.encode('UTF-8') if initial is not None else initial,
+            any=tuple(av.encode('UTF-8') for av in any_values),
+            final=final.encode('UTF-8') if final is not None else final,
+        )
 
     @classmethod
     def substrings(cls, *tokens: lark.Token) -> tuple[str | None, tuple[str, ...], str | None]:
@@ -852,41 +964,41 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
 
     @classmethod
     def ge(cls, attr: str, value: str) -> GreaterOrEqual:
-        return GreaterOrEqual.from_escaped(attr, value)
+        return GreaterOrEqual.from_escaped(attr, value.encode('UTF-8'))
 
     @classmethod
     def le(cls, attr: str, value: str) -> LessOrEqual:
-        return LessOrEqual.from_escaped(attr, value)
+        return LessOrEqual.from_escaped(attr, value.encode('UTF-8'))
 
     @classmethod
     def extmatch_attr_nodn_match(cls, attr: str, matchingrule: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value, dn=False, matchingrule=matchingrule)
+        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), dn=False, matchingrule=matchingrule)
 
     @classmethod
     def extmatch_attr_dn_nomatch(cls, attr: str, dn: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value, dn, '')
+        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), dn, '')
 
     @classmethod
     def extmatch_noattr_nodn_match(cls, matchingrule: str, value: str) -> ExtensibleMatch:
         if matchingrule.lower() == 'dn':
-            raise ValueError()
-        return ExtensibleMatch.from_escaped('', value, dn=False, matchingrule=matchingrule)
+            raise RuntimeError()
+        return ExtensibleMatch.from_escaped('', value.encode('UTF-8'), dn=False, matchingrule=matchingrule)
 
     @classmethod
     def extmatch_attr_nodn_nomatch(cls, attr: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value, dn=False, matchingrule='')
+        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), dn=False, matchingrule='')
 
     @classmethod
     def extmatch_attr_dn_match(cls, attr: str, dn: str, matchingrule: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value, dn, matchingrule)
+        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), dn, matchingrule)
 
     @classmethod
     def extmatch_noattr_dn_match(cls, dn: str, matchingrule: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped('', value, dn, matchingrule)
+        return ExtensibleMatch.from_escaped('', value.encode('UTF-8'), dn, matchingrule)
 
     @classmethod
     def approx(cls, attr: str, value: str) -> ApproximateMatch:
-        return ApproximateMatch.from_escaped(str(attr), value)
+        return ApproximateMatch.from_escaped(str(attr), value.encode('UTF-8'))
 
     @classmethod
     def dn(cls, value: str = 'dn') -> str:
