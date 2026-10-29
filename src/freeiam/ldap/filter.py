@@ -271,22 +271,22 @@ class Comparison(Expression):
 class EqualityMatch(Comparison):
     """Compare for equality (attr=value)."""
 
-    operator = operator.eq
     expression = '='
+    operator = operator.eq
 
 
 class GreaterOrEqual(Comparison):
     """Compare for greater than or equal to a value (attr>=value)."""
 
-    operator = operator.ge
     expression = '>='
+    operator = operator.ge
 
 
 class LessOrEqual(Comparison):
     """Compare for less than or equal to a value (attr<=value)."""
 
-    operator = operator.le
     expression = '<='
+    operator = operator.le
 
 
 class ApproximateMatch(Comparison):
@@ -298,8 +298,8 @@ class ApproximateMatch(Comparison):
 class SubstringMatch(Comparison):
     """Compare a substring match (attr=val*)."""
 
-    operator = operator.contains
     expression = '='
+    operator = operator.contains
 
     @property
     def values(self) -> tuple[str, ...]:
@@ -317,7 +317,7 @@ class ExtensibleMatch(Comparison):
     """Compare with an extensible match (attr:dn:rule:=value)."""
 
     expression = ':='
-    __slots__ = (*Comparison.__slots__, 'dn', 'matchingrule')
+    __slots__ = ('dn', 'matchingrule')
 
     def copy(self) -> Self:
         """Copy the object (without preserving optional whitespace)."""
@@ -489,25 +489,25 @@ class Filter:
     def pretty(self, indent: int = 0) -> str:
         """Transform the filter into a pretty-formatted representation."""
 
-        def _pretty(expr: Expression, level: int) -> str:
+        def render(expr: Expression, level: int) -> str:
             pad = '  ' * level
             if isinstance(expr, Comparison):
                 return f'{pad}({expr})'
             if isinstance(expr, (AND, OR)):
                 head = f'{pad}({expr.expression}'
-                children = '\n'.join(_pretty(e, level + 1) for e in expr._expressions if not isinstance(e, Token))
+                children = '\n'.join(render(e, level + 1) for e in expr._expressions if not isinstance(e, Token))
                 return f'{head}\n{children}\n{pad})'
             if isinstance(expr, NOT):
                 head = f'{pad}({expr.expression}'
-                children = ''.join(_pretty(e, 0) for e in expr._expressions if not isinstance(e, Token))
+                children = ''.join(render(e, 0) for e in expr._expressions if not isinstance(e, Token))
                 return f'{head}{children})'
             if isinstance(expr, (Group, Container)):
-                return '\n'.join(_pretty(e, level) for e in expr._expressions if not isinstance(e, Token))
+                return '\n'.join(render(e, level) for e in expr._expressions if not isinstance(e, Token))
             raise TypeError(f'Unexpected expression: {type(expr)}')  # noqa: TRY003,EM102  # pragma: no cover
 
         if self.root is None:
             return ''
-        return _pretty(self.root, indent)
+        return render(self.root, indent)
 
     @classmethod
     def attr(cls, attr: str, dn: str | None = None, matchingrule: str | None = None) -> Attribute:
