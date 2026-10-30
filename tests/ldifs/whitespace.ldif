@@ -1,0 +1,106 @@
+# SPDX-FileCopyrightText: 2025 Florian Best
+# SPDX-License-Identifier: CC0-1.0
+
+dn: ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: organizationalUnit
+ou: whitespace
+
+dn: uid=space1,ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: space1
+sn: Test
+cn:: IA==
+
+dn: uid=space2,ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: space2
+sn: Test
+cn:: ICA=
+
+dn: uid=foo,ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: foo
+sn: Test
+cn: foo
+
+dn: uid=foo-leading1,ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: foo-leading1
+sn: Test
+cn:: IGZvbw==
+
+dn: uid=foo-leading2,ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: foo-leading2
+sn: Test
+cn:: ICBmb28=
+
+dn: uid=foo-trailing1,ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: foo-trailing1
+sn: Test
+cn:: Zm9vIA==
+
+dn: uid=foo-trailing2,ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: foo-trailing2
+sn: Test
+cn:: Zm9vICA=
+
+dn: uid=foo-both1,ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: foo-both1
+sn: Test
+cn:: IGZvbyA=
+
+dn: uid=foo-both2,ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: foo-both2
+sn: Test
+cn:: ICBmb28gIA==
+
+dn: uid=foo-inner,ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: foo-inner
+sn: Test
+cn: foo  bar
+
+dn: uid=bar,ou=whitespace,dc=freeiam,dc=org
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+uid: bar
+sn: Test
+cn: bar
