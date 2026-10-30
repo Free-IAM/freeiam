@@ -8,7 +8,7 @@ import re
 import string
 from collections import deque
 from collections.abc import Callable, Sequence
-from typing import Any, Literal, Self, TypeVar
+from typing import Any, Self, TypeVar
 
 import lark
 import ldap.filter
@@ -39,15 +39,17 @@ start: _group | bare
 bare: comparison
 _group: ws? (operator | expression) ws?
 
+STAR: "*"
+
 ?operator: and_operator | or_operator | not_operator
 
-expression: "(" ows comparison ows ")"
+expression: "(" ows comparison ")"
 and_operator: "(" ows "&" ows groups ows ")"
 or_operator:  "(" ows "|" ows groups ows ")"
 not_operator: "(" ows "!" ows _group  ows ")"
 ?groups: _group* -> groups
 
-?comparison: attr "=*"                          -> presence
+?comparison: attr "=" STAR                      -> presence
      | attr "="  value                          -> equality
      | attr "="  substrings                     -> substring
      | attr ">=" value                          -> ge
@@ -61,7 +63,7 @@ not_operator: "(" ows "!" ows _group  ows ")"
      | attr                          ":=" value -> extmatch_attr_nodn_nomatch
 
 substrings: substr_part+
-substr_part: _value | "*"
+substr_part: _value | STAR
 
 attr: /[a-zA-Z][a-zA-Z0-9-;]*/ | oid
 ?oid: /\d+[\.\d]*/
@@ -69,7 +71,7 @@ attr: /[a-zA-Z][a-zA-Z0-9-;]*/ | oid
 matchingrule: attr
 
 _value: /([^\x00()*\\]|\\\\[0-9a-fA-F]{2}|\\[0-9a-fA-F]{2})+/
-value: ows _value? ows
+value: _value?
 
 ows: ws?
 ws: WS
@@ -109,12 +111,6 @@ class Token(str):  # noqa: FURB189
         return self  # pragma: no cover
 
 
-class _Value(str):  # noqa: FURB189
-    __slots__ = ('prefix', 'suffix')
-    prefix: str | None
-    suffix: str | None
-
-
 class Attribute:
     """An LDAP attribute."""
 
@@ -127,13 +123,13 @@ class Attribute:
     def approx(self) -> Self:
         return type(self)(self.attribute, self.dn, self.matchingrule, _equality_method=Filter.get_approx)
 
-    def extensible(self, dn: str | None = None, matchingrule: str | None = None) -> Self:
+    def extensible(self, dn: bool = False, matchingrule: str | None = None) -> Self:
         return type(self)(self.attribute, dn, matchingrule)
 
     def __init__(
         self,
         attribute: str,
-        dn: str | None = None,
+        dn: bool = False,
         matchingrule: str | None = None,
         *,
         _equality_method: Callable[[str, str], 'SubstringMatch | EqualityMatch | ExtensibleMatch | ApproximateMatch'] | None = None,
@@ -149,8 +145,6 @@ class Attribute:
             self.eq = Filter.get_eq
         if attribute.strip(self.ALLOWED_CHARS) or (attribute[0].isdigit() and attribute.strip(self.ALLOWED_OID)):
             raise ValueError(attribute)
-        if dn and dn.lower() != 'dn':
-            raise ValueError(dn)
         if matchingrule and (matchingrule.strip(self.ALLOWED_CHARS) or (matchingrule[0].isdigit() and matchingrule.strip(self.ALLOWED_OID))):
             raise ValueError(matchingrule)
 
@@ -211,7 +205,7 @@ class Expression:
 class Comparison(Expression):
     """Base class for comparison operators."""
 
-    __slots__ = ('_end', '_extra', '_lead', '_mid', '_trail', 'attr', 'is_escaped', 'raw_value')
+    __slots__ = ('_lead', 'attr', 'is_escaped', 'raw_value')
     expression = ''
     operator: Callable[..., bool] | None = None
 
@@ -236,22 +230,27 @@ class Comparison(Expression):
             return Filter.escape(value, EscapeMode.RESTRICTED)
         return Filter.escape(value, EscapeMode.SPECIAL)
 
+    @property
+    def _extra(self):
+        return ''
+
+    @classmethod
+    def from_escaped(cls, attr: str, value: str) -> Self:
+        """Create an assertion from an RFC 4515 escaped value."""
+        return cls(attr, value, is_escaped=True)
+
     def __init__(self, attr: str, value: str, is_escaped: bool = False):
         self.attr = attr
         self.raw_value = value
         self.is_escaped = is_escaped
-        self._extra = ''
         self._lead = ''
-        self._mid = ''
-        self._trail = ''
-        self._end = ''
 
     def copy(self) -> Self:
         """Copy the object (without preserving optional whitespace)."""
         return type(self)(self.attr, self.raw_value, is_escaped=self.is_escaped)
 
     def __str__(self) -> str:
-        return f'{self._lead}{self.attr}{self._extra}{self.expression}{self._mid}{self.escaped}{self._end}{self._trail}'
+        return f'{self._lead}{self.attr}{self._extra}{self.expression}{self.escaped}'
 
     def __repr__(self) -> str:
         val = repr(self.raw_value) if self.is_escaped else f'escape({self.raw_value!r})'
@@ -323,30 +322,33 @@ class ExtensibleMatch(Comparison):
         """Copy the object (without preserving optional whitespace)."""
         return type(self)(self.attr, self.value, self.dn, self.matchingrule, is_escaped=self.is_escaped)
 
-    def __init__(self, attr: str, value: str, dn: Literal['dn'] | str | None, matchingrule: str | None, is_escaped: bool = True) -> None:
+    @property
+    def _extra(self):
+        suffix = f':{self.dn}' if self.dn else ''
+        if self.matchingrule:
+            suffix += f':{self.matchingrule}'
+        return suffix
+
+    @classmethod
+    def from_escaped(cls, attr: str, value: str, dn: bool | str = False, matchingrule: str | None = None) -> Self:
+        """Create an assertion from an RFC 4515 escaped value."""
+        return cls(attr, value, dn, matchingrule, is_escaped=True)
+
+    def __init__(self, attr: str, value: str, dn: bool | str, matchingrule: str | None, is_escaped: bool = False) -> None:
         super().__init__(attr, value, is_escaped=is_escaped)
-        extra = ''
-        if dn:
-            extra = f':{dn}'
-        if matchingrule:
-            extra = f'{extra}:{matchingrule}'
-        self._extra = extra
-        self.dn = dn
+        self.dn = dn if isinstance(dn, str) else ('dn' if dn else False)
         self.matchingrule = matchingrule
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ExtensibleMatch):
             return False
-        dn = self.dn.casefold() if self.dn else self.dn
         matchingrule = self.matchingrule.casefold() if self.matchingrule is not None else None
-        other_dn = other.dn.casefold() if other.dn else other.dn
-        other_matchingrule = other.matchingrule.casefold() if other.matchingrule is not None else None
-        return (self.attr.casefold(), self.value, dn, matchingrule) == (other.attr.casefold(), other.value, other_dn, other_matchingrule)
+        other_rule = other.matchingrule.casefold() if other.matchingrule is not None else None
+        return (self.attr.casefold(), self.value, bool(self.dn), matchingrule) == (other.attr.casefold(), other.value, bool(other.dn), other_rule)
 
     def __hash__(self) -> int:
-        dn = self.dn.casefold() if self.dn else self.dn
         matchingrule = self.matchingrule.casefold() if self.matchingrule is not None else None
-        return hash((type(self), self.attr.casefold(), self.value, dn, matchingrule))
+        return hash((type(self), self.attr.casefold(), self.value, bool(self.dn), matchingrule))
 
 
 class Container(Expression):
@@ -491,7 +493,7 @@ class Filter:
 
     def _disallow_whitespace(self, fil: Self, parent: Expression, expr: Expression) -> None:  # noqa: ARG002
         if isinstance(expr, Comparison):
-            if expr._mid or expr._lead or expr._trail or expr._end:
+            if expr._lead:
                 raise self.error()
         elif isinstance(expr, Operator) and expr._sep:  # pragma: no cover
             raise self.error()  # currently impossible, broken OWS
@@ -524,7 +526,7 @@ class Filter:
         return render(self.root, indent)
 
     @classmethod
-    def attr(cls, attr: str, dn: str | None = None, matchingrule: str | None = None) -> Attribute:
+    def attr(cls, attr: str, dn: bool = False, matchingrule: str | None = None) -> Attribute:
         """Get attribute for comparison."""
         return Attribute(attr, dn, matchingrule)
 
@@ -573,7 +575,7 @@ class Filter:
         return cls.get_lt_eq(attr, value - 1)
 
     @classmethod
-    def get_extensible(cls, attr: str, dn: str | None, matchingrule: str | None, value: str) -> ExtensibleMatch:
+    def get_extensible(cls, attr: str, dn: bool, matchingrule: str | None, value: str) -> ExtensibleMatch:
         """Get ExtensibleMatch."""
         return ExtensibleMatch(attr, value, dn, matchingrule, is_escaped=False)
 
@@ -690,9 +692,8 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
     def groups(self, *groups: Expression) -> list[Expression]:  # noqa: PLR6301
         return list(groups)
 
-    def expression(self, ld: lark.Token, cmp: Comparison, tr: lark.Token) -> Comparison:  # noqa: PLR6301
+    def expression(self, ld: str, cmp: Comparison) -> Comparison:  # noqa: PLR6301
         cmp._lead = ld or ''
-        cmp._trail = tr or ''
         return cmp
 
     def and_operator(self, sep: None, ld: Token, exprs: list[Expression], tr: Token) -> AND:
@@ -710,87 +711,84 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
     def attr(self, attr: lark.Token) -> str:  # noqa: PLR6301
         return str(attr)
 
-    def value(self, ld: lark.Token | str | None, *value: lark.Token | str | None) -> _Value:  # noqa: PLR6301
-        if len(value) > 1:
-            val, tr = value
-        else:
-            val, tr = '', value[0]
+    def value(self, value: lark.Token | str | None = None) -> str:  # noqa: PLR6301
+        return str(value or '')
 
-        assert val is not None  # noqa: S101
-        if val != val.strip():
-            ld_, val, tr_ = val.partition(val.strip())
-            ld = ld or ld_
-            tr = tr or tr_
-        res = _Value(val)
-        res.prefix = ld
-        res.suffix = tr
-        return res
+    @classmethod
+    def equality(cls, attr: str, value: str) -> EqualityMatch:
+        return EqualityMatch.from_escaped(attr, value)
 
-    def _prefix(self, data: _Value, value: T) -> T:  # noqa: PLR6301
-        value._mid = data.prefix or ''
-        value._end = data.suffix or ''
+    @classmethod
+    def presence(cls, attr: str, _star: Token) -> PresenceMatch:
+        return PresenceMatch.from_escaped(attr, '')
+
+    @classmethod
+    def substring(cls, attr: str, value: str) -> SubstringMatch:
+        assert value != '*'  # noqa: S101
+        return SubstringMatch.from_escaped(attr, value)
+
+    @classmethod
+    def substr_part(cls, value: str | lark.Token = '*') -> str | lark.Token:
         return value
 
-    def equality(self, attr: lark.Token, value: _Value) -> EqualityMatch:
-        return self._prefix(value, EqualityMatch(str(attr), str(value), is_escaped=True))
-
-    def presence(self, attr: lark.Token, value: _Value | str = '') -> PresenceMatch:
-        return self._prefix(self.value(None, value, None), PresenceMatch(str(attr), '', is_escaped=True))
-
-    def substring(self, attr: lark.Token, value: _Value) -> PresenceMatch | SubstringMatch:
-        value = self.value(None, value, None)
-        if value == '*':
-            return self.presence(attr, value)
-        return self._prefix(value, SubstringMatch(attr, value, is_escaped=True))
-
-    def substr_part(self, value: str | lark.Token = '*') -> str | lark.Token:  # noqa: PLR6301
-        return value
-
-    def substrings(self, *values: str) -> str:  # noqa: PLR6301
+    @classmethod
+    def substrings(cls, *values: str) -> str:
         value = ''.join(values)
         if '**' in value:
             raise ValueError()
         return value
 
-    def ge(self, attr: lark.Token, value: _Value) -> GreaterOrEqual:
-        return self._prefix(value, GreaterOrEqual(attr, str(value), is_escaped=True))
+    @classmethod
+    def ge(cls, attr: str, value: str) -> GreaterOrEqual:
+        return GreaterOrEqual.from_escaped(attr, value)
 
-    def le(self, attr: lark.Token, value: _Value) -> LessOrEqual:
-        return self._prefix(value, LessOrEqual(attr, str(value), is_escaped=True))
+    @classmethod
+    def le(cls, attr: str, value: str) -> LessOrEqual:
+        return LessOrEqual.from_escaped(attr, value)
 
-    def extmatch_attr_nodn_match(self, attr: lark.Token, matchingrule: lark.Token, value: _Value) -> ExtensibleMatch:
-        return self._prefix(value, ExtensibleMatch(attr, str(value), '', matchingrule, is_escaped=True))
+    @classmethod
+    def extmatch_attr_nodn_match(cls, attr: str, matchingrule: str, value: str) -> ExtensibleMatch:
+        return ExtensibleMatch.from_escaped(attr, value, dn=False, matchingrule=matchingrule)
 
-    def extmatch_attr_dn_nomatch(self, attr: lark.Token, dn: lark.Token, value: _Value) -> ExtensibleMatch:
-        return self._prefix(value, ExtensibleMatch(attr, str(value), dn, '', is_escaped=True))
+    @classmethod
+    def extmatch_attr_dn_nomatch(cls, attr: str, dn: str, value: str) -> ExtensibleMatch:
+        return ExtensibleMatch.from_escaped(attr, value, dn, '')
 
-    def extmatch_noattr_nodn_match(self, matchingrule: lark.Token, value: _Value) -> ExtensibleMatch:
+    @classmethod
+    def extmatch_noattr_nodn_match(cls, matchingrule: str, value: str) -> ExtensibleMatch:
         if matchingrule.lower() == 'dn':
             raise ValueError()
-        return self._prefix(value, ExtensibleMatch('', str(value), '', matchingrule, is_escaped=True))
+        return ExtensibleMatch.from_escaped('', value, dn=False, matchingrule=matchingrule)
 
-    def extmatch_attr_nodn_nomatch(self, attr: lark.Token, value: _Value) -> ExtensibleMatch:
-        return self._prefix(value, ExtensibleMatch(attr, str(value), '', '', is_escaped=True))
+    @classmethod
+    def extmatch_attr_nodn_nomatch(cls, attr: str, value: str) -> ExtensibleMatch:
+        return ExtensibleMatch.from_escaped(attr, value, dn=False, matchingrule='')
 
-    def extmatch_attr_dn_match(self, attr: lark.Token, dn: lark.Token, matchingrule: lark.Token, value: _Value) -> ExtensibleMatch:
-        return self._prefix(value, ExtensibleMatch(attr, str(value), dn, matchingrule, is_escaped=True))
+    @classmethod
+    def extmatch_attr_dn_match(cls, attr: str, dn: str, matchingrule: str, value: str) -> ExtensibleMatch:
+        return ExtensibleMatch.from_escaped(attr, value, dn, matchingrule)
 
-    def extmatch_noattr_dn_match(self, dn: lark.Token, matchingrule: lark.Token, value: _Value) -> ExtensibleMatch:
-        return self._prefix(value, ExtensibleMatch('', str(value), dn, matchingrule, is_escaped=True))
+    @classmethod
+    def extmatch_noattr_dn_match(cls, dn: str, matchingrule: str, value: str) -> ExtensibleMatch:
+        return ExtensibleMatch.from_escaped('', value, dn, matchingrule)
 
-    def approx(self, attr: lark.Token, value: _Value) -> ApproximateMatch:
-        return self._prefix(value, ApproximateMatch(str(attr), str(value), is_escaped=True))
+    @classmethod
+    def approx(cls, attr: str, value: str) -> ApproximateMatch:
+        return ApproximateMatch.from_escaped(str(attr), value)
 
-    def dn(self, value: _Value | str = 'dn') -> str:  # noqa: PLR6301
-        return str(value)
+    @classmethod
+    def dn(cls, value: str = 'dn') -> str:
+        return value
 
-    def matchingrule(self, value: _Value) -> str:  # noqa: PLR6301
-        return str(value)
+    @classmethod
+    def matchingrule(cls, value: str) -> str:
+        return value
 
-    def ws(self, value: _Value) -> Token:  # noqa: PLR6301
+    @classmethod
+    def ws(cls, value: str) -> Token:
         return Token(value)
 
-    def ows(self, value: _Value | None = None) -> Token | None:  # noqa: PLR6301
+    def ows(self, value: str | None = None) -> Token | None:  # noqa: PLR6301
         if value is None:
             return None
         return Token(value)

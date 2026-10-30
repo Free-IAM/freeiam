@@ -365,6 +365,7 @@ def validate_filter(expr):
 
 
 def get_filter_root(filter_expr):
+    """Return the actual comparison/operator, unwrapping the textual Group."""
     for expr in Filter(filter_expr, _debug=True).root.expressions:
         if isinstance(expr, (AND, OR, NOT, Comparison)):
             return expr
@@ -376,7 +377,7 @@ def get_filter_root(filter_expr):
     [
         '( cn=John )',
         '(&( cn=John))',
-        pytest.param('(& (cn=John))', marks=pytest.mark.xfail(reason='SEP is always unset')),
+        pytest.param('(& (cn=John))', marks=pytest.mark.xfail(reason='Whitespace inside BER is normalized')),
     ],
 )
 def test_strict_parsing(expr):
@@ -397,11 +398,11 @@ def test_approximate_match():
 @pytest.mark.parametrize(
     'expr, expected',
     [
-        ('(cn:caseIgnoreMatch:=john)', (ExtensibleMatch, 'cn', '', 'caseIgnoreMatch', 'john')),
+        ('(cn:caseIgnoreMatch:=john)', (ExtensibleMatch, 'cn', None, 'caseIgnoreMatch', 'john')),
         ('(cn:dn:=John Doe)', (ExtensibleMatch, 'cn', 'dn', '', 'John Doe')),
         ('(cn:dn:caseIgnoreMatch:=John Doe)', (ExtensibleMatch, 'cn', 'dn', 'caseIgnoreMatch', 'John Doe')),
         ('(:dn:caseIgnoreMatch:=John Doe)', (ExtensibleMatch, '', 'dn', 'caseIgnoreMatch', 'John Doe')),
-        ('(sn:2.5.13.3:=DOE)', (ExtensibleMatch, 'sn', '', '2.5.13.3', 'DOE')),
+        ('(sn:2.5.13.3:=DOE)', (ExtensibleMatch, 'sn', None, '2.5.13.3', 'DOE')),
     ],
 )
 def test_extensible_match(expr, expected):
@@ -422,6 +423,8 @@ def test_le_match():
 def test_presence_match():
     fil = get_filter_root('(cn=*)')
     assert isinstance(fil, PresenceMatch)
+    assert not isinstance(get_filter_root('(cn= *)'), PresenceMatch)
+    assert not isinstance(get_filter_root('(cn=* )'), PresenceMatch)
 
 
 def test_substring_match():
@@ -433,22 +436,22 @@ def test_substring_match():
 @pytest.mark.parametrize(
     'expr,attrs',
     [
-        ('(cn= John)', {'attr': 'cn', 'value': 'John'}),
-        ('( cn=John )', {'attr': 'cn', 'value': 'John'}),
-        ('(cn=John )', {'attr': 'cn', 'value': 'John'}),
-        ('(cn= John )', {'attr': 'cn', 'value': 'John'}),
+        ('(cn= John)', {'attr': 'cn', 'value': ' John'}),
+        ('( cn=John )', {'attr': 'cn', 'value': 'John '}),
+        ('(cn=John )', {'attr': 'cn', 'value': 'John '}),
+        ('(cn= John )', {'attr': 'cn', 'value': ' John '}),
         ('(& (cn=John))', {'attr': 'cn', 'value': 'John'}),
         ('(&(cn=John) )', {'attr': 'cn', 'value': 'John'}),
         ('(&   (cn=John))', {'attr': 'cn', 'value': 'John'}),
         ('(&( cn=John))', {'attr': 'cn', 'value': 'John'}),
-        ('(& (  cn=John  ) )', {'attr': 'cn', 'value': 'John'}),
-        ('(&  ( cn=John )  )', {'attr': 'cn', 'value': 'John'}),
-        ('(&  ( cn= John )  )', {'attr': 'cn', 'value': 'John'}),
+        ('(& (  cn=John  ) )', {'attr': 'cn', 'value': 'John  '}),
+        ('(&  ( cn=John )  )', {'attr': 'cn', 'value': 'John '}),
+        ('(&  ( cn= John )  )', {'attr': 'cn', 'value': ' John '}),
         ('(cn=Two  Whitespaces)', {'attr': 'cn', 'value': 'Two  Whitespaces'}),
-        ('(cn=* )', {'attr': 'cn', 'value': '', '__class__': PresenceMatch}),
-        ('(cn= *)', {'attr': 'cn', 'value': '', '__class__': PresenceMatch}),
+        ('(cn=* )', {'attr': 'cn', 'value': '* ', '__class__': SubstringMatch}),
+        ('(cn= *)', {'attr': 'cn', 'value': ' *', '__class__': SubstringMatch}),
         ('(cn=Two  White*spaces)', {'attr': 'cn', 'value': 'Two  White*spaces', '__class__': SubstringMatch}),
-        ('(cn=  Two  White*spaces  )', {'attr': 'cn', 'value': 'Two  White*spaces', '__class__': SubstringMatch}),
+        ('(cn=  Two  White*spaces  )', {'attr': 'cn', 'value': '  Two  White*spaces  ', '__class__': SubstringMatch}),
     ],
 )
 def test_whitespace_preserve(expr, attrs):
@@ -511,9 +514,9 @@ def test_unescape(expr, value, unescape):
 
 
 def test_comparison_unescape():
-    assert EqualityMatch('cn', r'foo\20bar', is_escaped=True).value == 'foo bar'
-    assert EqualityMatch('cn', r' foobar ', is_escaped=False).escaped == r'\20foobar\20'
-    assert EqualityMatch('cn', r' foobar ', is_escaped=False).value == ' foobar '
+    assert EqualityMatch.from_escaped('cn', r'foo\20bar').value == 'foo bar'
+    assert EqualityMatch('cn', r' foobar ').escaped == r'\20foobar\20'
+    assert EqualityMatch('cn', r' foobar ').value == ' foobar '
 
 
 def test_escape():
@@ -563,11 +566,14 @@ def test_escape_attribute():
     assert str(cn != user_input) == r'(!(cn=foo \28bar\29\2a))'
     assert repr(cn != user_input) == "NOT( EqualityMatch(cn=escape('foo (bar)*')) )"
 
-    assert str(cn == ['', user_input, '']) == r'cn=foo \28bar\29\2a'
-    assert repr(cn == ['', user_input, '']) == "SubstringMatch(cn=escape('foo (bar)*'))"
+    # literal '*' in a substring component must NOT become a wildcard.
+    expr = cn == ['', user_input, '']
+    assert str(expr) == r'cn=foo \28bar\29\2a'
+    assert repr(expr) == "SubstringMatch(cn=escape('foo (bar)*'))"
 
-    assert str(cn == user_input.split('*')) == r'cn=foo \28bar\29'
-    assert repr(cn == user_input.split('*')) == "SubstringMatch(cn=escape('foo (bar)'))"
+    expr = cn == user_input.split('*')
+    assert str(expr) == r'cn=foo \28bar\29'
+    assert repr(expr) == "SubstringMatch(cn=escape('foo (bar)'))"
 
     assert str(cn > '1000') == '(!(cn<=1000))'
     assert repr(cn > '1000') == "NOT( LessOrEqual(cn<=escape('1000')) )"
@@ -649,15 +655,13 @@ def test_hash():
 def test_attribute_error_handling():
     with pytest.raises(ValueError, match=r'a\*'):
         Attribute('a*')
-    with pytest.raises(ValueError, match=r'a'):
-        Attribute('a', 'a')
     with pytest.raises(ValueError, match=r'a\*'):
-        Attribute('a', 'dn', 'a*')
+        Attribute('a', dn=True, matchingrule='a*')
 
     with pytest.raises(ValueError, match=r'1\.a'):
         Attribute('1.a')
     with pytest.raises(ValueError, match=r'1\.a'):
-        Attribute('a', 'dn', '1.a')
+        Attribute('a', dn=True, matchingrule='1.a')
 
 
 def test_root():
@@ -904,3 +908,28 @@ def test_example_walk_replace():
   )
 )""".strip()
     assert fil.pretty() == result
+
+
+def test_binary_value_roundtrip():
+    Filter(r'(userCertificate=\30\82\01\0a)')
+    assert get_filter_root(r'(userCertificate=\30\82\01\0a)').value == b'\x30\x82\x01\x0a'.decode('UTF-8', 'replace')  # FIXME: !!!
+
+
+def test_outer_parentheses_roundtrip():
+    assert str(Filter('(cn=John)')) == '(cn=John)'
+    assert str(Filter('cn=John')) == 'cn=John'
+    assert str(Filter('(&(cn=John)(sn=Doe))')) == '(&(cn=John)(sn=Doe))'
+
+
+def test_comparison_repr_binary_values():
+    """repr displays raw bytes losslessly, but stays readable for ASCII."""
+    assert repr(EqualityMatch('cn', 'plain ASCII')) == "EqualityMatch(cn=escape('plain ASCII'))"
+    assert repr(EqualityMatch('cn', '\x00\xff\x80')) == "EqualityMatch(cn=escape('\\x00\xff\\x80'))"
+    assert repr(EqualityMatch('cn', 'Jörg')) == r"EqualityMatch(cn=escape('Jörg'))"
+    assert repr(EqualityMatch('cn', "a'b\\c")) == 'EqualityMatch(cn=escape("a\'b\\\\c"))'
+    assert repr(ExtensibleMatch('cn', '\xff', 'dn', 'caseIgnoreMatch')) == "ExtensibleMatch(cn:dn:caseIgnoreMatch:=escape('\xff'))"
+
+
+def test_substring_repr_distinguishes_literal_asterisks():
+    expr = SubstringMatch('cn', ['prefix*literal', 'suffix'])
+    assert repr(expr) == r"SubstringMatch(cn=escape(['prefix*literal', 'suffix']))"
