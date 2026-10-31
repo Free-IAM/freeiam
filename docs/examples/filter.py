@@ -57,8 +57,8 @@ Filter.get_not(Filter.get_eq('cn', user_input))
 # start FILTER TRANSFORMATIONS
 from freeiam.ldap.filter import (
     NOT,
+    Assertion,
     Attribute,
-    Comparison,
     EqualityMatch,
     Filter,
     SubstringMatch,
@@ -115,8 +115,8 @@ def comparison_callback(filter_, parent, expression):
         expression.attr = 'locked'
         parent.replace(expression, NOT([expression]))
     elif expression.attr == 'app' and isinstance(expression, SubstringMatch):
-        # ``(app=app*)`` → (|(app=app01)(app=app02))
-        if expression.value == 'app*':
+        # ``(app=app*)`` → (|(app=app01)(app=app02)(app=app03))
+        if expression.initial == 'app' and not expression.any and not expression.final:
             parent.replace(
                 expression,
                 (a('app') == 'app01') | [(a('app') == 'app02'), (a('app') == 'app03')],
@@ -156,7 +156,7 @@ def operator_callback(filter_, parent, expression):
         expr.attr.lower() == 'objectClass'.lower()
         and expr.value.lower() == 'inetOrgPerson'.lower()
         for expr in expression.expressions
-        if isinstance(expr, Comparison)
+        if isinstance(expr, Assertion)
     ):
         # ``(&(objectClass=top)(objectClass=person)(objectClass=inetOrgPerson))``
         # → ``(objectClass=inetOrgPerson)``
