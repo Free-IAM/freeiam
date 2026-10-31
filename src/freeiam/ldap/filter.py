@@ -22,7 +22,7 @@ __all__ = (
     'NOT',
     'OR',
     'ApproximateMatch',
-    'Comparison',
+    'Assertion',
     'EqualityMatch',
     'ExtensibleMatch',
     'Filter',
@@ -62,8 +62,8 @@ not_operator: "(" ows "!" ows _group  ows ")"
      | attr ":"         matchingrule ":=" value -> extmatch_attr_nodn_match
      | attr                          ":=" value -> extmatch_attr_nodn_nomatch
 
-substrings: substr_part+
-substr_part: _value | STAR
+substrings: _value STAR (_value STAR)* _value?
+          | STAR _value (STAR _value)* STAR?
 
 attr: /[a-zA-Z][a-zA-Z0-9-;]*/ | oid
 ?oid: /\d+[\.\d]*/
@@ -202,142 +202,240 @@ class Expression:
         raise NotImplementedError()  # pragma: no cover
 
 
-class Comparison(Expression):
+class Assertion(Expression):
     """Base class for comparison operators."""
 
-    __slots__ = ('_lead', 'attr', 'is_escaped', 'raw_value')
+    __slots__ = ('_lead', '_raw_escaped_value', 'attr')
     expression = ''
     operator: Callable[..., bool] | None = None
 
-    @property
-    def value(self) -> str:
-        """Get the value in a decoded form."""
-        if self.is_escaped:
-            return Filter.unescape(self.raw_value)
-        return self.raw_value
+    _raw_escaped_value: str | None
+    """The raw original escaped(!) value."""
 
-    @value.setter
-    def value(self, raw_value: str) -> None:
-        self.raw_value = raw_value
+    def __init__(self, attr: str) -> None:
+        self.attr = attr
+        self._raw_escaped_value = None
+        self._lead = ''
+
+    @property
+    def _assertion_value(self) -> str | None:
+        return self._raw_escaped_value
+
+    @property
+    def _extensible_suffix(self) -> str:
+        return ''
 
     @property
     def escaped(self) -> str:
-        """Get the value in an encoded or escaped form."""
-        if self.is_escaped:
-            return self.raw_value
-        value = self.raw_value
+        """Get the value in an encoded or escaped representation."""
+        if self._raw_escaped_value is not None:
+            return self._raw_escaped_value
+        return self.escape(self._assertion_value or '')
+
+    def copy(self) -> Self:
+        """Copy the object (without preserving optional whitespace)."""
+        raise NotImplementedError()  # pragma: no cover
+
+    def __str__(self) -> str:
+        return f'{self._lead}{self.attr}{self._extensible_suffix}{self.expression}{self.escaped}'
+
+    def __repr__(self) -> str:
+        val = self._assertion_value
+        val = f'escape({val!r})' if val else ''
+        return f'{type(self).__name__}({self.attr}{self._extensible_suffix}{self.expression}{val})'
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.attr.casefold(), self._assertion_value))
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Assertion):
+            return (type(self), self.attr, self._assertion_value) == (type(other), other.attr, other._assertion_value)
+        return NotImplemented
+
+    @classmethod
+    def escape(cls, value: str) -> str:
+        """Escaped value for use in filter."""
         if value != value.strip():
             return Filter.escape(value, EscapeMode.RESTRICTED)
         return Filter.escape(value, EscapeMode.SPECIAL)
 
-    @property
-    def _extra(self):
-        return ''
+
+class ValueAssertion(Assertion):
+    """Abstaract base class for value based assertions."""
+
+    __slots__ = ('_value',)
 
     @classmethod
     def from_escaped(cls, attr: str, value: str) -> Self:
         """Create an assertion from an RFC 4515 escaped value."""
-        return cls(attr, value, is_escaped=True)
+        obj = cls(attr, Filter.unescape(value))
+        obj._raw_escaped_value = value
+        return obj
 
-    def __init__(self, attr: str, value: str, is_escaped: bool = False):
-        self.attr = attr
-        self.raw_value = value
-        self.is_escaped = is_escaped
-        self._lead = ''
+    def __init__(self, attr: str, value: str) -> None:
+        super().__init__(attr)
+        self._value = value
 
     def copy(self) -> Self:
         """Copy the object (without preserving optional whitespace)."""
-        return type(self)(self.attr, self.raw_value, is_escaped=self.is_escaped)
+        return type(self)(self.attr, self._value)
 
-    def __str__(self) -> str:
-        return f'{self._lead}{self.attr}{self._extra}{self.expression}{self.escaped}'
+    @property
+    def _assertion_value(self) -> str:
+        return self._value
 
-    def __repr__(self) -> str:
-        val = repr(self.raw_value) if self.is_escaped else f'escape({self.raw_value!r})'
-        if isinstance(self, PresenceMatch):
-            val = ''
-        return f'{type(self).__name__}({self.attr}{self._extra}{self.expression}{val})'
+    @property
+    def value(self) -> str:
+        """Get the value in a decoded form."""
+        return self._value
 
-    def __hash__(self) -> int:
-        return hash((type(self), self.attr.casefold(), self.value))
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, Comparison):
-            return (type(self), self.attr, self.value) == (type(other), other.attr, other.value)
-        return NotImplemented
+    @value.setter
+    def value(self, value: str) -> None:
+        self._value = value
+        self._raw_escaped_value = None
 
 
-class EqualityMatch(Comparison):
+class EqualityMatch(ValueAssertion):
     """Compare for equality (attr=value)."""
 
     expression = '='
     operator = operator.eq
 
 
-class GreaterOrEqual(Comparison):
+class GreaterOrEqual(ValueAssertion):
     """Compare for greater than or equal to a value (attr>=value)."""
 
     expression = '>='
     operator = operator.ge
 
 
-class LessOrEqual(Comparison):
+class LessOrEqual(ValueAssertion):
     """Compare for less than or equal to a value (attr<=value)."""
 
     expression = '<='
     operator = operator.le
 
 
-class ApproximateMatch(Comparison):
+class ApproximateMatch(ValueAssertion):
     """Compare approximately (attr~=value)."""
 
     expression = '~='
 
 
-class SubstringMatch(Comparison):
-    """Compare a substring match (attr=val*)."""
+class SubstringMatch(Assertion):
+    """Compare a substring match (attr=*val*ue*)."""
+
+    __slots__ = ('any', 'final', 'initial')
 
     expression = '='
     operator = operator.contains
 
+    def __init__(self, attr: str, *, initial: str | None = None, any: Sequence[str] = (), final: str | None = None) -> None:  # noqa: A002
+        super().__init__(attr)
+
+        self.initial = initial
+        self.any = any
+        self.final = final
+
+        if self.initial is None and not self.any and self.final is None:
+            raise ValueError('SubstringMatch requires at least one component')  # noqa: TRY003
+
+    @classmethod
+    def from_escaped(cls, attr: str, value: str, *, initial: str | None = None, any: Sequence[str] = (), final: str | None = None) -> Self:  # noqa: A002
+        """Create an assertion from an RFC 4515 escaped value."""
+        initial = Filter.unescape(initial) if initial is not None else initial
+        final = Filter.unescape(final) if final is not None else final
+        any_ = tuple(Filter.unescape(val) for val in any)
+        obj = cls(attr, initial=initial, any=any_, final=final)
+        obj._raw_escaped_value = value
+        return obj
+
     @property
     def values(self) -> tuple[str, ...]:
-        """Get substring match values."""
-        return tuple(self.value.split('*'))
+        """Return substring assertion values."""
+        return (self.initial or '', *self.any, self.final or '')
+
+    @property
+    def escaped(self) -> str:
+        """Get the value in an encoded or escaped representation."""
+        if self._raw_escaped_value is not None:
+            return self._raw_escaped_value
+        return '*'.join([
+            self.escape(self.initial or ''),
+            *(Filter.escape(part, EscapeMode.SPECIAL) for part in self.any),
+            self.escape(self.final or ''),
+        ])
+
+    def __repr__(self) -> str:
+        val = f'initial={self.initial!r}, any={self.any!r}, final={self.final!r}'
+        return f'{type(self).__name__}({self.attr}{self._extensible_suffix}{self.expression}escape({val}))'
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, SubstringMatch):
+            return NotImplemented
+
+        return (self.attr, self.initial, self.any, self.final) == (other.attr, other.initial, other.any, other.final)
+
+    def __hash__(self) -> int:
+        return hash((type(self), self.attr, self.initial, self.any, self.final))
+
+    def copy(self) -> Self:
+        """Copy the object (without preserving optional whitespace)."""
+        return type(self)(self.attr, initial=self.initial, any=self.any, final=self.final)
 
 
-class PresenceMatch(Comparison):
+class PresenceMatch(Assertion):
     """Compare for presence (attr=*)."""
 
     expression = '=*'
 
+    @classmethod
+    def from_escaped(cls, attr: str) -> Self:
+        """Create an assertion from an RFC 4515 escaped value."""
+        return cls(attr)
 
-class ExtensibleMatch(Comparison):
-    """Compare with an extensible match (attr:dn:rule:=value)."""
+    @property
+    def escaped(self) -> str:
+        """Get the value in an encoded or escaped representation."""
+        return ''
+
+    def copy(self) -> Self:
+        """Copy the object (without preserving optional whitespace)."""
+        return type(self)(self.attr)
+
+    @property
+    def _assertion_value(self) -> None:
+        return None
+
+
+class ExtensibleMatch(ValueAssertion):
+    """Comparison with an extensible match (attr:dn:rule:=value)."""
 
     expression = ':='
     __slots__ = ('dn', 'matchingrule')
 
-    def copy(self) -> Self:
-        """Copy the object (without preserving optional whitespace)."""
-        return type(self)(self.attr, self.value, self.dn, self.matchingrule, is_escaped=self.is_escaped)
+    @classmethod
+    def from_escaped(cls, attr: str, value: str, dn: bool | str = False, matchingrule: str | None = None) -> Self:
+        """Create an assertion from an RFC 4515 escaped value."""
+        obj = cls(attr, Filter.unescape(value), dn, matchingrule)
+        obj._raw_escaped_value = value
+        return obj
+
+    def __init__(self, attr: str, value: str, dn: bool | str, matchingrule: str | None) -> None:
+        super().__init__(attr, value)
+        self.dn = dn if isinstance(dn, str) else ('dn' if dn else False)
+        self.matchingrule = matchingrule
 
     @property
-    def _extra(self):
+    def _extensible_suffix(self):
         suffix = f':{self.dn}' if self.dn else ''
         if self.matchingrule:
             suffix += f':{self.matchingrule}'
         return suffix
 
-    @classmethod
-    def from_escaped(cls, attr: str, value: str, dn: bool | str = False, matchingrule: str | None = None) -> Self:
-        """Create an assertion from an RFC 4515 escaped value."""
-        return cls(attr, value, dn, matchingrule, is_escaped=True)
-
-    def __init__(self, attr: str, value: str, dn: bool | str, matchingrule: str | None, is_escaped: bool = False) -> None:
-        super().__init__(attr, value, is_escaped=is_escaped)
-        self.dn = dn if isinstance(dn, str) else ('dn' if dn else False)
-        self.matchingrule = matchingrule
+    def copy(self) -> Self:
+        """Copy the object (without preserving optional whitespace)."""
+        return type(self)(self.attr, self.value, self.dn, self.matchingrule)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ExtensibleMatch):
@@ -364,14 +462,14 @@ class Container(Expression):
         return tuple(op for op in self._expressions if isinstance(op, (AND, OR, NOT)))
 
     @property
-    def comparisons(self) -> tuple[Comparison, ...]:
+    def comparisons(self) -> tuple[Assertion, ...]:
         """Get all comparison expressions."""
-        return tuple(op for op in self._expressions if isinstance(op, Comparison))
+        return tuple(op for op in self._expressions if isinstance(op, Assertion))
 
     @property
-    def expressions(self) -> tuple['Comparison | AND | OR | NOT', ...]:
+    def expressions(self) -> tuple['Assertion | AND | OR | NOT', ...]:
         """Get all comparison or operator expressions."""
-        return tuple(op for op in self._expressions if isinstance(op, (Comparison, AND, OR, NOT)))
+        return tuple(op for op in self._expressions if isinstance(op, (Assertion, AND, OR, NOT)))
 
     def __init__(self, /, expressions: list[Expression | Token], *, sep: Token | None = None):
         self._expressions = expressions
@@ -416,7 +514,7 @@ class Group(Container):
 
     def __str__(self) -> str:
         sep = self._sep or ''
-        groups = ''.join(f'({expr})' if isinstance(expr, Comparison) else str(expr) for expr in self._expressions)
+        groups = ''.join(f'({expr})' if isinstance(expr, Assertion) else str(expr) for expr in self._expressions)
         return f'({self.expression}{sep}{groups})' if self.expression else groups
 
 
@@ -492,7 +590,7 @@ class Filter:
             self.walk(self._disallow_whitespace, self._disallow_whitespace)
 
     def _disallow_whitespace(self, fil: Self, parent: Expression, expr: Expression) -> None:  # noqa: ARG002
-        if isinstance(expr, Comparison):
+        if isinstance(expr, Assertion):
             if expr._lead:
                 raise self.error()
         elif isinstance(expr, Operator) and expr._sep:  # pragma: no cover
@@ -507,7 +605,7 @@ class Filter:
 
         def render(expr: Expression, level: int) -> str:
             pad = '  ' * level
-            if isinstance(expr, Comparison):
+            if isinstance(expr, Assertion):
                 return f'{pad}({expr})'
             if isinstance(expr, (AND, OR)):
                 head = f'{pad}({expr.expression}'
@@ -533,27 +631,35 @@ class Filter:
     @classmethod
     def get_eq(cls, attr: str, value: str) -> EqualityMatch:
         """Get EqualityMatch."""
-        return EqualityMatch(attr, value, is_escaped=False)
+        return EqualityMatch(attr, value)
 
     @classmethod
     def get_approx(cls, attr: str, value: str) -> ApproximateMatch:
         """Get ApproximateMatch."""
-        return ApproximateMatch(attr, value, is_escaped=False)
+        return ApproximateMatch(attr, value)
 
     @classmethod
     def get_pres(cls, attr: str) -> PresenceMatch:
         """Get PresenceMatch."""
-        return PresenceMatch(attr, '', is_escaped=False)
+        return PresenceMatch(attr)
 
     @classmethod
     def get_substring(cls, attr: str, *values: str) -> SubstringMatch:
         """Get SubstringMatch."""
-        return SubstringMatch(attr, ''.join(values), is_escaped=False)
+        if len(values) < 2:  # noqa: PLR2004
+            raise ValueError('Substring filter requires at least two parts')  # noqa: TRY003
+
+        return SubstringMatch(
+            attr,
+            initial=values[0] or None,
+            any=values[1:-1],
+            final=values[-1] or None,
+        )
 
     @classmethod
     def get_gt_eq(cls, attr: str, value: str | int) -> GreaterOrEqual:
         """Get GreaterOrEqual."""
-        return GreaterOrEqual(attr, str(value), is_escaped=False)
+        return GreaterOrEqual(attr, str(value))
 
     @classmethod
     def get_gt(cls, attr: str, value: str | int) -> NOT | GreaterOrEqual:
@@ -565,7 +671,7 @@ class Filter:
     @classmethod
     def get_lt_eq(cls, attr: str, value: str | int) -> LessOrEqual:
         """Get LessOrEqual."""
-        return LessOrEqual(attr, str(value), is_escaped=False)
+        return LessOrEqual(attr, str(value))
 
     @classmethod
     def get_lt(cls, attr: str, value: str | int) -> NOT | LessOrEqual:
@@ -577,7 +683,7 @@ class Filter:
     @classmethod
     def get_extensible(cls, attr: str, dn: bool, matchingrule: str | None, value: str) -> ExtensibleMatch:
         """Get ExtensibleMatch."""
-        return ExtensibleMatch(attr, value, dn, matchingrule, is_escaped=False)
+        return ExtensibleMatch(attr, value, dn, matchingrule)
 
     @classmethod
     def get_not(cls, expression: Expression) -> NOT:
@@ -624,7 +730,7 @@ class Filter:
 
     def walk(
         self,
-        comparison_callback: Callable[[Self, Container, Comparison], None] | None,
+        comparison_callback: Callable[[Self, Container, Assertion], None] | None,
         operator_callback: Callable[[Self, Container, AND | OR | NOT | Container], None] | None,
         strategy: WalkStrategy = WalkStrategy.POST,
     ) -> None:
@@ -634,7 +740,7 @@ class Filter:
         while stack:
             parent, expression, is_pre_visit = stack.pop()
 
-            if isinstance(expression, Comparison):
+            if isinstance(expression, Assertion):
                 if comparison_callback:
                     comparison_callback(self, parent, expression)
             elif isinstance(expression, (Operator, Group, Container)):
@@ -667,7 +773,7 @@ class Filter:
     #     return self._tree.pretty()
 
 
-T = TypeVar('T', bound='Comparison | EqualityMatch | GreaterOrEqual | LessOrEqual | ExtensibleMatch')
+T = TypeVar('T', bound='Assertion | EqualityMatch | GreaterOrEqual | LessOrEqual | ExtensibleMatch')
 Z = TypeVar('Z', bound='Any')
 
 
@@ -680,7 +786,7 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
         super().__init__()
 
     def start(self, value: Expression) -> Expression:  # noqa: PLR6301
-        if isinstance(value, Comparison):
+        if isinstance(value, Assertion):
             return Group([value])
         if isinstance(value, Container):
             return value
@@ -692,7 +798,7 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
     def groups(self, *groups: Expression) -> list[Expression]:  # noqa: PLR6301
         return list(groups)
 
-    def expression(self, ld: str, cmp: Comparison) -> Comparison:  # noqa: PLR6301
+    def expression(self, ld: str, cmp: Assertion) -> Assertion:  # noqa: PLR6301
         cmp._lead = ld or ''
         return cmp
 
@@ -720,23 +826,29 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
 
     @classmethod
     def presence(cls, attr: str, _star: Token) -> PresenceMatch:
-        return PresenceMatch.from_escaped(attr, '')
+        return PresenceMatch.from_escaped(attr)
 
     @classmethod
-    def substring(cls, attr: str, value: str) -> SubstringMatch:
-        assert value != '*'  # noqa: S101
-        return SubstringMatch.from_escaped(attr, value)
+    def substring(cls, attr: str, value: tuple[str | None, tuple[str, ...], str | None]) -> SubstringMatch:
+        initial, any_values, final = value
+        val = '*'.join([initial or '', *any_values, final or ''])
+        return SubstringMatch.from_escaped(attr, val, initial=initial, any=any_values, final=final)
 
     @classmethod
-    def substr_part(cls, value: str | lark.Token = '*') -> str | lark.Token:
-        return value
+    def substrings(cls, *tokens: lark.Token) -> tuple[str | None, tuple[str, ...], str | None]:
+        parts: list[str | None] = [None]
 
-    @classmethod
-    def substrings(cls, *values: str) -> str:
-        value = ''.join(values)
-        if '**' in value:
-            raise ValueError()
-        return value
+        for token in tokens:
+            if token.type == 'STAR':
+                parts.append(None)
+            else:
+                parts[-1] = str(token)
+
+        return (
+            parts[0],
+            tuple(part for part in parts[1:-1] if part is not None),
+            parts[-1],
+        )
 
     @classmethod
     def ge(cls, attr: str, value: str) -> GreaterOrEqual:

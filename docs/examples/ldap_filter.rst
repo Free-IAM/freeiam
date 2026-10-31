@@ -335,6 +335,7 @@ Possible transformation steps
       (|
         (cn=app01)
         (cn=app02)
+        (cn=app03)
       )
 
 11. **Replace a simple expression with a compound operator-based condition**
