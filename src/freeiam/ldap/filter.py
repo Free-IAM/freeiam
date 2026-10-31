@@ -8,7 +8,7 @@ import re
 import string
 from collections import deque
 from collections.abc import Callable, Sequence
-from typing import Any, Self, TypeVar
+from typing import Any, Literal, Self, TypeVar
 
 import lark
 import ldap.filter
@@ -180,7 +180,7 @@ class Attribute:
         return Filter.get_lt_eq(self.attribute, other)
 
     def __hash__(self) -> int:
-        return hash((self.attribute, self.dn, self.matchingrule))
+        return hash((type(self), self.attribute, self.dn, self.matchingrule))
 
 
 class Expression:
@@ -260,11 +260,11 @@ class Comparison(Expression):
         return f'{type(self).__name__}({self.attr}{self._extra}{self.expression}{val})'
 
     def __hash__(self) -> int:
-        return hash((self.expression, self.attr, self.value))
+        return hash((type(self), self.attr.casefold(), self.value))
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Comparison):
-            return (self.expression, self.attr, self.value) == (other.expression, other.attr, other.value)
+            return (type(self), self.attr, self.value) == (type(other), other.attr, other.value)
         return NotImplemented
 
 
@@ -323,7 +323,7 @@ class ExtensibleMatch(Comparison):
         """Copy the object (without preserving optional whitespace)."""
         return type(self)(self.attr, self.value, self.dn, self.matchingrule, is_escaped=self.is_escaped)
 
-    def __init__(self, attr: str, value: str, dn: str | None, matchingrule: str | None, is_escaped: bool = True) -> None:
+    def __init__(self, attr: str, value: str, dn: Literal['dn'] | str | None, matchingrule: str | None, is_escaped: bool = True) -> None:
         super().__init__(attr, value, is_escaped=is_escaped)
         extra = ''
         if dn:
@@ -333,6 +333,20 @@ class ExtensibleMatch(Comparison):
         self._extra = extra
         self.dn = dn
         self.matchingrule = matchingrule
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ExtensibleMatch):
+            return False
+        dn = self.dn.casefold() if self.dn else self.dn
+        matchingrule = self.matchingrule.casefold() if self.matchingrule is not None else None
+        other_dn = other.dn.casefold() if other.dn else other.dn
+        other_matchingrule = other.matchingrule.casefold() if other.matchingrule is not None else None
+        return (self.attr.casefold(), self.value, dn, matchingrule) == (other.attr.casefold(), other.value, other_dn, other_matchingrule)
+
+    def __hash__(self) -> int:
+        dn = self.dn.casefold() if self.dn else self.dn
+        matchingrule = self.matchingrule.casefold() if self.matchingrule is not None else None
+        return hash((type(self), self.attr.casefold(), self.value, dn, matchingrule))
 
 
 class Container(Expression):

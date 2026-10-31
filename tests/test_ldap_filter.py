@@ -638,6 +638,12 @@ def test_escape_classic():
 def test_hash():
     assert hash(Attribute('a')) == hash(Attribute('a'))
     assert hash(Attribute('a') == '1') == hash(Attribute('a') == '1')
+    assert hash(EqualityMatch('cn', 'foo')) == hash(EqualityMatch('cn', 'foo'))
+    assert hash(EqualityMatch('cn', '')) != hash(PresenceMatch('cn', ''))
+    assert hash(ExtensibleMatch('cn', 'foo', None, 'caseIgnoreMatch')) == hash(ExtensibleMatch('cn', 'foo', None, 'caseIgnoreMatch'))
+    assert hash(ExtensibleMatch('cn', 'foo', None, 'caseIgnoreMatch')) == hash(ExtensibleMatch('CN', 'foo', None, 'caseignorematch'))
+    assert hash(ExtensibleMatch('cn', 'foo', None, 'caseIgnoreMatch')) != hash(ExtensibleMatch('cn', 'foo', None, 'caseExactMatch'))
+    assert hash(ExtensibleMatch('cn', 'foo', None, '')) != hash(ExtensibleMatch('cn', 'foo', None, 'caseExactMatch'))
 
 
 def test_attribute_error_handling():
