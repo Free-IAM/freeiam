@@ -611,8 +611,8 @@ def test_escape_attribute():
     assert str(cn.approx == user_input) == r'cn~=foo \28bar\29\2a'
     assert repr(cn.approx == user_input) == "ApproximateMatch(cn~=escape(b'foo (bar)*'))"
 
-    assert str(cn.extensible(False, 'generalizedTimeMatch') == user_input) == r'cn:generalizedTimeMatch:=foo \28bar\29\2a'
-    assert repr(cn.extensible(False, 'generalizedTimeMatch') == user_input) == "ExtensibleMatch(cn:generalizedTimeMatch:=escape(b'foo (bar)*'))"
+    assert str(cn.extensible('generalizedTimeMatch') == user_input) == r'cn:generalizedTimeMatch:=foo \28bar\29\2a'
+    assert repr(cn.extensible('generalizedTimeMatch') == user_input) == "ExtensibleMatch(cn:generalizedTimeMatch:=escape(b'foo (bar)*'))"
 
     assert str((cn == 'foo') | (cn == 'bar')) == '(|(cn=foo)(cn=bar))'
     assert repr((cn == 'foo') | (cn == 'bar')) == "OR( EqualityMatch(cn=escape(b'foo')) | EqualityMatch(cn=escape(b'bar')) )"
@@ -635,10 +635,7 @@ def test_escape_classic():
     assert repr(Filter.get_substring('cn', *user_input.split('*'))) == r"SubstringMatch(cn=escape(initial=b'foo (bar)', any=(), final=None))"
     assert repr(Filter.get_substring('cn', '', 'foo', '')) == "SubstringMatch(cn=escape(initial=None, any=(b'foo',), final=None))"
     assert repr(Filter.get_gt_eq('uidNumber', 1000)) == "GreaterOrEqual(uidNumber>=escape(b'1000'))"
-    assert (
-        repr(Filter.get_extensible('cn', False, 'generalizedTimeMatch', user_input))
-        == "ExtensibleMatch(cn:generalizedTimeMatch:=escape(b'foo (bar)*'))"
-    )
+    assert repr(Filter.get_extensible('cn', 'generalizedTimeMatch', user_input)) == "ExtensibleMatch(cn:generalizedTimeMatch:=escape(b'foo (bar)*'))"
     assert (
         repr(Filter.get_and(Filter.get_eq('objectClass', 'person'), Filter.get_eq('cn', user_input)))
         == "AND( EqualityMatch(objectClass=escape(b'person')) & EqualityMatch(cn=escape(b'foo (bar)*')) )"
@@ -655,10 +652,10 @@ def test_hash():
     assert hash(Attribute('a') == '1') == hash(Attribute('a') == '1')
     assert hash(EqualityMatch('cn', b'foo')) == hash(EqualityMatch('cn', b'foo'))
     assert hash(EqualityMatch('cn', b'')) != hash(PresenceMatch('cn'))
-    assert hash(ExtensibleMatch('cn', b'foo', False, 'caseIgnoreMatch')) == hash(ExtensibleMatch('cn', b'foo', False, 'caseIgnoreMatch'))
-    assert hash(ExtensibleMatch('cn', b'foo', False, 'caseIgnoreMatch')) == hash(ExtensibleMatch('CN', b'foo', False, 'caseignorematch'))
-    assert hash(ExtensibleMatch('cn', b'foo', False, 'caseIgnoreMatch')) != hash(ExtensibleMatch('cn', b'foo', False, 'caseExactMatch'))
-    assert hash(ExtensibleMatch('cn', b'foo', False, '')) != hash(ExtensibleMatch('cn', b'foo', False, 'caseExactMatch'))
+    assert hash(ExtensibleMatch('cn', b'foo', 'caseIgnoreMatch')) == hash(ExtensibleMatch('cn', b'foo', 'caseIgnoreMatch'))
+    assert hash(ExtensibleMatch('cn', b'foo', 'caseIgnoreMatch')) == hash(ExtensibleMatch('CN', b'foo', 'caseignorematch'))
+    assert hash(ExtensibleMatch('cn', b'foo', 'caseIgnoreMatch')) != hash(ExtensibleMatch('cn', b'foo', 'caseExactMatch'))
+    assert hash(ExtensibleMatch('cn', b'foo', '')) != hash(ExtensibleMatch('cn', b'foo', 'caseExactMatch'))
 
 
 def test_attribute_error_handling():
@@ -858,13 +855,13 @@ def comparison_callback(filter_, parent, expression):
         expression.value = str(ip).encode()
     elif expression.attr == 'mail':
         # ``(mail=User@Example.com)`` → ``(mail:caseIgnoreMatch:=User@Example.com)``
-        parent.replace(expression, a(expression.attr, False, 'caseIgnoreMatch') == expression.decode())
+        parent.replace(expression, a(expression.attr, 'caseIgnoreMatch') == expression.decode())
     elif expression.attr == 'birthdate':
         # ``(birthdate=2025-07-04)`` → ``(dateOfBirth:generalizedTimeMatch:=20250704000000Z)``
         from datetime import datetime
 
         dt = datetime.strptime(expression.decode(), '%Y-%m-%d')  # noqa: DTZ007
-        parent.replace(expression, a('dateOfBirth', False, 'generalizedTimeMatch') == dt.strftime('%Y%m%d%H%M%SZ'))
+        parent.replace(expression, a('dateOfBirth', 'generalizedTimeMatch') == dt.strftime('%Y%m%d%H%M%SZ'))
     elif expression.attr == 'unlocked':
         # ``(unlocked=TRUE)`` → ``(!(locked=TRUE))``
         expression.attr = 'locked'
@@ -878,11 +875,11 @@ def comparison_callback(filter_, parent, expression):
         # ``(disabled=TRUE)`` →
         # ``(&(shadowExpire=1)(krb5KDCFlags:1.2.840.113556.1.4.803:=128)(|(sambaAcctFlags=[UD       ])(sambaAcctFlags=[ULD       ])))``
         disabled = (a('shadowExpire') == '1') & [
-            (a('krb5KDCFlags', False, '1.2.840.113556.1.4.803') == '128'),
+            (a('krb5KDCFlags', '1.2.840.113556.1.4.803') == '128'),
             ((a('sambaAcctFlags') == '[UD       ]') | (a('sambaAcctFlags') == '[ULD       ]')),
         ]
         enabled = (a('shadowExpire') != '1') & [
-            (a('krb5KDCFlags', False, '1.2.840.113556.1.4.803') != '128'),
+            (a('krb5KDCFlags', '1.2.840.113556.1.4.803') != '128'),
             ((a('sambaAcctFlags') != '[UD       ]') & (a('sambaAcctFlags') != '[ULD       ]')),
         ]
         parent.replace(expression, disabled.copy() if expression.decode() in {'1', 'TRUE'} else enabled.copy())
@@ -987,7 +984,7 @@ def test_comparison_repr_binary_values():
     assert repr(EqualityMatch('cn', b'\x00\xff\x80')) == "EqualityMatch(cn=escape(b'\\x00\\xff\\x80'))"
     assert repr(EqualityMatch('cn', 'Jörg'.encode())) == r"EqualityMatch(cn=escape(b'J\xc3\xb6rg'))"
     assert repr(EqualityMatch('cn', b"a'b\\c")) == 'EqualityMatch(cn=escape(b"a\'b\\\\c"))'
-    assert repr(ExtensibleMatch('cn', b'\xff', 'dn', 'caseIgnoreMatch')) == "ExtensibleMatch(cn:dn:caseIgnoreMatch:=escape(b'\\xff'))"
+    assert repr(ExtensibleMatch('cn', b'\xff', 'caseIgnoreMatch', dn=True)) == "ExtensibleMatch(cn:dn:caseIgnoreMatch:=escape(b'\\xff'))"
 
 
 def test_substring_repr_distinguishes_literal_asterisks():

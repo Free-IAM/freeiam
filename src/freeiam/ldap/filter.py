@@ -8,7 +8,7 @@ import re
 import string
 from collections import deque
 from collections.abc import Callable, Sequence
-from typing import Any, Self, TypeVar
+from typing import Any, Self, TypeVar, cast
 
 import lark
 import ldap.filter
@@ -123,16 +123,16 @@ class Attribute:
 
     @property
     def approx(self) -> Self:
-        return type(self)(self.attribute, self.dn, self.matchingrule, _equality_method=Filter.get_approx)
+        return type(self)(self.attribute, self.matchingrule, dn=self.dn, _equality_method=Filter.get_approx)
 
-    def extensible(self, dn: bool = False, matchingrule: str | None = None) -> Self:
-        return type(self)(self.attribute, dn, matchingrule)
+    def extensible(self, matchingrule: str | None = None, dn: bool = False) -> Self:
+        return type(self)(self.attribute, matchingrule, dn=dn)
 
     def __init__(
         self,
         attribute: str,
-        dn: bool = False,
         matchingrule: str | None = None,
+        dn: bool = False,
         *,
         _equality_method: Callable[[str, str], 'SubstringMatch | EqualityMatch | ExtensibleMatch | ApproximateMatch'] | None = None,
     ) -> None:
@@ -151,7 +151,7 @@ class Attribute:
             raise ValueError(matchingrule)
 
     def eq_ext(self, attr: str, value: str) -> 'ExtensibleMatch':
-        return Filter.get_extensible(attr, self.dn, self.matchingrule, value)
+        return Filter.get_extensible(attr, self.matchingrule, value, dn=self.dn)
 
     def __eq__(self, other: str) -> 'SubstringMatch | EqualityMatch | ExtensibleMatch | ApproximateMatch':  # type: ignore[override]  # ty: ignore[invalid-method-override]
         if isinstance(other, (list, tuple)):
@@ -176,7 +176,7 @@ class Attribute:
         return Filter.get_lt_eq(self.attribute, other)
 
     def __hash__(self) -> int:
-        return hash((type(self), self.attribute, self.dn, self.matchingrule))
+        return hash((type(self), self.attribute, self.matchingrule, self.dn))
 
 
 class Expression:
@@ -492,18 +492,19 @@ class ExtensibleMatch(ValueAssertion):
     __slots__ = ('dn', 'matchingrule')
 
     @classmethod
-    def from_escaped(cls, attr: str, value: bytes, dn: bool | str = False, matchingrule: str | None = None) -> Self:
+    def from_escaped(cls, attr: str, value: bytes, matchingrule: str | None = None, dn: bool | str = False) -> Self:
         """Create an assertion from an RFC 4515 escaped value."""
-        obj = cls(attr, Filter.unescape(value), dn, matchingrule)
+        obj = cls(attr, Filter.unescape(value), matchingrule, dn=cast('bool', dn))
         obj._raw_escaped_value = value
         return obj
 
-    def __init__(self, attr: str, value: bytes, dn: bool | str, matchingrule: str | None) -> None:
+    def __init__(self, attr: str, value: bytes, matchingrule: str | None, *, dn: bool = False) -> None:
         super().__init__(attr, value)
         self.dn = dn if isinstance(dn, str) else ('dn' if dn else False)
         self.matchingrule = matchingrule
-        if not self.attr and not self.matchingrule:
-            raise ValueError()
+        if not matchingrule and not attr:
+            msg = 'ExtensibleMatch requires a matching rule or an attribute'
+            raise ValueError(msg)
 
     @property
     def _extensible_suffix(self) -> str:
@@ -514,7 +515,7 @@ class ExtensibleMatch(ValueAssertion):
 
     def copy(self) -> Self:
         """Copy the object (without preserving optional whitespace)."""
-        return type(self)(self.attr, self.value, self.dn, self.matchingrule)
+        return type(self)(self.attr, self.value, self.matchingrule, dn=bool(self.dn))
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ExtensibleMatch):
@@ -703,9 +704,9 @@ class Filter:
         return render(self.root, indent)
 
     @classmethod
-    def attr(cls, attr: str, dn: bool = False, matchingrule: str | None = None) -> Attribute:
+    def attr(cls, attr: str, matchingrule: str | None = None, dn: bool = False) -> Attribute:
         """Get attribute for comparison."""
-        return Attribute(attr, dn, matchingrule)
+        return Attribute(attr, matchingrule, dn=dn)
 
     @classmethod
     def get_eq(cls, attr: str, value: str) -> EqualityMatch:
@@ -760,9 +761,9 @@ class Filter:
         return cls.get_lt_eq(attr, value - 1)
 
     @classmethod
-    def get_extensible(cls, attr: str, dn: bool, matchingrule: str | None, value: str) -> ExtensibleMatch:
+    def get_extensible(cls, attr: str, matchingrule: str | None, value: str, dn: bool = False) -> ExtensibleMatch:
         """Get ExtensibleMatch."""
-        return ExtensibleMatch(attr, value.encode('UTF-8'), dn, matchingrule)
+        return ExtensibleMatch(attr, value.encode('UTF-8'), matchingrule, dn=dn)
 
     @classmethod
     def get_not(cls, expression: Expression) -> NOT:
@@ -972,29 +973,29 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
 
     @classmethod
     def extmatch_attr_nodn_match(cls, attr: str, matchingrule: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), dn=False, matchingrule=matchingrule)
+        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), matchingrule=matchingrule, dn=False)
 
     @classmethod
     def extmatch_attr_dn_nomatch(cls, attr: str, dn: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), dn, '')
+        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), '', dn=dn)
 
     @classmethod
     def extmatch_noattr_nodn_match(cls, matchingrule: str, value: str) -> ExtensibleMatch:
         if matchingrule.lower() == 'dn':
             raise RuntimeError()
-        return ExtensibleMatch.from_escaped('', value.encode('UTF-8'), dn=False, matchingrule=matchingrule)
+        return ExtensibleMatch.from_escaped('', value.encode('UTF-8'), matchingrule=matchingrule, dn=False)
 
     @classmethod
     def extmatch_attr_nodn_nomatch(cls, attr: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), dn=False, matchingrule='')
+        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), matchingrule='', dn=False)
 
     @classmethod
     def extmatch_attr_dn_match(cls, attr: str, dn: str, matchingrule: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), dn, matchingrule)
+        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), matchingrule, dn=dn)
 
     @classmethod
     def extmatch_noattr_dn_match(cls, dn: str, matchingrule: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped('', value.encode('UTF-8'), dn, matchingrule)
+        return ExtensibleMatch.from_escaped('', value.encode('UTF-8'), matchingrule, dn=dn)
 
     @classmethod
     def approx(cls, attr: str, value: str) -> ApproximateMatch:
