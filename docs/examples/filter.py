@@ -45,7 +45,7 @@ Filter.get_substring('cn', *user_input.split('*'))
 Filter.get_substring('cn', '', 'foo', '')
 Filter.get_gt_eq('uidNumber', 1000)
 Filter.get_gt_eq('uidNumber', 1000)
-Filter.get_extensible('cn', None, 'generalizedTimeMatch', user_input)
+Filter.get_extensible('cn', 'generalizedTimeMatch', user_input)
 
 Filter.get_and(Filter.get_eq('objectClass', 'person'), Filter.get_eq('cn', user_input))
 ipv4 = '127.0.0.1'
@@ -97,8 +97,7 @@ def comparison_callback(filter_, parent, expression):
     elif expression.attr == 'mail':
         # ``(mail=User@Example.com)`` → ``(mail:caseIgnoreMatch:=User@Example.com)``
         parent.replace(
-            expression,
-            a(expression.attr, False, 'caseIgnoreMatch') == expression.decode(),
+            expression, a(expression.attr, 'caseIgnoreMatch') == expression.decode()
         )
     elif expression.attr == 'birthdate':
         # ``(birthdate=2025-07-04)``
@@ -108,8 +107,7 @@ def comparison_callback(filter_, parent, expression):
         dt = datetime.strptime(expression.decode(), '%Y-%m-%d')  # noqa: DTZ007
         parent.replace(
             expression,
-            a('dateOfBirth', False, 'generalizedTimeMatch')
-            == dt.strftime('%Y%m%d%H%M%SZ'),
+            a('dateOfBirth', 'generalizedTimeMatch') == dt.strftime('%Y%m%d%H%M%SZ'),
         )
     elif expression.attr == 'unlocked':
         # ``(unlocked=TRUE)`` → ``(!(locked=TRUE))``
@@ -128,14 +126,14 @@ def comparison_callback(filter_, parent, expression):
         # ``(&(shadowExpire=1)(krb5KDCFlags:1.2.840.113556.1.4.803:=128)
         #   (|(sambaAcctFlags=[UD       ])(sambaAcctFlags=[ULD       ])))``
         disabled = (a('shadowExpire') == '1') & [
-            (a('krb5KDCFlags', False, '1.2.840.113556.1.4.803') == '128'),
+            (a('krb5KDCFlags', '1.2.840.113556.1.4.803') == '128'),
             (
                 (a('sambaAcctFlags') == '[UD       ]')
                 | (a('sambaAcctFlags') == '[ULD       ]')
             ),
         ]
         enabled = (a('shadowExpire') != '1') & [
-            (a('krb5KDCFlags', False, '1.2.840.113556.1.4.803') != '128'),
+            (a('krb5KDCFlags', '1.2.840.113556.1.4.803') != '128'),
             (
                 (a('sambaAcctFlags') != '[UD       ]')
                 & (a('sambaAcctFlags') != '[ULD       ]')
