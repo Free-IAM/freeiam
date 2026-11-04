@@ -8,13 +8,9 @@ import re
 import string
 from collections import deque
 from collections.abc import Callable, Sequence
-from typing import Any, Self, TypeVar, cast
+from typing import Protocol, Self, cast
 
-import lark
 import ldap.filter
-from lark import Lark, Transformer, v_args
-
-from freeiam import errors
 
 
 __all__ = (
@@ -33,53 +29,15 @@ __all__ = (
     'SubstringMatch',
 )
 
-
-LDAP_FILTER_GRAMMAR = r"""
-start: _group | bare
-bare: comparison
-_group: ws? (operator | expression) ws?
-
-STAR: "*"
-
-?operator: and_operator | or_operator | not_operator
-
-expression: "(" ows comparison ")"
-and_operator: "(" ows "&" ows groups ows ")"
-or_operator:  "(" ows "|" ows groups ows ")"
-not_operator: "(" ows "!" ows _group  ows ")"
-?groups: _group* -> groups
-
-?comparison: attr "=" STAR                      -> presence
-     | attr "="  value                          -> equality
-     | attr "="  substrings                     -> substring
-     | attr ">=" value                          -> ge
-     | attr "<=" value                          -> le
-     | attr "~=" value                          -> approx
-     |      ":"  dn ":" matchingrule ":=" value -> extmatch_noattr_dn_match
-     | attr ":"  dn ":" matchingrule ":=" value -> extmatch_attr_dn_match
-     | attr ":"  dn                  ":=" value -> extmatch_attr_dn_nomatch
-     |      ":"         matchingrule ":=" value -> extmatch_noattr_nodn_match
-     | attr ":"         matchingrule ":=" value -> extmatch_attr_nodn_match
-     | attr                          ":=" value -> extmatch_attr_nodn_nomatch
-
-substrings: _value STAR (_value STAR)* _value?
-          | STAR _value (STAR _value)* STAR?
-
-attr: /[a-zA-Z][a-zA-Z0-9-;]*/ | oid
-?oid: /\d+[\.\d]*/
-!dn: "dn"i
-matchingrule: attr
-
-_value: /([^\x00()*\\]|\\\\[0-9a-fA-F]{2}|\\[0-9a-fA-F]{2})+/
-value: _value?
-
-ows: ws?
-ws: WS
-%import common.WS
-%import common.HEXDIGIT
-"""
-
 _ASCII_LIMIT = 128
+
+
+class _FilterParser(Protocol):
+    """Interface for LDAP filter parser backends."""
+
+    def parse(self, expression: str, _debug: bool = False) -> 'Container':
+        """Parse an RFC 4515 expression into a filter AST."""
+        ...  # pragma: no cover
 
 
 class EscapeMode(enum.IntEnum):
@@ -626,25 +584,23 @@ class NOT(Operator):
 class Filter:
     """An LDAP filter according to RFC 4515."""
 
-    __slots__ = ('_debug', '_tree', 'ast', 'filter_expr')
+    __slots__ = ('_debug', 'ast', 'filter_expr')
 
-    parser = Lark(LDAP_FILTER_GRAMMAR)
     RE_HEXESCAPE = re.compile(rb'\\([0-9A-Fa-f]{2})')
 
-    def __init__(self, /, filter_expr: str | None, *, strict: bool = False, _debug: bool = False) -> None:
+    def __init__(self, /, filter_expr: str | None, *, strict: bool = False, parser: str = 'lark', _debug: bool = False) -> None:
         # TODO: security: restrict length
         # TODO: security: restrict depth
         # TODO: security: restrict number of escape sequences
         self.filter_expr = filter_expr
-        self.ast: Container
-        self._tree: lark.Tree[lark.Token] | None = None
+        self.ast = Container([])
         self._debug = _debug
-        self.parse(strict)
+        self.parse(strict=strict, parser=parser)
 
     @property
     def root(self) -> Expression | None:
         """The first object in the filter."""
-        if self._tree is None:  # pragma: no cover
+        if self.ast is None:  # pragma: no cover
             return None
         for expr in self.ast._expressions:
             if isinstance(expr, Token):
@@ -652,33 +608,25 @@ class Filter:
             return expr
         return None  # pragma: no cover
 
-    def parse(self, strict: bool = False) -> None:
+    def parse(self, strict: bool = False, parser: str = 'lark') -> None:
         """Parse."""
         if not self.filter_expr or self.filter_expr == ' ':
             self.ast = Container([])
             return
-        transformer = _FilterTransformer(strict)
-        try:
-            self._tree = self.parser.parse(self.filter_expr)
-            root = transformer.transform(self._tree)
-            self.ast = Container([root])
-        except lark.exceptions.LarkError:
-            if self._debug:  # pragma: no cover
-                raise
-            raise self.error() from None
-        if strict:
-            self.walk(self._disallow_whitespace, self._disallow_whitespace)
 
-    def _disallow_whitespace(self, fil: Self, parent: Expression, expr: Expression) -> None:  # noqa: ARG002
-        if isinstance(expr, Assertion):
-            if expr._lead:
-                raise self.error()
-        elif isinstance(expr, Operator) and expr._sep:  # pragma: no cover
-            raise self.error()  # currently impossible, broken OWS
+        self.ast = self.get_parser(parser, strict).parse(self.filter_expr, self._debug)
 
-    def error(self) -> errors.FilterError:
-        """Create a filter parsing error."""
-        return errors.FilterError({'result': -7, 'desc': 'Bad search filter', 'info': str(self.filter_expr), 'ctrls': []})
+    def get_parser(self, name: str, strict: bool = False) -> _FilterParser:
+        """Return the selected filter parser backend."""
+        if name == 'lark':
+            from freeiam.ldap._filter.lark import LarkParser  # noqa: PLC0415
+
+            return LarkParser(self, strict)
+
+        # pragma: no cover
+        msg = f'Unknown parser: {name!r}'
+        raise ValueError(msg)
+
 
     def pretty(self, indent: int = 0) -> str:
         """Transform the filter into a pretty-formatted representation."""
@@ -872,148 +820,6 @@ class Filter:
         return f'{type(self).__name__}({self.root!r})'
 
     def __str__(self) -> str:
-        if self._tree is None:
+        if self.root is None:
             return self.filter_expr or ''
         return str(self.ast)
-
-    # def _pretty(self):
-    #     return self._tree.pretty()
-
-
-T = TypeVar('T', bound='Assertion | EqualityMatch | GreaterOrEqual | LessOrEqual | ExtensibleMatch')
-Z = TypeVar('Z', bound='Any')
-
-
-@v_args(inline=True)
-class _FilterTransformer(Transformer[lark.Token, Expression]):
-    """Filter tree Transformer."""
-
-    def __init__(self, strict: bool) -> None:
-        self.__strict = strict
-        super().__init__()
-
-    def start(self, value: Expression) -> Expression:  # noqa: PLR6301
-        if isinstance(value, Assertion):
-            return Group([value])
-        if isinstance(value, Container):
-            return value
-        raise TypeError(type(value))  # pragma: no cover
-
-    def bare(self, cmp: Expression) -> Container:  # noqa: PLR6301
-        return Container([cmp])
-
-    def groups(self, *groups: Expression) -> list[Expression]:  # noqa: PLR6301
-        return list(groups)
-
-    def expression(self, ld: str, cmp: Assertion) -> Assertion:  # noqa: PLR6301
-        cmp._lead = ld or ''
-        return cmp
-
-    def and_operator(self, sep: None, ld: Token, exprs: list[Expression], tr: Token) -> AND:
-        return AND(self._filter([ld, *exprs, tr]), sep=sep)
-
-    def or_operator(self, sep: None, ld: Token, exprs: list[Expression], tr: Token) -> OR:
-        return OR(self._filter([ld, *exprs, tr]), sep=sep)
-
-    def not_operator(self, sep: None, ld: Token, expr: Expression, tr: Token) -> NOT:
-        return NOT(self._filter([ld, expr, tr]), sep=sep)
-
-    def _filter(self, items: list[Z | None]) -> list[Z]:  # noqa: PLR6301
-        return [item for item in items if item is not None]
-
-    def attr(self, attr: lark.Token) -> str:  # noqa: PLR6301
-        return str(attr)
-
-    def value(self, value: lark.Token | str | None = None) -> str:  # noqa: PLR6301
-        return str(value or '')
-
-    @classmethod
-    def equality(cls, attr: str, value: str) -> EqualityMatch:
-        return EqualityMatch.from_escaped(attr, value.encode('UTF-8'))
-
-    @classmethod
-    def presence(cls, attr: str, _star: Token) -> PresenceMatch:
-        return PresenceMatch.from_escaped(attr)
-
-    @classmethod
-    def substring(cls, attr: str, value: tuple[str | None, tuple[str, ...], str | None]) -> SubstringMatch:
-        initial, any_values, final = value
-        val = '*'.join([initial or '', *any_values, final or ''])
-        return SubstringMatch.from_escaped(
-            attr,
-            val.encode('UTF-8'),
-            initial=initial.encode('UTF-8') if initial is not None else initial,
-            any=tuple(av.encode('UTF-8') for av in any_values),
-            final=final.encode('UTF-8') if final is not None else final,
-        )
-
-    @classmethod
-    def substrings(cls, *tokens: lark.Token) -> tuple[str | None, tuple[str, ...], str | None]:
-        parts: list[str | None] = [None]
-
-        for token in tokens:
-            if token.type == 'STAR':
-                parts.append(None)
-            else:
-                parts[-1] = str(token)
-
-        return (
-            parts[0],
-            tuple(part for part in parts[1:-1] if part is not None),
-            parts[-1],
-        )
-
-    @classmethod
-    def ge(cls, attr: str, value: str) -> GreaterOrEqual:
-        return GreaterOrEqual.from_escaped(attr, value.encode('UTF-8'))
-
-    @classmethod
-    def le(cls, attr: str, value: str) -> LessOrEqual:
-        return LessOrEqual.from_escaped(attr, value.encode('UTF-8'))
-
-    @classmethod
-    def extmatch_attr_nodn_match(cls, attr: str, matchingrule: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), matchingrule=matchingrule, dn=False)
-
-    @classmethod
-    def extmatch_attr_dn_nomatch(cls, attr: str, dn: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), '', dn=dn)
-
-    @classmethod
-    def extmatch_noattr_nodn_match(cls, matchingrule: str, value: str) -> ExtensibleMatch:
-        if matchingrule.lower() == 'dn':
-            raise RuntimeError()
-        return ExtensibleMatch.from_escaped('', value.encode('UTF-8'), matchingrule=matchingrule, dn=False)
-
-    @classmethod
-    def extmatch_attr_nodn_nomatch(cls, attr: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), matchingrule='', dn=False)
-
-    @classmethod
-    def extmatch_attr_dn_match(cls, attr: str, dn: str, matchingrule: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), matchingrule, dn=dn)
-
-    @classmethod
-    def extmatch_noattr_dn_match(cls, dn: str, matchingrule: str, value: str) -> ExtensibleMatch:
-        return ExtensibleMatch.from_escaped('', value.encode('UTF-8'), matchingrule, dn=dn)
-
-    @classmethod
-    def approx(cls, attr: str, value: str) -> ApproximateMatch:
-        return ApproximateMatch.from_escaped(str(attr), value.encode('UTF-8'))
-
-    @classmethod
-    def dn(cls, value: str = 'dn') -> str:
-        return value
-
-    @classmethod
-    def matchingrule(cls, value: str) -> str:
-        return value
-
-    @classmethod
-    def ws(cls, value: str) -> Token:
-        return Token(value)
-
-    def ows(self, value: str | None = None) -> Token | None:  # noqa: PLR6301
-        if value is None:
-            return None
-        return Token(value)
