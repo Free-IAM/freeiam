@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Florian Best
+# SPDX-License-Identifier: CC0-1.0
+---
+BasedOnStyle: LLVM
+TabWidth: 4
+IndentWidth: 4
+ColumnLimit: 115
+AttributeMacros:
+  - PYLDAP_FUNC
+  - PYLDAP_DATA
+BracedInitializerIndentWidth: 4
+ContinuationIndentWidth: 8
+AllowShortFunctionsOnASingleLine: None
+BreakAfterReturnType: AllDefinitions
+UseTab: Never
+BreakBeforeBraces: Linux
