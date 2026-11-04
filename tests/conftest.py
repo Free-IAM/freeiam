@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 import contextlib
-import datetime
+import datetime as dt
 import io
 import logging
 import shutil
@@ -417,8 +417,8 @@ def generate_ca(cert_dir: Path, cn):
         .issuer_name(ca_name)
         .public_key(ca_key.public_key())
         .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=1))
-        .not_valid_after(datetime.datetime.now(tz=datetime.UTC) + datetime.timedelta(days=365))
+        .not_valid_before(dt.datetime.now(tz=dt.UTC) - dt.timedelta(days=1))
+        .not_valid_after(dt.datetime.now(tz=dt.UTC) + dt.timedelta(days=365))
         .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
         .sign(ca_key, hashes.SHA256())
     )
@@ -447,8 +447,8 @@ def generate_signed_cert(cert_dir: Path, ca_cert, ca_key, cn: str, filename_pref
         .issuer_name(ca_cert.subject)
         .public_key(key.public_key())
         .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime.datetime.now(tz=datetime.UTC) - datetime.timedelta(days=1))
-        .not_valid_after(datetime.datetime.now(tz=datetime.UTC) + datetime.timedelta(days=365))
+        .not_valid_before(dt.datetime.now(tz=dt.UTC) - dt.timedelta(days=1))
+        .not_valid_after(dt.datetime.now(tz=dt.UTC) + dt.timedelta(days=365))
         .add_extension(
             x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]),
             critical=False,

@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import pathlib
 import sys
 
@@ -8,7 +8,7 @@ from freeiam._version import version
 
 
 START = 2025
-year = datetime.datetime.now(tz=datetime.UTC).date().year
+year = dt.datetime.now(tz=dt.UTC).date().year
 
 project = 'FreeIAM'
 copyright = str(year) if year == START else f'2025-{year}'
