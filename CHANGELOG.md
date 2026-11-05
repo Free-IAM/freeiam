@@ -2,6 +2,31 @@
 
 <!-- version list -->
 
+## v0.14.0 (2026-11-05)
+
+### Bug Fixes
+
+- **ldap.filter**: Expose filter element values as bytes
+  ([`0c2a830`](https://github.com/Free-IAM/freeiam/commit/0c2a8309f25aa994d2a766d5689696d738872eb4))
+
+- **ldap.filter**: Fix hashing of ExtensibleMatch matching rule
+  ([`fea6021`](https://github.com/Free-IAM/freeiam/commit/fea6021de9a1735308b0e65e867283248b34914b))
+
+- **ldap.filter**: Preserve whitespace as property of the filter expression
+  ([`ffb55b0`](https://github.com/Free-IAM/freeiam/commit/ffb55b0312461dea68d7f1581d63086269cf3f20))
+
+- **ldap.filter**: Redesign assertion hierarchy and substring matching
+  ([`539f606`](https://github.com/Free-IAM/freeiam/commit/539f606086b7f02e988f9eaaacf2ca19c52340e6))
+
+### Features
+
+- **ldap**: Add libldap-based filter parsing and BER serialization
+  ([`51872f7`](https://github.com/Free-IAM/freeiam/commit/51872f7e0e7eb04f51b9479efcb9514cde63cc1e))
+
+- **ldap.filter**: Redesign ExtensibleMatch API
+  ([`19a859e`](https://github.com/Free-IAM/freeiam/commit/19a859e58f4403f36a8a3e1397c6a113983a7ebe))
+
+
 ## v0.13.0 (2026-10-19)
 
 ### Bug Fixes
