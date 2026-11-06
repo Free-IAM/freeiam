@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 Florian Best
+# SPDX-License-Identifier: CC0-1.0
+# syntax=docker/dockerfile:1
+
+ARG DEBIAN_VERSION=trixie
+
+FROM debian:${DEBIAN_VERSION} AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    SOURCE_DATE_EPOCH=0 \
+    CARGO_INCREMENTAL=0 \
+    CARGO_PROFILE_RELEASE_DEBUG=0 \
+    CARGO_PROFILE_RELEASE_STRIP=symbols \
+    CARGO_PROFILE_RELEASE_LTO=true \
+    CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 \
+    CARGO_PROFILE_RELEASE_PANIC=abort \
+    RUSTFLAGS="-C link-arg=-Wl,--build-id=none --remap-path-prefix=/build=/usr/src/crudeoauth --remap-path-prefix=/root/.cargo=/usr/src/cargo" \
+    CFLAGS="-O2 -fPIC -ffile-prefix-map=/build=/usr/src/crudeoauth"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        git \
+        cargo \
+        rustc \
+        clang \
+        build-essential \
+        pkg-config \
+        libsasl2-dev \
+        libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG CRUDEOAUTH_REF=master
+
+WORKDIR /build
+
+RUN git clone https://github.com/univention/crudeoauth.git . \
+    && git checkout --detach "${CRUDEOAUTH_REF}"
+
+RUN cargo update -p simple_asn1 --precise 0.6.3 \
+    && cargo update -p time --precise 0.3.45 \
+    && cargo build --release --locked --package crudeoauth-sasl \
+    && install -D -m 0644 \
+        target/release/liboauthbearer.so \
+        /artifact/liboauthbearer.so
+
+FROM scratch AS artifact
+COPY --from=builder /artifact/ /
