@@ -334,7 +334,7 @@ def create_certs(directory):
         generate_signed_cert(directory, ca, key, cn=DOMAIN, filename_prefix='ldap')
 
 
-def create_container(cert_dir, *, persistent):
+def create_container(cert_dir, *, persistent, with_static_ports: bool = True):
     environment, mounts = container_settings(cert_dir)
     if persistent:
         # Use docker-py here: testcontainers' Ryuk may clean up even an un-stopped container.
@@ -348,13 +348,24 @@ def create_container(cert_dir, *, persistent):
             labels={LDAP_LABEL: LDAP_LABEL_VALUE},
             auto_remove=False,
         )
-    tc = DockerContainer(LDAP_IMAGE, labels={LDAP_LABEL: LDAP_LABEL_VALUE}).with_exposed_ports(1389, 1636)
+    tc = DockerContainer(LDAP_IMAGE, labels={LDAP_LABEL: LDAP_LABEL_VALUE})
+    if with_static_ports:
+        tc.with_name('freeiam-ldap')
+        tc.with_bind_ports(1389, 1389)
+        tc.with_bind_ports(1636, 1636)
+    else:
+        tc.with_exposed_ports(1389, 1636)
     tc.with_kwargs(auto_remove=True)
     for key, value in environment.items():
         tc.with_env(key, value)
     for src, (dst, mode) in mounts.items():
         tc.with_volume_mapping(src, dst, mode=mode)
-    tc.start()
+    try:
+        tc.start()
+    except docker.errors.APIError:
+        if with_static_ports:
+            return create_container(cert_dir, persistent=persistent, with_static_ports=False)
+        raise
     return client.containers.get(tc._container.id)
 
 
