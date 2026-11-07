@@ -674,7 +674,7 @@ class Connection:
         controls: Controls | None = None,
     ) -> Generator[Result, None]:
         """Search paginated using SimplePagedResults control."""
-        pagination = simple_paged_results(size=page_size, cookie='', criticality=True)
+        pagination = simple_paged_results(size=page_size, cookie=b'', criticality=True)
         controls = Controls.append_server(controls, pagination)
         if sorting:
             controls = Controls.set_server(controls, server_side_sorting(*sorting))
