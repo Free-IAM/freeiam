@@ -7,9 +7,8 @@ from typing import Any, Protocol, TypeVar, cast
 
 from ldap.controls import DecodeControlTuples, RequestControl, ResponseControl
 from ldap.controls.deref import DEREF_CONTROL_OID, DereferenceControl, DerefResultControlValue
-from ldap.controls.libldap import AssertionControl, MatchedValuesControl
+from ldap.controls.libldap import AssertionControl, MatchedValuesControl, SimplePagedResultsControl
 from ldap.controls.openldap import SearchNoOpControl
-from ldap.controls.pagedresults import SimplePagedResultsControl
 from ldap.controls.ppolicy import PasswordPolicyControl
 from ldap.controls.psearch import EntryChangeNotificationControl, PersistentSearchControl
 from ldap.controls.pwdpolicy import PasswordExpiredControl, PasswordExpiringControl
@@ -23,8 +22,6 @@ from ldap.controls.simple import (
     ProxyAuthzControl,
     RelaxRulesControl,
 )
-
-# from ldap.controls.libldap import SimplePagedResultsControl
 from ldap.controls.sss import SSSRequestControl
 from ldap.controls.vlv import VLVRequestControl, VLVResponseControl
 from pyasn1.codec.ber import decoder
@@ -78,7 +75,7 @@ def decode(ctrls: list[tuple[str, bool, bytes]]) -> list[ResponseControl]:
     return DecodeControlTuples(ctrls)
 
 
-def simple_paged_results(size: int = 10, cookie: str = '', *, criticality: bool = False) -> SimplePagedResultsControl:
+def simple_paged_results(size: int = 10, cookie: bytes = b'', *, criticality: bool = False) -> SimplePagedResultsControl:
     """Create a Simple Paged Results control."""
     return SimplePagedResultsControl(criticality, size, cookie)
 

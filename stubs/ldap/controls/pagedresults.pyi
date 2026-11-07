@@ -9,8 +9,8 @@ class PagedResultsControlValue(univ.Sequence):
 
 class SimplePagedResultsControl(RequestControl, ResponseControl):
     controlType: str
-    criticality: Incomplete
-    size: Incomplete
+    criticality: bool
+    size: int
     cookie: bytes
 
     def __init__(self, criticality: bool = False, size: int = 10, cookie: str | bytes | None = '') -> None: ...

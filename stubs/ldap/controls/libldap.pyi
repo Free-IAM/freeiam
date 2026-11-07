@@ -19,7 +19,9 @@ class MatchedValuesControl(RequestControl):
 
 class SimplePagedResultsControl(LDAPControl):
     controlType: Incomplete
-    criticality: Incomplete
+    criticality: bool
+    size: int
+    cookie: bytes
 
     def __init__(self, criticality: bool = False, size: int | None = None, cookie: str | bytes | None = None) -> None: ...
     def encodeControlValue(self) -> bytes: ...
