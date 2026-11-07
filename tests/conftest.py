@@ -15,7 +15,7 @@ import ldap
 import pytest
 from testcontainers.core.container import DockerContainer
 
-from .create_certs import generate_ca, generate_jwks, generate_signed_cert
+from .create_certs import generate_ca, generate_signed_cert
 
 
 log = logging.getLogger(__name__)
@@ -214,7 +214,6 @@ def _ldap_server(reuse=None, keep=False):  # noqa: PLR0915
             owned = True
             cert_dir = Path.cwd() / '.pytest_cache' / 'freeiam-ldap-certs' if keep else Path(tempfile.mkdtemp(prefix='freeiam-ldap-certs-'))
             create_certs(cert_dir, ORGANISATION, DOMAIN)
-            generate_jwks(cert_dir / 'jwks.json', cert_dir / 'ldap.key')
             cn = create_container(cert_dir, persistent=keep)
             log.info('Started LDAP container %s (persistent=%s)', cn.id[:12], persistent)
 
@@ -329,11 +328,11 @@ def container_settings(cert_dir):
 def create_certs(directory: Path, organisation: str, domain: str) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     source = Path.cwd() / 'tests' / 'certs'
-    if source.is_dir():
+    if not (source / 'ca.crt').exists():
+        ca, key, _ = generate_ca(source, f'{organisation} CA')
+        generate_signed_cert(source, ca, key, cn=domain, filename_prefix='ldap')
+    if source.is_dir() and source != directory:
         shutil.copytree(source, directory, dirs_exist_ok=True)
-    elif not (directory / 'ca.crt').exists():
-        ca, key, _ = generate_ca(directory, f'{organisation} CA')
-        generate_signed_cert(directory, ca, key, cn=domain, filename_prefix='ldap')
 
 
 def create_container(cert_dir, *, persistent, with_static_ports: bool = True):

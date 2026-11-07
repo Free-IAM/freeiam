@@ -296,12 +296,26 @@ class TLSOption(IntEnum):
     """TLS package to use (`str`)."""
 
     NewContext = _getoptional('OPT_X_TLS_NEWCTX', 24591)
-    """Create a new internal TLS context (`int`).
+    """Create a new internal TLS context (:class:`TLSContext`).
 
-    libldap does not apply all TLS settings immediately.
-    Use this option with value 0 to instruct libldap to apply
-    pending TLS settings and create a new internal TLS context.
+    libldap does not apply all TLS settings immediately. Setting this
+    option creates a new TLS context and applies the pending TLS settings.
+
+    Use :attr:`TLSContext.Client` for client-side connections or
+    :attr:`TLSContext.Server` for server-side connections.
+
+    LDAP clients must use :attr:`TLSContext.Client`.
     """
+
+
+class TLSContext(IntEnum):
+    """TLS context type for TLSOption.NewContext."""
+
+    Client = 0
+    """Create a new client-side TLS context."""
+
+    Server = 1
+    """Create a new server-side TLS context."""
 
 
 class TLSCRLCheck(IntEnum):
@@ -316,18 +330,48 @@ class TLSCRLCheck(IntEnum):
 
 
 class TLSRequireCert(IntEnum):
-    """Values for Certificate requirement or Subject Alternative Name (TLSOption.RequireCert and TLSOption.RequireSAN)."""
+    """
+    TLS server certificate and hostname verification policies.
+
+    Used by :attr:`TLSOption.RequireCert` to control server certificate
+    validation and :attr:`TLSOption.RequireSAN` to control hostname
+    verification using Subject Alternative Names (SAN).
+
+    The behavior of individual values depends on the TLS option.
+    """
 
     Never = ldap.OPT_X_TLS_NEVER
-    """Never request or require a client certificate."""
+    """Disable server certificate or SAN verification.
+
+    Insecure: allows connections without the corresponding verification.
+    """
+
     Allow = ldap.OPT_X_TLS_ALLOW
-    """Allow an unavailable or invalid client certificate."""
+    """Perform verification but tolerate failures.
+
+    For RequireCert, invalid server certificates are accepted.
+    For RequireSAN, a SAN mismatch falls back to certificate DN matching.
+    """
+
     Try = ldap.OPT_X_TLS_TRY
-    """Request a client certificate without requiring one."""
+    """Reject verification failures when applicable.
+
+    For RequireCert, invalid server certificates are rejected.
+    For RequireSAN, mismatching SANs are rejected, but a missing SAN
+    allows fallback to certificate DN matching.
+    """
+
     Demand = ldap.OPT_X_TLS_DEMAND
-    """Require a valid client certificate."""
+    """Require successful verification.
+
+    For RequireCert, invalid server certificates are rejected.
+    For RequireSAN, a matching SAN is mandatory.
+
+    Recommended secure default for both options.
+    """
+
     Hard = ldap.OPT_X_TLS_HARD
-    """Require a valid client certificate and fail hard on errors."""
+    """Equivalent to :attr:`Demand` for both TLS options."""
 
 
 class TLSProtocol(IntEnum):
