@@ -13,6 +13,7 @@ The examples below cover:
 * **Basic searches** -- retrieving entries and attributes within a
   specified subtree or scope.
 * **Iterative searches** -- streaming results as they arrive.
+* **Result representation** -- displaying a concise description of a result.
 * **Counting** -- counting matching entries without returning them.
 * **Specialized searches** -- retrieving only the distinguished names,
   single attributes, or asserting result uniqueness.
@@ -21,6 +22,8 @@ The examples below cover:
   control.
 * **Sorting** -- requesting server-side ordering of results.
 * **Existence checks** -- quickly verifying whether an entry exists.
+* **LDIF output** -- formatting individual results and streaming an entire search
+  to a file.
 * **Error handling** -- dealing with missing search bases or other
   exceptional conditions.
 
@@ -171,6 +174,48 @@ or deletion workflows.
    :dedent: 8
    :start-after: start EXISTS
    :end-before: end EXISTS
+
+Display and export results as LDIF
+----------------------------------
+Each search entry is a :py:class:`~freeiam.ldap.Result` object.
+Its :py:meth:`~freeiam.ldap.Result.ldif` method returns the entry in
+LDAP Data Interchange Format (LDIF) as a string.
+Use :py:meth:`~freeiam.ldap.Result.pprint` to write the same representation
+directly to standard output, for example when inspecting a result interactively.
+
+.. literalinclude:: search.py
+   :language: python
+   :caption: display a search result as LDIF
+   :dedent: 8
+   :start-after: start LDIF
+   :end-before: end LDIF
+
+To export a complete search without building one large string in memory,
+call :py:meth:`~freeiam.ldap.Result.write_ldif` for each entry.
+It appends the entry's LDIF to the provided text stream and does not close the stream.
+This works particularly well with ``search_iter()``, which yields entries as they arrive.
+
+.. literalinclude:: search.py
+   :language: python
+   :caption: stream search results to an LDIF file
+   :dedent: 8
+   :start-after: start LDIFEXPORT
+   :end-before: end LDIFEXPORT
+
+Compact result representation
+-----------------------------
+The ``repr()`` of a :py:class:`~freeiam.ldap.Result` is intended for quick inspection and shows
+its distinguished name rather than dumping all its attributes and response
+metadata. The remaining data is still available through the result's
+properties. Use :py:meth:`~freeiam.ldap.Result.ldif` or :py:meth:`~freeiam.ldap.Result.pprint` when you need the entry's LDAP
+attributes in a readable format.
+
+.. literalinclude:: search.py
+   :language: python
+   :caption: inspect a result
+   :dedent: 8
+   :start-after: start RESULTREPR
+   :end-before: end RESULTREPR
 
 Error handling
 --------------

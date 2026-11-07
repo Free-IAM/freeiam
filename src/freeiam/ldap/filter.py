@@ -46,7 +46,7 @@ class EscapeMode(enum.IntEnum):
     """Escape mode."""
 
     SPECIAL = 0
-    r"""Escapes only the special characters defined in RFC 4515 (\, *, (, ), \x00)."""
+    r"""Escapes only the special characters defined in RFC 4515: ``\ * ( ) \x00``."""
 
     RESTRICTED = 1
     """

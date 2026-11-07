@@ -1,3 +1,6 @@
+# ruff: noqa: ASYNC230
+import pathlib
+
 from freeiam import errors, ldap
 from freeiam.ldap.constants import Scope
 
@@ -116,3 +119,25 @@ async def ldap_search_examples():
         # or if you just need to know whether a object exists
         await conn.exists('uid=max.mustermann,dc=freeiam,dc=org')
         # end EXISTS
+
+        # start LDIF
+        entries = await conn.search(search_base, Scope.SUBTREE, '(uid=max.mustermann)')
+        for entry in entries:
+            ldif_text = entry.ldif()  # get the LDIF representation as a string
+            print(ldif_text)
+            entry.pprint()  # or write LDIF directly to standard output
+        # end LDIF
+
+        # start LDIFEXPORT
+        with pathlib.Path('results.ldif').open('w', encoding='utf-8') as fd:
+            async for entry in conn.search_iter(search_base, Scope.SUBTREE, '(uid=*)'):
+                # append one entry without buffering the entire search
+                entry.write_ldif(fd)
+        # end LDIFEXPORT
+
+        # start RESULTREPR
+        entries = await conn.search(search_base, Scope.SUBTREE, '(uid=max.mustermann)')
+        for entry in entries:
+            print(repr(entry))  # concise representation including the DN
+            print(entry.attr)  # attributes remain available separately
+        # end RESULTREPR
