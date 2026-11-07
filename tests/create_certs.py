@@ -4,6 +4,7 @@
 import base64
 import datetime as dt
 import hashlib
+import ipaddress
 import json
 from pathlib import Path
 
@@ -44,9 +45,21 @@ def generate_ca(cert_dir: Path, cn):
     return ca_cert, ca_key, ca_cert_path
 
 
-def generate_signed_cert(cert_dir: Path, ca_cert, ca_key, cn: str, filename_prefix: str):
+def generate_signed_cert(
+    cert_dir: Path,
+    ca_cert: x509.Certificate,
+    ca_key: rsa.RSAPrivateKey,
+    cn: str,
+    filename_prefix: str,
+) -> None:
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
+
+    try:
+        cn_san = x509.IPAddress(ipaddress.ip_address(cn))
+    except ValueError:
+        cn_san = x509.DNSName(cn)
+
     cert = (
         x509
         .CertificateBuilder()
@@ -56,6 +69,15 @@ def generate_signed_cert(cert_dir: Path, ca_cert, ca_key, cn: str, filename_pref
         .serial_number(x509.random_serial_number())
         .not_valid_before(dt.datetime.now(tz=dt.UTC) - dt.timedelta(days=1))
         .not_valid_after(dt.datetime.now(tz=dt.UTC) + dt.timedelta(days=365))
+        .add_extension(
+            x509.SubjectAlternativeName([
+                cn_san,
+                x509.DNSName('localhost'),
+                x509.IPAddress(ipaddress.IPv4Address('127.0.0.1')),
+                x509.IPAddress(ipaddress.IPv6Address('::1')),
+            ]),
+            critical=False,
+        )
         .add_extension(
             x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]),
             critical=False,
@@ -68,6 +90,8 @@ def generate_signed_cert(cert_dir: Path, ca_cert, ca_key, cn: str, filename_pref
 
     cert_path.write_bytes(cert.public_bytes(Encoding.PEM))
     key_path.write_bytes(key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()))
+
+    generate_jwks(cert_dir / 'jwks.json', key_path)
 
     return cert_path, key_path
 
@@ -90,12 +114,12 @@ def generate_jwks(output_file: Path, private_key_path: Path):
     jwks = {
         'keys': [
             {
-                'kty': 'RSA',
-                'kid': 'freeiam-test',
-                'use': 'sig',
                 'alg': 'RS256',
-                'n': base64url_uint(public_numbers.n),
                 'e': base64url_uint(public_numbers.e),
+                'kid': 'freeiam-test',
+                'kty': 'RSA',
+                'n': base64url_uint(public_numbers.n),
+                'use': 'sig',
             }
         ]
     }
@@ -110,4 +134,4 @@ def generate_jwks(output_file: Path, private_key_path: Path):
 
     jwk['kid'] = base64.urlsafe_b64encode(hashlib.sha256(thumbprint_data).digest()).rstrip(b'=').decode('ascii')
 
-    output_file.write_text(json.dumps(jwks, indent=4) + '\n', encoding='utf-8')
+    output_file.write_text(json.dumps(jwks, indent=2) + '\n', encoding='utf-8')

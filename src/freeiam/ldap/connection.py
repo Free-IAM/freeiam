@@ -8,6 +8,7 @@ import logging
 import math
 import os
 from collections.abc import AsyncGenerator, Callable, Generator, Sequence
+from pathlib import Path
 from types import TracebackType
 from typing import Any, Literal, Self, TypeAlias, cast, overload
 
@@ -32,6 +33,7 @@ from freeiam.ldap.constants import (
     ResponseType,
     RetrievalMode,
     Scope,
+    TLSContext,
     TLSCRLCheck,
     TLSOption,
     TLSProtocol,
@@ -263,8 +265,49 @@ class Connection:
         """Set the search size limit."""
         self.set_option(Option.Sizelimit, value)
 
-    @classmethod
     def set_tls(
+        self,
+        *,
+        ca_certfile: str | None = None,
+        ca_certdir: str | None = None,
+        certfile: str | None = None,
+        keyfile: str | None = None,
+        require_cert: TLSRequireCert = TLSRequireCert.Demand,
+        require_san: TLSRequireCert = TLSRequireCert.Demand,
+        minimum_protocol: TLSProtocol = TLSProtocol.TLS12,
+        cipher_suite: str | None = None,
+        crlfile: str | None = None,
+        crl_check: TLSCRLCheck | None = None,
+    ) -> None:
+        """
+        Configure TLS settings for this connection with secure defaults.
+
+        TLS must be configured as the first operation on the connection, before
+        establishing a TLS session using LDAPS or STARTTLS. Settings cannot be
+        applied retroactively to an established TLS session.
+
+        Unlike :meth:`set_global_tls`, which configures global TLS defaults,
+        this method applies settings only to the current connection.
+
+        See :meth:`set_global_tls` for detailed parameter descriptions,
+        security implications, and default values.
+        """
+        self.set_global_tls(
+            _conn=self,
+            ca_certfile=ca_certfile,
+            ca_certdir=ca_certdir,
+            certfile=certfile,
+            keyfile=keyfile,
+            require_cert=require_cert,
+            require_san=require_san,
+            minimum_protocol=minimum_protocol,
+            cipher_suite=cipher_suite,
+            crlfile=crlfile,
+            crl_check=crl_check,
+        )
+
+    @classmethod
+    def set_global_tls(
         cls,
         *,
         ca_certfile: str | None = None,
@@ -272,30 +315,69 @@ class Connection:
         certfile: str | None = None,
         keyfile: str | None = None,
         require_cert: TLSRequireCert = TLSRequireCert.Demand,
-        require_san: TLSRequireCert | None = None,
-        minimum_protocol: TLSProtocol | None = None,
+        require_san: TLSRequireCert = TLSRequireCert.Demand,
+        minimum_protocol: TLSProtocol = TLSProtocol.TLS12,
         cipher_suite: str | None = None,
-        crlfile: None = None,
+        crlfile: str | None = None,
         crl_check: TLSCRLCheck | None = None,
+        _conn: Self | None = None,
     ) -> None:
-        """Set the TLS certificate settings globally."""
+        """
+        Configure global TLS settings with secure defaults.
+
+        Server certificate and Subject Alternative Name verification are
+        required by default. TLS 1.2 is the minimum protocol version.
+
+        Client certificates require a matching private key.
+
+        TLS options are applied globally and affect newly created TLS
+        contexts. Existing connections are not reconfigured.
+
+        The final TLS NewContext operation applies all pending settings
+        to a new client-side TLS context.
+        """
+        # validate before changing any global settings.
+        if (certfile is None) != (keyfile is None):
+            msg = 'certfile and keyfile must be specified together'
+            raise ValueError(msg)
+
+        for name, filename in (
+            ('ca_certfile', ca_certfile),
+            ('certfile', certfile),
+            ('keyfile', keyfile),
+            ('crlfile', crlfile),
+        ):
+            if filename is not None and not Path(filename).is_file():
+                msg = f'{name} is not an existing file: {filename!r}'
+                raise OSError(msg)
+
+        if ca_certdir is not None and not Path(ca_certdir).is_dir():
+            msg = f'ca_certdir is not an existing directory: {ca_certdir!r}'
+            raise OSError(msg)
+
         for option, value in (
             (TLSOption.CACertfile, ca_certfile),
             (TLSOption.CACertdir, ca_certdir),
             (TLSOption.Certfile, certfile),
             (TLSOption.Keyfile, keyfile),
-            (TLSOption.ProtocolMin, minimum_protocol),
-            (TLSOption.CipherSuite, cipher_suite),
             (TLSOption.RequireCert, require_cert),
             (TLSOption.RequireSAN, require_san),
+            (TLSOption.ProtocolMin, minimum_protocol),
+            (TLSOption.CipherSuite, cipher_suite),
             (TLSOption.CRLFile, crlfile),
             (TLSOption.CRLCheck, crl_check),
         ):
             if value is not None:
-                cls.set_global_option(option, value)
+                if _conn is None:
+                    cls.set_global_option(option, value)
+                else:
+                    _conn.set_option(option, value)
 
-        # apply the pending TLS settings, create new context:
-        cls.set_global_option(TLSOption.NewContext, 0)
+        # apply pending TLS settings to a new client-side TLS context
+        if _conn is None:
+            cls.set_global_option(TLSOption.NewContext, TLSContext.Client)
+        else:
+            _conn.set_option(TLSOption.NewContext, TLSContext.Client)
 
     @classmethod
     def get_global_option(cls, option: AnyOption) -> AnyOptionValue:

@@ -38,7 +38,7 @@ NUM_PAGEUSERS = 13
 
 @pytest_asyncio.fixture
 async def conn(ldap_server, base_dn):
-    """A connection to the LDAP server bound to the admin account"""
+    """A connection to the LDAP server bound to the admin account."""
     async with ldap.Connection(ldap_server['ldap_uri'], retry_delay=1) as conn:
         await conn.bind(f'cn=admin,{base_dn}', 'iamfree')
         yield conn
@@ -79,13 +79,13 @@ async def create_user(conn, dn, **kw):
 
 @pytest_asyncio.fixture(scope='session')
 async def testuser(sess_conn, base_dn):
-    """A testuser which exist the whole session"""
+    """A testuser which exist the whole session."""
     return await create_user(sess_conn, f'cn={TESTUSERNAME},{base_dn}', sn='User')
 
 
 @pytest_asyncio.fixture
 async def testuser2(sess_conn, base_dn):
-    """A testuser which can be destroyed"""
+    """A testuser which can be destroyed."""
     dn, _attrs = await create_user(sess_conn, f'cn={TESTUSERNAME}2,{base_dn}', sn='User')
     yield dn
     with contextlib.suppress(errors.NoSuchObject):
@@ -639,9 +639,9 @@ async def test_ldap_plaintext(ldap_server, base_dn):
 @pytest.mark.tls
 @pytest.mark.asyncio
 async def test_starttls_explicit(ldap_server, base_dn):
-    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     conn = ldap.Connection(ldap_server['ldap_uri'])
     conn.connect()
+    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     conn.start_tls()
     await conn.bind(f'cn=admin,{base_dn}', 'iamfree')
     assert (await conn.whoami()) == f'cn=admin,{base_dn}'
@@ -651,9 +651,9 @@ async def test_starttls_explicit(ldap_server, base_dn):
 @pytest.mark.tls
 @pytest.mark.asyncio
 async def test_starttls_reconnect(ldap_server, base_dn):
-    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     conn = ldap.Connection(ldap_server['ldap_uri'], start_tls=True)
     conn.connect()
+    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     await conn.bind(f'cn=admin,{base_dn}', 'iamfree')
     assert (await conn.whoami()) == f'cn=admin,{base_dn}'
     conn.reconnect()
@@ -665,9 +665,9 @@ async def test_starttls_reconnect(ldap_server, base_dn):
 @pytest.mark.tls
 @pytest.mark.asyncio
 async def test_starttls(ldap_server, base_dn):
-    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     conn = ldap.Connection(ldap_server['ldap_uri'], start_tls=True)
     conn.connect()
+    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     await conn.bind(f'cn=admin,{base_dn}', 'iamfree')
     assert (await conn.whoami()) == f'cn=admin,{base_dn}'
     await conn.unbind()
@@ -676,9 +676,9 @@ async def test_starttls(ldap_server, base_dn):
 @pytest.mark.tls
 @pytest.mark.asyncio
 async def test_ldaps(ldap_server, base_dn):
-    ldap.Connection.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     conn = ldap.Connection(ldap_server['ldaps_uri'], timeout=5)
     conn.connect()
+    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
     await conn.bind(f'cn=admin,{base_dn}', 'iamfree')
     assert (await conn.whoami()) == f'cn=admin,{base_dn}'
     await conn.unbind()
