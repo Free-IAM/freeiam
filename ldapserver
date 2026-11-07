@@ -25,6 +25,7 @@ if __name__ == '__main__':
         BASE_DN = server['base_dn']
 
         print(f'docker logs -f {server["container"].short_id}')
+        print(f'docker exec -it {server["container"].name} /bin/bash')
         print(f'openssl x509 -in {ca_cert} -text -noout')
         print(f'openssl s_client -starttls ldap -connect localhost:{port_ldap}')
         print(f'openssl s_client -connect localhost:{port_ldaps} -showcerts')
