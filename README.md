@@ -1,18 +1,21 @@
-[![CI](https://github.com/Free-IAM/freeiam/actions/workflows/ci.yml/badge.svg)](https://github.com/Free-IAM/freeiam/actions/workflows/ci.yml)
-[![pre-commit](https://github.com/Free-IAM/freeiam/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/Free-IAM/freeiam/actions/workflows/pre-commit.yml)
-[![Coverage](https://img.shields.io/codecov/c/github/Free-IAM/freeiam.svg)](https://codecov.io/gh/Free-IAM/freeiam)
-
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/release/python-3110/)
-[![Docs](https://readthedocs.org/projects/free-iam/badge/?version=latest)](https://docs.freeiam.org/en/latest/)
-[![Ruff](https://img.shields.io/badge/linter-ruff-blue)](https://docs.astral.sh/ruff/)
-
 [![PyPI](https://img.shields.io/pypi/v/freeiam)](https://pypi.org/project/freeiam/)
-[![Issues](https://img.shields.io/github/issues/Free-IAM/freeiam.svg)](https://github.com/Free-IAM/freeiam/issues)
-[![Security Policy](https://img.shields.io/badge/security-policy-green)](https://github.com/Free-IAM/freeiam/security/policy)
-[![REUSE status](https://api.reuse.software/badge/github.com/Free-IAM/freeiam)](https://api.reuse.software/info/github.com/Free-IAM/freeiam)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/release/python-3110/) <!--
+[![Python](https://img.shields.io/pypi/pyversions/freeiam)](https://pypi.org/project/freeiam/)
+-->[![CI](https://github.com/Free-IAM/freeiam/actions/workflows/ci.yml/badge.svg)](https://github.com/Free-IAM/freeiam/actions/workflows/ci.yml)
+[![Docs](https://readthedocs.org/projects/free-iam/badge/?version=latest)](https://docs.freeiam.org/en/latest/)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![License: Apache 2](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Coverage](https://img.shields.io/codecov/c/github/Free-IAM/freeiam.svg)](https://codecov.io/gh/Free-IAM/freeiam)
+[![pre-commit](https://github.com/Free-IAM/freeiam/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/Free-IAM/freeiam/actions/workflows/pre-commit.yml)
+[![Ruff](https://img.shields.io/badge/linter-ruff-blue)](https://docs.astral.sh/ruff/)
+[![mypy](https://img.shields.io/badge/mypy-strict-blue)](https://mypy.readthedocs.io/)
+[![ty](https://img.shields.io/badge/ty-strict-blue)](https://docs.astral.sh/ty/)
+
+[![REUSE](https://api.reuse.software/badge/github.com/Free-IAM/freeiam)](https://api.reuse.software/info/github.com/Free-IAM/freeiam)
+[![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](https://github.com/Free-IAM/freeiam#license)
+[![Security Policy](https://img.shields.io/badge/security-policy-green)](https://github.com/Free-IAM/freeiam/security/policy)
+
+<!--[![Issues](https://img.shields.io/github/issues/Free-IAM/freeiam.svg)](https://github.com/Free-IAM/freeiam/issues)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/freeiam)](https://pypistats.org/packages/freeiam) -->
 
 # Free IAM - Free Identity and Access Management.
 
