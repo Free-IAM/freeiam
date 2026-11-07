@@ -2,10 +2,13 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """Data wrapper."""
 
-from dataclasses import dataclass
-from typing import Any, Self, TypeAlias
+import io
+import sys
+from dataclasses import dataclass, field
+from typing import Any, Self, TextIO, TypeAlias
 
 import ldap.controls
+import ldif
 
 from freeiam.ldap.attr import Attributes
 from freeiam.ldap.constants import ResponseType
@@ -113,19 +116,19 @@ class Result:
     dn: DN | None
     """The new or unchanged DN of the object."""
 
-    attr: Attributes | None
+    attr: Attributes | None = field(repr=False)
     """The result LDAP attributes, if the operation provides some."""
 
-    controls: Controls | None
+    controls: Controls | None = field(repr=False)
     """LDAP response controls."""
 
-    _response: _Response
+    _response: _Response = field(repr=False)
     """The raw LDAP result."""
 
-    page: Page | None = None
+    page: Page | None = field(default=None, repr=False)
     """The page of a paginated search result."""
 
-    extended_value: Any = None
+    extended_value: Any = field(default=None, repr=False)
     """The decoded response value of an extended response."""
 
     @classmethod
@@ -154,3 +157,20 @@ class Result:
             return Controls(None, None, response_ctrls)
 
         return Controls(controls.server and controls.server.copy(), controls.client and controls.client.copy(), response_ctrls)
+
+    def write_ldif(self, fd: TextIO) -> None:
+        """Write the result as LDIF to a text stream."""
+        writer = ldif.LDIFWriter(fd)
+        writer.unparse(str(self.dn or ''), self.attr or {})
+
+    def ldif(self) -> str:
+        """Return the result as an LDIF string."""
+        fd = io.StringIO()
+        self.write_ldif(fd)
+        return fd.getvalue()
+
+    def pprint(self, fd: TextIO | None = None) -> None:
+        """Pretty print the result (currently in LDIF format)."""
+        if fd is None:
+            fd = sys.stdout
+        self.write_ldif(fd)
