@@ -10,6 +10,30 @@ dependencies = [
     "python-ldap>=3.4.7",
     "lark",
 ]
+license = "MIT OR Apache-2.0"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Information Technology",
+
+    "Operating System :: OS Independent",
+
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Systems Administration",
+    "Topic :: System :: Systems Administration :: Authentication/Directory",
+    "Topic :: System :: Systems Administration :: Authentication/Directory :: LDAP",
+
+    "Typing :: Typed",
+]
+keywords = ["ldap", "ldap3", "openldap", "active-directory", "authentication", "authorization", "identity-management", "directory-services", "sasl", "starttls", "python-ldap"]
 
 [project.urls]
 homepage = "https://freeiam.org"
