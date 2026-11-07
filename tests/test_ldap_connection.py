@@ -606,7 +606,7 @@ async def test_root_dse(conn):
         'supportedExtension',
         'supportedFeatures',
         'supportedLDAPVersion',
-        # 'supportedSASLMechanisms',
+        'supportedSASLMechanisms',
     }
 
 

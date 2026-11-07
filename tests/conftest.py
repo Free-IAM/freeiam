@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 
 import contextlib
-import datetime as dt
 import io
 import logging
 import shutil
@@ -14,12 +13,9 @@ from pathlib import Path
 import docker
 import ldap
 import pytest
-from cryptography import x509
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import dh, rsa
-from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat
-from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 from testcontainers.core.container import DockerContainer
+
+from .create_certs import generate_ca, generate_jwks, generate_signed_cert
 
 
 log = logging.getLogger(__name__)
@@ -197,6 +193,7 @@ def ldap_server(request):
     keep = request.config.getoption('--keep-ldap')
     if reuse is not None and keep:
         pytest.fail('--reuse-ldap and --keep-ldap are mutually exclusive', pytrace=False)
+
     with _ldap_server(reuse=reuse, keep=keep) as server:
         yield server
 
@@ -216,7 +213,8 @@ def _ldap_server(reuse=None, keep=False):  # noqa: PLR0915
             persistent = keep
             owned = True
             cert_dir = Path.cwd() / '.pytest_cache' / 'freeiam-ldap-certs' if keep else Path(tempfile.mkdtemp(prefix='freeiam-ldap-certs-'))
-            create_certs(cert_dir)
+            create_certs(cert_dir, ORGANISATION, DOMAIN)
+            generate_jwks(cert_dir / 'jwks.json', cert_dir / 'ldap.key')
             cn = create_container(cert_dir, persistent=keep)
             log.info('Started LDAP container %s (persistent=%s)', cn.id[:12], persistent)
 
@@ -313,6 +311,8 @@ def container_settings(cert_dir):
         'LDAP_TLS_CA_FILE': f'{CERT_MOUNT}/ca.crt',
         'LDAP_TLS_DH_PARAMS_FILE': f'{CERT_MOUNT}/dhparam.pem',
         'LDAP_TLS_VERIFY_CLIENT': 'never',
+        'SASL_PATH': '/lib/x86_64-linux-gnu/sasl2',
+        'SASL_CONF_PATH': '/etc/ldap/sasl2',
     }
     mounts = {
         str(cert_dir): (CERT_MOUNT, 'rw'),
@@ -320,18 +320,20 @@ def container_settings(cert_dir):
         str(Path.cwd() / 'tests/entrypoint'): ('/docker-entrypoint-initdb.d', 'ro'),
         str(Path.cwd() / 'tests/entrypoint/noopsrch.so'): ('/opt/bitnami/openldap/lib/openldap/noopsrch.so', 'ro'),
         str(Path.cwd() / 'tests/entrypoint/usn.so'): ('/opt/bitnami/openldap/lib/openldap/usn.so', 'ro'),
+        str(Path.cwd() / 'tests/entrypoint/liboauthbearer.so'): ('/lib/x86_64-linux-gnu/sasl2/liboauthbearer.so', 'ro'),
+        str(Path.cwd() / 'tests/entrypoint/slapd.conf'): ('/etc/ldap/sasl2/slapd.conf', 'ro'),
     }
     return environment, mounts
 
 
-def create_certs(directory):
+def create_certs(directory: Path, organisation: str, domain: str) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     source = Path.cwd() / 'tests' / 'certs'
     if source.is_dir():
         shutil.copytree(source, directory, dirs_exist_ok=True)
     elif not (directory / 'ca.crt').exists():
-        ca, key, _ = generate_ca(directory, f'{ORGANISATION} CA')
-        generate_signed_cert(directory, ca, key, cn=DOMAIN, filename_prefix='ldap')
+        ca, key, _ = generate_ca(directory, f'{organisation} CA')
+        generate_signed_cert(directory, ca, key, cn=domain, filename_prefix='ldap')
 
 
 def create_container(cert_dir, *, persistent, with_static_ports: bool = True):
@@ -416,61 +418,3 @@ def ldap_uri(ldap_server):
 @pytest.fixture(scope='session')
 def ldaps_uri(ldap_server):
     return ldap_server['ldaps_uri']
-
-
-def generate_ca(cert_dir: Path, cn):
-    ca_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
-    ca_cert = (
-        x509
-        .CertificateBuilder()
-        .subject_name(ca_name)
-        .issuer_name(ca_name)
-        .public_key(ca_key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(dt.datetime.now(tz=dt.UTC) - dt.timedelta(days=1))
-        .not_valid_after(dt.datetime.now(tz=dt.UTC) + dt.timedelta(days=365))
-        .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
-        .sign(ca_key, hashes.SHA256())
-    )
-
-    ca_cert_path = cert_dir / 'ca.crt'
-    ca_key_path = cert_dir / 'ca.key'
-
-    ca_cert_path.write_bytes(ca_cert.public_bytes(Encoding.PEM))
-    ca_key_path.write_bytes(ca_key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()))
-
-    parameters = dh.generate_parameters(generator=2, key_size=2048)
-    (cert_dir / 'dhparam.pem').write_bytes(
-        parameters.parameter_bytes(encoding=serialization.Encoding.PEM, format=serialization.ParameterFormat.PKCS3)
-    )
-
-    return ca_cert, ca_key, ca_cert_path
-
-
-def generate_signed_cert(cert_dir: Path, ca_cert, ca_key, cn: str, filename_prefix: str):
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, cn)])
-    cert = (
-        x509
-        .CertificateBuilder()
-        .subject_name(subject)
-        .issuer_name(ca_cert.subject)
-        .public_key(key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(dt.datetime.now(tz=dt.UTC) - dt.timedelta(days=1))
-        .not_valid_after(dt.datetime.now(tz=dt.UTC) + dt.timedelta(days=365))
-        .add_extension(
-            x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]),
-            critical=False,
-        )
-        .sign(ca_key, hashes.SHA256())
-    )
-
-    cert_path = cert_dir / f'{filename_prefix}.crt'
-    key_path = cert_dir / f'{filename_prefix}.key'
-
-    cert_path.write_bytes(cert.public_bytes(Encoding.PEM))
-    key_path.write_bytes(key.private_bytes(Encoding.PEM, PrivateFormat.TraditionalOpenSSL, NoEncryption()))
-
-    return cert_path, key_path
