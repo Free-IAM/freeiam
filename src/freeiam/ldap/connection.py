@@ -402,9 +402,7 @@ class Connection:
         """Authenticate via GSSAPI, for example using a Kerberos ticket."""
         return await self.bind_sasl(ldap.sasl.gssapi(authz_id), controls=controls)
 
-    async def bind_oauthbearer(
-        self, token: str, authz_id: str = '', *, controls: Controls | None = None
-    ) -> None:  # pragma: no cover; unavailable lib
+    async def bind_oauthbearer(self, token: str, authz_id: str = '', *, controls: Controls | None = None) -> None:
         """Authenticate via OAuth 2.0 Access Token."""
         return await self.bind_sasl(
             ldap.sasl.sasl(
@@ -417,7 +415,7 @@ class Connection:
             controls=controls,
         )
 
-    async def bind_sasl(self, auth: ldap.sasl.sasl, *, controls: Controls | None = None) -> None:  # pragma: no cover
+    async def bind_sasl(self, auth: ldap.sasl.sasl, *, controls: Controls | None = None) -> None:
         """Authenticate via SASL."""
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.sasl_interactive_bind_s('', auth, **Controls.expand(controls), sasl_flags=ldap.SASL_QUIET)

@@ -54,7 +54,9 @@ test = [
     "pytest-asyncio",
     "pytest-benchmark",
     "pytest-cov",
+    "pytest-env",
     "pytest-timeout",
+    "PyJWT",
     "testcontainers",
 ]
 docs = [
@@ -265,6 +267,7 @@ combine-as-imports = true
 #force-grid-wrap = false
 known-first-party = ["freeiam"]
 known-third-party = ["ldap", "ldif"]
+known-local-folder = ["create_certs"]
 # https://github.com/astral-sh/ruff/issues/2600 :
 #multi-line-output = 5
 #include-trailing-comma = true

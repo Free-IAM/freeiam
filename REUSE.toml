@@ -26,6 +26,7 @@ path = [
  "*.toml",
  "tests/certs/*",
  "tests/entrypoint/*.ldif",
+ "tests/entrypoint/*.conf",
  ".github/workflows/*.yml",
 ]
 SPDX-FileCopyrightText = "2025 Florian Best <info@freeiam.org>"
@@ -45,3 +46,8 @@ SPDX-License-Identifier = "LicenseRef-python-ldap AND MIT"
 path = [ "tests/entrypoint/noopsrch.so", "tests/entrypoint/usn.so" ]
 SPDX-FileCopyrightText = "2010-2026 The OpenLDAP Foundation"
 SPDX-License-Identifier = "OLDAP-2.8"
+
+[[annotations]]
+path = [ "tests/entrypoint/liboauthbearer.so" ]
+SPDX-FileCopyrightText = "2026 Univention GmbH"
+SPDX-License-Identifier = "AGPL-3.0-only"
