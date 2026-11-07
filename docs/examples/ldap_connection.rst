@@ -57,15 +57,56 @@ provide a TLS listener, commonly on port 636.
 
 Unencrypted plaintext connection
 --------------------------------
-An unencrypted connection sends LDAP traffic, including simple-bind
-credentials, without transport protection. It can be useful for local tests
-or trusted development networks, but should not be used in production.
+An unencrypted LDAP connection transmits all traffic, including
+simple-bind credentials, in plaintext.
+
+Plaintext connections should only be used in isolated testing
+environments. They must not be used over untrusted networks
+or in production.
 
 .. literalinclude:: connection.py
    :language: python
-   :caption: Establish insecure plaintext connection
+   :caption: Establish an insecure plaintext connection
    :start-after: start plain
    :end-before: end plain
+
+
+TLS in testing environments
+---------------------------
+
+Testing environments often use self-signed certificates or certificates
+issued by a private Certificate Authority (CA).
+
+The recommended approach is to explicitly trust the test certificate
+or CA while keeping certificate and hostname verification enabled.
+This provides encryption and authentication without requiring a
+publicly trusted certificate.
+
+.. literalinclude:: connection.py
+   :language: python
+   :caption: Trust a self-signed test certificate
+   :start-after: start test TLS
+   :end-before: end test TLS
+
+For isolated testing environments, certificate and hostname verification
+can also be disabled explicitly. This allows TLS connections even when
+the server certificate is untrusted, expired, or does not match the
+server hostname.
+
+.. warning::
+
+   Disabling certificate verification makes the connection vulnerable
+   to man-in-the-middle attacks. Although TLS still encrypts traffic,
+   the identity of the LDAP server is no longer authenticated.
+
+   Never use this configuration in production or over untrusted networks.
+
+.. literalinclude:: connection.py
+   :language: python
+   :caption: Disable TLS verification for isolated tests (insecure)
+   :start-after: start insecure TLS
+   :end-before: end insecure TLS
+
 
 Connection options
 ------------------
@@ -78,3 +119,5 @@ the option.
 .. literalinclude:: options.py
    :language: python
    :caption: Set and receive connection options
+
+.. include:: ldap_tls.rst
