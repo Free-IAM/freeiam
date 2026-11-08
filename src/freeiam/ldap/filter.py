@@ -250,7 +250,7 @@ class ValueAssertion(Assertion):
     @classmethod
     def from_escaped(cls, attr: str, value: bytes) -> Self:
         """Create an assertion from an RFC 4515 escaped value."""
-        obj = cls(attr, Filter.unescape(value))
+        obj = cls(attr, Filter._unescape_libldap(value))
         obj._raw_escaped_value = value
         return obj
 
@@ -367,9 +367,9 @@ class SubstringMatch(Assertion):
         """Create an assertion from an RFC 4515 escaped value."""
         obj = cls(
             attr,
-            initial=Filter.unescape(initial) if initial is not None else initial,
-            any=tuple(Filter.unescape(val) for val in any),
-            final=Filter.unescape(final) if final is not None else final,
+            initial=Filter._unescape_libldap(initial) if initial is not None else initial,
+            any=tuple(Filter._unescape_libldap(val) for val in any),
+            final=Filter._unescape_libldap(final) if final is not None else final,
         )
         obj._raw_escaped_value = value
         return obj
@@ -457,7 +457,7 @@ class ExtensibleMatch(ValueAssertion):
     @classmethod
     def from_escaped(cls, attr: str, value: bytes, matchingrule: str | None = None, dn: bool | str = False) -> Self:
         """Create an assertion from an RFC 4515 escaped value."""
-        obj = cls(attr, Filter.unescape(value), matchingrule, dn=cast('bool', dn))
+        obj = cls(attr, Filter._unescape_libldap(value), matchingrule, dn=cast('bool', dn))
         obj._raw_escaped_value = value
         return obj
 
@@ -600,6 +600,7 @@ class Filter:
 
     __slots__ = ('_debug', 'ast', 'filter_expr')
     RE_HEXESCAPE = re.compile(rb'\\([0-9A-Fa-f]{2})')
+    _RE_LIBLDAP_HEXESCAPE = re.compile(rb'\\(?:[0-9a-fA-F]{2}|[*()\\])')
 
     def __init__(self, /, filter_expr: str | None, *, strict: bool = False, parser: str = 'lark', _debug: bool = False) -> None:
         # TODO: security: restrict length
@@ -671,7 +672,7 @@ class Filter:
         from freeiam.ldap._filter.ber import expression_to_ber  # noqa: PLC0415
 
         if self.root is None:
-            raise ValueError('Empty LDAP filter')  # noqa: TRY003
+            return b''
         return expression_to_ber(self.root)
 
     def pretty(self, indent: int = 0) -> str:
@@ -812,6 +813,16 @@ class Filter:
         return cls.RE_HEXESCAPE.sub(
             lambda m: bytes([int(m.group(1), 16)]),
             value.encode('UTF-8') if isinstance(value, str) else value,
+        )
+
+    @classmethod
+    def _unescape_libldap(cls, value: bytes) -> bytes:
+        """Reverse the escaping of filter characters with compatibility to libldap."""
+        return cls.unescape(
+            cls._RE_LIBLDAP_HEXESCAPE.sub(
+                lambda m: m.group() if len(m.group()) == 3 else f'\\{m.group()[1]:02x}'.encode('ascii'),  # noqa: PLR2004
+                value,
+            )
         )
 
     @classmethod

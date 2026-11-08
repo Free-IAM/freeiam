@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """LARK based filter implementation."""
 
+import re
 from typing import Any, TypeVar, cast
 
 import lark
@@ -22,7 +23,6 @@ from freeiam.ldap.filter import (
     GreaterOrEqual,
     Group,
     LessOrEqual,
-    Operator,
     PresenceMatch,
     SubstringMatch,
     Token,
@@ -50,6 +50,8 @@ not_operator: "(" ows "!" ows _group  ows ")"
      | attr ">=" value                          -> ge
      | attr "<=" value                          -> le
      | attr "~=" value                          -> approx
+     | attr ":"                      ":=" value -> extmatch_attr_empty_match
+     | attr ":"  dn ":"              ":=" value -> extmatch_attr_dn_empty_match
      |      ":"  dn ":" matchingrule ":=" value -> extmatch_noattr_dn_match
      | attr ":"  dn ":" matchingrule ":=" value -> extmatch_attr_dn_match
      | attr ":"  dn                  ":=" value -> extmatch_attr_dn_nomatch
@@ -60,12 +62,14 @@ not_operator: "(" ows "!" ows _group  ows ")"
 substrings: _value STAR (_value STAR)* _value?
           | STAR _value (STAR _value)* STAR?
 
-attr: /[a-zA-Z][a-zA-Z0-9-;]*/ | oid
-?oid: /\d+[\.\d]*/
+attr: (descr | oid) option*
+?descr: /[a-zA-Z][a-zA-Z0-9-]*/
+?oid: /[0-9]+(?:\.[0-9]+)*/
+?option: ";" /[a-zA-Z0-9-]+/
 !dn: "dn"i
-matchingrule: attr
+matchingrule: /(?:[a-zA-Z][a-zA-Z0-9-]*|[0-9]+(?:\.[0-9]+)*)/
 
-_value: /([^\x00()*\\]|\\\\[0-9a-fA-F]{2}|\\[0-9a-fA-F]{2})+/
+_value: /(?:[^\x00()*\\]|\\(?:[0-9a-fA-F]{2}|[*()\\]))+/
 value: _value?
 
 ows: ws?
@@ -73,40 +77,54 @@ ws: WS
 %import common.WS
 %import common.HEXDIGIT
 """
+# _value: /([^\x00()*\\]|\\\\[0-9a-fA-F]{2}|\\[0-9a-fA-F]{2})+/
 
 
 T = TypeVar('T', bound='Assertion | EqualityMatch | GreaterOrEqual | LessOrEqual | ExtensibleMatch')
 Z = TypeVar('Z', bound='Any')
 
 
-class _AdditionalWhitespaceError(lark.exceptions.LarkError):
+_NONSTANDARD_ESCAPE = re.compile(r'\\([*()\\])')
+
+
+class _WhitespaceError(lark.exceptions.LarkError):
     """Unexpected whitespace in a parsed filter."""
+
+
+class _InvalidEscapeSequence(lark.exceptions.LarkError):
+    """Invalid RFC 4515 escape sequence."""
 
 
 @v_args(inline=True)
 class _FilterTransformer(Transformer[lark.Token, Expression]):
     """Filter tree Transformer."""
 
+    __slots__ = ('__strict',)
+
     def __init__(self, strict: bool) -> None:
         self.__strict = strict
         super().__init__()
 
-    def start(self, value: Expression, *args: object) -> Expression:  # noqa: PLR6301
+    @classmethod
+    def start(cls, value: Expression, *args: object) -> Expression:
         if args:
-            raise _AdditionalWhitespaceError
+            raise _WhitespaceError()
         if isinstance(value, Assertion):
             return Group([value])
         if isinstance(value, Container):
             return value
         raise TypeError(type(value))  # pragma: no cover
 
-    def bare(self, cmp: Expression) -> Container:  # noqa: PLR6301
+    @classmethod
+    def bare(cls, cmp: Expression) -> Container:
         return Container([cmp])
 
-    def groups(self, *groups: Expression) -> list[Expression]:  # noqa: PLR6301
+    @classmethod
+    def groups(cls, *groups: Expression) -> list[Expression]:
         return list(groups)
 
-    def expression(self, ld: str, cmp: Assertion) -> Assertion:  # noqa: PLR6301
+    @classmethod
+    def expression(cls, ld: str, cmp: Assertion) -> Assertion:
         cmp._lead = ld or ''
         return cmp
 
@@ -119,14 +137,21 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
     def not_operator(self, sep: None, ld: Token, expr: Expression, tr: Token) -> NOT:
         return NOT(self._filter([ld, expr, tr]), sep=sep)
 
-    def _filter(self, items: list[Z | None]) -> list[Z]:  # noqa: PLR6301
+    @classmethod
+    def _filter(cls, items: list[Z | None]) -> list[Z]:
         return [item for item in items if item is not None]
 
-    def attr(self, attr: lark.Token) -> str:  # noqa: PLR6301
-        return str(attr)
+    @classmethod
+    def attr(cls, attr: lark.Token, *options: lark.Token) -> str:
+        return ';'.join([attr, *options])
 
-    def value(self, value: lark.Token | str | None = None) -> str:  # noqa: PLR6301
-        return str(value or '')
+    def value(self, value: lark.Token | str | None = None) -> str:
+        value = str(value or '')
+
+        if self.__strict and _NONSTANDARD_ESCAPE.search(value):
+            raise _InvalidEscapeSequence()
+
+        return value
 
     @classmethod
     def equality(cls, attr: str, value: str) -> EqualityMatch:
@@ -198,6 +223,16 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
     def extmatch_noattr_dn_match(cls, dn: str, matchingrule: str, value: str) -> ExtensibleMatch:
         return ExtensibleMatch.from_escaped('', value.encode('UTF-8'), matchingrule, dn=dn)
 
+    def extmatch_attr_empty_match(self, attr: str, value: str) -> ExtensibleMatch:
+        if self.__strict:
+            raise _WhitespaceError()
+        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), matchingrule=None)
+
+    def extmatch_attr_dn_empty_match(self, attr: str, dn: str, value: str) -> ExtensibleMatch:
+        if self.__strict:
+            raise _WhitespaceError()
+        return ExtensibleMatch.from_escaped(attr, value.encode('UTF-8'), matchingrule=None, dn=dn)
+
     @classmethod
     def approx(cls, attr: str, value: str) -> ApproximateMatch:
         return ApproximateMatch.from_escaped(str(attr), value.encode('UTF-8'))
@@ -214,7 +249,8 @@ class _FilterTransformer(Transformer[lark.Token, Expression]):
     def ws(cls, value: str) -> Token:
         return Token(value)
 
-    def ows(self, value: str | None = None) -> Token | None:  # noqa: PLR6301
+    @classmethod
+    def ows(cls, value: str | None = None) -> Token | None:
         if value is None:
             return None
         return Token(value)
@@ -260,17 +296,19 @@ class LarkParser:
         return ast
 
     @classmethod
-    def _validate_strict(cls, root: Expression, expression: str) -> None:
+    def _validate_strict(cls, root: Expression | Token, expression: str) -> None:
         """Validate whitespace on the newly parsed AST."""
         stack = [root]
         while stack:
             node = stack.pop()
             if isinstance(node, Assertion) and node._lead:
                 raise cls.error(expression)
-            if isinstance(node, Operator) and node._sep:
+            if isinstance(node, Container) and node._sep:
+                raise cls.error(expression)
+            if isinstance(node, Token):
                 raise cls.error(expression)
             if isinstance(node, Container):
-                stack.extend(child for child in node.expressions)
+                stack.extend(child for child in node._expressions)
 
     @classmethod
     def error(cls, expression: str) -> errors.FilterError:
