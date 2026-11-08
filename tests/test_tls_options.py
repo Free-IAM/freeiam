@@ -6,7 +6,7 @@ from freeiam import ldap
 from freeiam.ldap.constants import (
     TLSOption,
     TLSProtocol,
-    TLSRequireCert,
+    TLSVerifyMode,
 )
 
 
@@ -35,8 +35,8 @@ def conn_class(request):
 @pytest.mark.parametrize(
     'parameter, option, value',
     [
-        ('require_cert', TLSOption.RequireCert, TLSRequireCert.Never),
-        ('require_san', TLSOption.RequireSAN, TLSRequireCert.Try),
+        ('require_cert', TLSOption.RequireCert, TLSVerifyMode.Never),
+        ('require_san', TLSOption.RequireSAN, TLSVerifyMode.Try),
         ('minimum_protocol', TLSOption.ProtocolMin, TLSProtocol.TLS12),
         ('cipher_suite', TLSOption.CipherSuite, 'HIGH'),
     ],
@@ -54,8 +54,8 @@ def test_set_global_tls_defaults(conn_class):
         conn_class.set_global_tls()
 
     assert setter.call_args_list == [
-        call(TLSOption.RequireCert, TLSRequireCert.Demand),
-        call(TLSOption.RequireSAN, TLSRequireCert.Demand),
+        call(TLSOption.RequireCert, TLSVerifyMode.Demand),
+        call(TLSOption.RequireSAN, TLSVerifyMode.Demand),
         call(TLSOption.ProtocolMin, TLSProtocol.TLS12),
         call(TLSOption.NewContext, 0),
     ]
@@ -134,8 +134,8 @@ def test_set_global_tls_certfile_must_be_file(tls_files, conn_class):
 def test_set_global_tls_applies_new_context_last(conn_class):
     with patch.object(conn_class, 'set_global_option') as setter:
         conn_class.set_global_tls(
-            require_cert=TLSRequireCert.Demand,
-            require_san=TLSRequireCert.Demand,
+            require_cert=TLSVerifyMode.Demand,
+            require_san=TLSVerifyMode.Demand,
         )
 
     assert setter.call_args_list[-1] == call(TLSOption.NewContext, 0)
@@ -147,16 +147,16 @@ def test_set_tls_delegates_to_global_implementation(conn_class):
 
     with patch.object(conn_class, 'set_global_tls') as setter:
         conn.set_tls(
-            require_cert=TLSRequireCert.Never,
-            require_san=TLSRequireCert.Never,
+            require_cert=TLSVerifyMode.Never,
+            require_san=TLSVerifyMode.Never,
         )
 
     setter.assert_called_once()
     kwargs = setter.call_args.kwargs
 
     assert kwargs['_conn'] is conn
-    assert kwargs['require_cert'] == TLSRequireCert.Never
-    assert kwargs['require_san'] == TLSRequireCert.Never
+    assert kwargs['require_cert'] == TLSVerifyMode.Never
+    assert kwargs['require_san'] == TLSVerifyMode.Never
     assert kwargs['minimum_protocol'] == TLSProtocol.TLS12
 
 
@@ -170,8 +170,8 @@ def test_set_tls_uses_connection_options(conn_class):
         conn.set_tls()
 
     assert local_setter.call_args_list == [
-        call(TLSOption.RequireCert, TLSRequireCert.Demand),
-        call(TLSOption.RequireSAN, TLSRequireCert.Demand),
+        call(TLSOption.RequireCert, TLSVerifyMode.Demand),
+        call(TLSOption.RequireSAN, TLSVerifyMode.Demand),
         call(TLSOption.ProtocolMin, TLSProtocol.TLS12),
         call(TLSOption.NewContext, 0),
     ]

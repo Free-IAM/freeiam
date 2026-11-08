@@ -53,16 +53,16 @@ particular secure value: system configuration and the TLS backend may apply.
      - Private key corresponding to ``certfile``. Protect this file with
        restrictive filesystem permissions.
    * - ``require_cert``
-     - ``TLSRequireCert.Demand``
+     - ``TLSVerifyMode.Demand``
      - Require successful server certificate verification. ``Hard`` and
        ``Demand`` are equivalent for client-side verification. ``Never``
        disables verification and is unsafe for production.
    * - ``require_san``
-     - ``TLSRequireCert.Demand``
+     - ``TLSVerifyMode.Demand``
      - Controls server identity verification using certificate Subject
        Alternative Names (SAN). By default, a matching SAN is required;
        fallback to the certificate Common Name (CN) is not permitted.
-       See :class:`TLSRequireCert` for available verification policies.
+       See :class:`TLSVerifyMode` for available verification policies.
    * - ``minimum_protocol``
      - ``TLSProtocol.TLS12``
      - Minimum permitted TLS protocol version. TLS 1.2 or newer is
