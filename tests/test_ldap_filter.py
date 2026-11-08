@@ -184,27 +184,90 @@ VALID_FILTERS = [
     '(&)',
     '(|)',
     r'(cn=abc\\20)',
-    '(&(key=va\\\\28!\\\\29ue))',
+    r'(&(key=va\\28!\\29ue))',
+    r'(&(key=va\\\\28!\\\\29ue))',
     r'(1.3.6.1.4.1.1466.0=\04\02\48\69)',
+    '(cn::=John)',
+    '(cn:dn::=John)',
     # rest
     '(0=foo)',
     '(1=foo)',
     '(11=foo)',
     '(x-z=foo)',
     '(cn;extra=foo)',
+    '(1.2.3.4.5;x-tag=)',
+    '(1.2.3.4.5;lang-de=John)',
+    '(1.2.3.4.5;x-tag;lang-de=John)',
+    '(cn;lang-de=John)',
+    '(cn;lang-de;lang-en=John)',
+    '(cn;lang=de=value)',
+    # options
+    '(cn;1=value)',
+    '(cn;-=value)',
+    '(cn;1-2=value)',
+    '(cn;lang-de=value)',
+    '(cn;lang-de;lang-en=value)',
+    '(cn;LANG-DE=value)',
+    '(cn;x-tag=value)',
+    '(cn;x-tag;123=value)',
+    '(1.2=value)',
+    '(1.2.3.4.5=value)',
+    '(1.2.3.4.5;x-tag=value)',
+    '(1.2.3.4.5;1=value)',
+    '(1.2.3.4.5;-=value)',
+    '(1.2.3.4.5;x-tag;lang-de=value)',
     # everything
     complex_filter_expr,
+] + [
+    template.format(rule=rule)
+    for rule in [
+        'caseIgnoreMatch',
+        'CASEIGNOREMATCH',
+        'caseIgnoreMatch-',
+        'caseIgnoreMatch--test',
+        'x',
+        'x-',
+        'x--test',
+        'x123',
+        '1.2',
+        '2.5.13.2',
+        '0.0',
+        '1.0.3',
+        '1.2.840.113556.1.4.1941',
+        'unknownMatchingRule',
+        '01.2.3',  # meh: libldap allows :-(
+        '1.02.3',  # meh: libldap allows :-(
+        '1.2.03',  # meh: libldap allows :-(
+        '1',  # meh: libldap allows :-(
+        '123',  # meh: libldap allows :-(
+    ]
+    for template in (
+        '(cn:{rule}:=John)',
+        '(:{rule}:=John)',
+        '(cn:dn:{rule}:=John)',
+        '(:dn:{rule}:=John)',
+    )
 ]
+
+# also contains RFC 4515 violations accepted by libldap
 STRICT_INVALID_FILTERS = [
-    '(age>= 18)',
-    '(cn= John)',
-    '( cn=John )',
+    # non-standard escape sequences
+    r'(attr=\*)',
+    r'(attr=\()',
+    r'(attr=\))',
+    r'(attr=\\)',
+    r'(attr=foo\*bar)',
+    r'(attr=foo\\bar)',
+    r'(attr=\\20)',
+    # non-standard extensible match syntax
+    '(cn::=John)',
+    '(cn:dn::=John)',
+    # insignificant whitespace outside assertion values
+    '( cn=John)',
     '(&( cn=John))',
-    '(cn=  Two  Whitespaces  )',
-    '(cn=* )',
-    '(cn= *)',
-    '(cn=  Two  White*spaces  )',
-    '(cn:dn:caseIgnoreMatch:= John)',
+    '(& (cn=John))',
+    # leading/trailing whitespace
+    ' (cn=foo) ',
 ]
 
 INVALID_FILTERS = [
@@ -277,6 +340,8 @@ INVALID_FILTERS = [
     '(cn:dn: caseIgnoreMatch :=John)',
     '(cn:dn: caseIgnoreMatch:= John)',
     '(cn:dn: caseIgnoreMatch := John)',
+    '(::=John)',
+    '(:dn::=John)',
     # misc
     r'(cn=\)',
     r'(cn=abc\2g)',
@@ -291,20 +356,201 @@ INVALID_FILTERS = [
     '  ',
     '((((((((((((((((((((((((((((((((((((((((((((((((((cn=John))))))))))))))))))))))))))))))))))))))))))))))))))',
     '(!(!(!(!(&(&(&(|(|(|(cn=John))))))))))))',
+    # empty options
+    '(cn;=value)',
+    '(cn;;=value)',
+    '(cn;;;=value)',
+    '(cn;;lang-de=value)',
+    '(cn;lang-de;=value)',
+    '(cn;lang-de;;lang-en=value)',
+    '(1.2.3.4.5;=value)',
+    '(1.2.3.4.5;;=value)',
+    '(1.2.3.4.5;;x-tag=value)',
+    '(1.2.3.4.5;x-tag;=value)',
+    '(1.2.3.4.5;x-tag;;lang-de=value)',
+    # invalid characters
+    '(cn;lang_de=value)',
+    '(cn;lang.de=value)',
+    '(cn;lang de=value)',
+    '(cn;lang\tde=value)',
+    '(cn;lang/de=value)',
+    '(cn;lang:de=value)',
+    '(cn;lang+de=value)',
+    '(cn;lang@de=value)',
+    '(cn;lang*de=value)',
+    '(cn;lang(de)=value)',
+    '(cn;lang\\2dde=value)',
+    '(1.2.3.4.5;x_tag=value)',
+    '(1.2.3.4.5;x.tag=value)',
+    '(1.2.3.4.5;x tag=value)',
+    # whitespace around separators
+    '(cn ;lang-de=value)',
+    '(cn; lang-de=value)',
+    '(cn;lang-de =value)',
+    '(cn ; lang-de=value)',
+    '(1.2.3.4.5 ;x-tag=value)',
+    '(1.2.3.4.5; x-tag=value)',
+    '(1.2.3.4.5;x-tag =value)',
+    # backslash in non-values
+    r'(cn\2dtest=John)',
+    r'(cn\5ctest=John)',
+    r'(cn;lang\2dde=John)',
+    r'(1.2.3\2e4=John)',
+    r'(cn:case\49gnoreMatch:=John)',
+] + [
+    template.format(rule=rule)
+    for rule in [
+        # empty or incomplete descriptors
+        '-',
+        '--',
+        '-caseIgnoreMatch',
+        '1caseIgnoreMatch',
+        # attribute options are not allowed
+        'caseIgnoreMatch;',
+        'caseIgnoreMatch;x-tag',
+        'caseIgnoreMatch;lang-de',
+        'caseIgnoreMatch;;lang-de',
+        '2.5.13.2;x-tag',
+        '2.5.13.2;1',
+        # invalid numeric OIDs
+        '1.',
+        '.1',
+        '1..2',
+        '1.2.',
+        '1.2..3',
+        # invalid characters
+        '_caseIgnoreMatch',
+        'case_IgnoreMatch',
+        'case.IgnoreMatch',
+        'case/IgnoreMatch',
+        'case+IgnoreMatch',
+        'case@IgnoreMatch',
+        'case*IgnoreMatch',
+        'case\\2dIgnoreMatch',
+        # whitespace
+        ' caseIgnoreMatch',
+        'caseIgnoreMatch ',
+        'case IgnoreMatch',
+        'case\tIgnoreMatch',
+        'case\nIgnoreMatch',
+        '2.5.13.2 ',
+        '2.5.13. 2',
+    ]
+    for template in (
+        '(cn:{rule}:=John)',
+        '(:{rule}:=John)',
+        '(cn:dn:{rule}:=John)',
+        '(:dn:{rule}:=John)',
+    )
 ]
 
 
-@pytest.mark.parametrize('expr', VALID_FILTERS)
+# Additional cases from https://www.openldap.org/ietf/ldapbis/filters.txt
+OPENLDAP_VALID_FILTERS = [
+    '(attr=*)',
+    '(attr;x-tag=*)',
+    '(attr=)',
+    '(1.2.3.4.5=)',
+    '(1.2.3.4.5;x-tag=)',
+    '(space= )',
+    '(attr=value)',
+    r'(null=\00)',
+    r'(bell=\07)',
+    '(bell=\x07)',
+    r'(attr;x-star=\2a)',
+    r'(attr;x-escape=\5C)',
+    '(attr=initial*)',
+    '(attr=*any*)',
+    '(attr=*final)',
+    '(attr=initial*final)',
+    '(attr=initial*any*any*final)',
+    '(attr=initial*any*)',
+    '(attr=*any*final)',
+    '(attr=*any*any*)',
+    '(attr~=)',
+    '(attr~=fubar)',
+    '(attr>=fubar)',
+    '(attr<=fubar)',
+    '(attr:1.2.3:=fubar)',
+    '(attr:dn:=fubar)',
+    '(attr:DN:=fubar)',
+    '(attr:dn:1.2.3:=fubar)',
+    '(:1.2.3:=fubar)',
+    '(:caseExactMatch:=fubar)',
+    '(:dn:1.2.3:=fubar)',
+    '(:dn:caseIgnoreMatch:=fubar)',
+    '(!(objectClass=*))',
+    '(&(objectClass=*))',
+    '(&(objectClass=*)(name~=))',
+    '(|(objectClass=*))',
+    '(|(objectClass=*)(name~=))',
+]
+
+OPENLDAP_VALID_FILTERS_BUT_OPENLDAP_ITSELF_DOES_NOT_RESPECT_THAT = [
+    '(attr=**)',
+    '(attr=initial**)',
+    '(attr=**final)',
+    '(attr=initial**final)',
+    '(attr=initial***final)',
+    '(!(|(&(!(objectClass=*))))',
+]
+
+OPENLDAP_INVALID_FILTERS = [
+    '(attr=*',
+    'attr=*)',
+    '(attr~=*)',
+    '(attr=\x00)',
+    '(attr=()',
+    '(attr=))',
+    r'(attr=\)',
+    r'(attr=\GG)',
+    r'(attr=\F)',
+    r'(attr=\x)',
+    '(attr>0)',
+    '(attr<0)',
+    '(attr?=value)',
+    '  ',
+    '()',
+    '(=)',
+    '(;option=*)',
+    '(attr;=*)',
+    '(at_tr=*)',
+    '(attr;opt_=*)',
+    r'(attr\3Boption=*)',
+    '(:=)',
+    '(::=)',
+    '(:::=)',
+    '(!)',
+    '(!(attr=TRUE)(attr=FALSE))',
+    '(attr?=)',
+]
+
+OPENLDAP_INVALID_FILTERS_BUT_OPENLDAP_ITSELF_DOES_NOT_RESPECT_THAT = [
+    'attr=*',
+    '(|)',
+    '(|(uid=cn)(cn=cn))',  # invalid tag
+    # the following are moved to STRICT_INVALID_FILTERS
+    # r'(attr=\*)',
+    # r'(attr=\()',
+    # r'(attr=\))',
+    # r'(attr=\\)',
+]
+
+ALL_VALID_FILTERS = VALID_FILTERS + OPENLDAP_VALID_FILTERS + OPENLDAP_INVALID_FILTERS_BUT_OPENLDAP_ITSELF_DOES_NOT_RESPECT_THAT
+ALL_INVALID_FILTERS = INVALID_FILTERS + OPENLDAP_INVALID_FILTERS + OPENLDAP_VALID_FILTERS_BUT_OPENLDAP_ITSELF_DOES_NOT_RESPECT_THAT
+
+
+@pytest.mark.parametrize('expr', ALL_VALID_FILTERS)
 def test_valid_filter(expr, parser):
     try:
         Filter(expr, parser=parser, strict=expr not in STRICT_INVALID_FILTERS)
     except FilterError:
         Filter(expr, parser=parser, _debug=True)
 
-    Filter(Filter(expr, parser=parser).pretty())
+    Filter(Filter(expr, parser=parser).pretty(), parser=parser)
 
 
-@pytest.mark.parametrize('expr', VALID_FILTERS)
+@pytest.mark.parametrize('expr', ALL_VALID_FILTERS)
 def test_filter_parse_compose(expr, parser):
     """BER discards spelling, escaped-byte case, and optional whitespace."""
     fil = Filter(expr, parser=parser)
@@ -324,16 +570,7 @@ def parser(request):
 
 @pytest.mark.parametrize(
     'expression',
-    [
-        '(cn=John)',
-        '(cn=*)',
-        '(cn=* )',
-        '(cn= *)',
-        r'(cn=foo\2abar*)',
-        r'(cn=J\6fhn)',
-        '(&(cn=John)(sn=Doe))',
-        '(!(uid>=1000))',
-    ],
+    [*ALL_VALID_FILTERS, '(cn=John)', '(cn=*)', '(cn=* )', '(cn= *)', r'(cn=foo\2abar*)', r'(cn=J\6fhn)', '(&(cn=John)(sn=Doe))', '(!(uid>=1000))'],
 )
 def test_parser_equivalence(expression, parser):
     result = Filter(expression, parser=parser)
@@ -342,7 +579,7 @@ def test_parser_equivalence(expression, parser):
     assert result.to_ber() == reference.to_ber()
 
 
-@pytest.mark.parametrize('expr', VALID_FILTERS)
+@pytest.mark.parametrize('expr', ALL_VALID_FILTERS)
 def test_libldap_valid_filter(expr):
     try:
         _validate_filter(expr)
@@ -350,13 +587,13 @@ def test_libldap_valid_filter(expr):
         pytest.fail(expr)
 
 
-@pytest.mark.parametrize('expr', INVALID_FILTERS)
+@pytest.mark.parametrize('expr', ALL_INVALID_FILTERS)
 def test_invalid_filter(expr, parser):
     with pytest.raises(FilterError):
-        Filter(expr, parser=parser)
+        Filter(expr, parser=parser, strict=expr in STRICT_INVALID_FILTERS)
 
 
-@pytest.mark.parametrize('expr', INVALID_FILTERS)
+@pytest.mark.parametrize('expr', ALL_INVALID_FILTERS)
 def test_libldap_invalid_filter(expr):
     with pytest.raises(FilterError):
         _validate_filter(expr)
@@ -398,20 +635,10 @@ def get_filter_root(filter_expr, parser='lark', **kwargs):
     return root
 
 
-@pytest.mark.parametrize(
-    'parser,expr',
-    [
-        ('lark', '( cn=John )'),
-        ('lark', '(&( cn=John))'),
-        pytest.param('lark', '(& (cn=John))', marks=pytest.mark.xfail(reason='Whitespace inside BER is normalized')),
-        pytest.param('libldap', '( cn=John )', marks=pytest.mark.xfail(reason='BER loses original insignificant whitespace')),
-        pytest.param('libldap', '(&( cn=John))', marks=pytest.mark.xfail(reason='Whitespace inside BER is normalized')),
-        pytest.param('libldap', '(& (cn=John))', marks=pytest.mark.xfail(reason='Whitespace inside BER is normalized')),
-    ],
-)
-def test_strict_parsing(expr, parser):
+@pytest.mark.parametrize('expr', [' cn=foo ', *STRICT_INVALID_FILTERS])
+def test_strict_parsing(expr):
     with pytest.raises(FilterError):
-        Filter(expr, parser=parser, strict=True)
+        Filter(expr, parser='lark', strict=True)
 
 
 def test_equality_match(parser):
@@ -550,19 +777,12 @@ def test_extensible_match_whitespace_combinations(parser):
         (r'(cn=\2a)', rb'\2a', rb'*'),
         (r'(cn=with\28paren\29)', rb'with\28paren\29', rb'with(paren)'),
         ('(cn=abc\\20)', b'abc\\20', rb'abc '),
-        (r'(cn=cde\\20)', rb'cde\\20', b'cde\\ '),
-        (r'(cn=cde\\20)', b'libldap', b'cde\\20'),
-        ('(&(key=va\\\\28!\\\\29ue))', b'va\\\\28!\\\\29ue', rb'va\(!\)ue'),
-        ('(&(key=va\\\\28!\\\\29ue))', b'libldap', b'va\\28!\\29ue'),
+        (r'(cn=cde\\20)', rb'cde\\20', b'cde\\20'),  # b'cde\\ '
+        ('(&(key=va\\\\28!\\\\29ue))', b'va\\\\28!\\\\29ue', b'va\\28!\\29ue'),  # rb'va\(!\)ue'
         (r'(1.3.6.1.4.1.1466.0=\04\02\48\69)', rb'\04\02\48\69', b'\x04\x02Hi'),
     ],
 )
 def test_unescape(expr, value, unescape, parser):
-    if parser == 'libldap' and value in {rb'cde\\20', b'va\\\\28!\\\\29ue'}:
-        pytest.skip('Different escape handling')
-    if parser == 'lark' and value == b'libldap':
-        pytest.skip('Different escape handling')
-
     fil = get_filter_root(expr, parser)
     if parser == 'lark':
         assert fil._raw_escaped_value == value
@@ -1383,3 +1603,113 @@ def test_get_substring_requires_two_parts():
 
     with pytest.raises(ValueError, match='Substring filter requires at least two parts'):
         Filter.get_substring('cn')
+
+
+@pytest.mark.parametrize(
+    'expression,expected',
+    [
+        (r'(attr=\*)', b'*'),
+        (r'(attr=\()', b'('),
+        (r'(attr=\))', b')'),
+        (r'(attr=\\)', b'\\'),
+        (r'(attr=\2a)', b'*'),
+        (r'(attr=foo\*bar)', b'foo*bar'),
+        (r'(attr=foo\\bar)', b'foo\\bar'),
+        (r'(attr=\\20)', b'\\20'),
+    ],
+)
+def test_libldap_compatible_escapes(expression, expected):
+    fil = Filter(expression, parser='lark')
+    assertion = fil.root.expressions[0]
+
+    assert isinstance(assertion, EqualityMatch)
+    assert assertion.value == expected
+    assert str(fil) == expression
+
+
+@pytest.mark.parametrize(
+    'raw,expected',
+    [
+        (r'\20', b' '),
+        (r'\\20', b'\\ '),
+        (r'\\28', b'\\('),
+        (r'\\29', b'\\)'),
+        (r'\\2a', b'\\*'),
+        (r'\\5c', b'\\\\'),
+        (r'\*', b'*'),
+        (r'\(', b'('),
+        (r'\)', b')'),
+        (r'\\', b'\\'),
+    ],
+)
+def test_libldap_escape_compatibility(raw, expected):
+    expression = f'(cn={raw})'
+
+    assert Filter(expression, parser='lark').to_ber() == Filter(expression, parser='libldap').to_ber()
+
+
+@pytest.mark.parametrize(
+    'expression,expected_type',
+    [
+        (r'(cn=\*)', EqualityMatch),
+        (r'(cn=\2a)', EqualityMatch),
+        (r'(cn=foo\*bar)', EqualityMatch),
+        (r'(cn=foo\\*bar)', SubstringMatch),
+        (r'(cn=foo\2abar)', EqualityMatch),
+        (r'(cn=foo\*bar*)', SubstringMatch),
+        (r'(cn=foo\2a*bar)', SubstringMatch),
+        ('(cn=*)', PresenceMatch),
+    ],
+)
+def test_escaped_asterisk(expression, expected_type, parser):
+    assert isinstance(get_filter_root(expression, parser), expected_type)
+
+
+@pytest.mark.parametrize(
+    'expr,expected_type,expected',
+    [
+        # EqualityMatch
+        (r'(cn=foo\2abar)', EqualityMatch, b'foo*bar'),
+        (r'(cn=foo\*bar)', EqualityMatch, b'foo*bar'),
+        (r'(cn=foo\\bar)', EqualityMatch, b'foo\\bar'),
+        (r'(cn=foo\\20)', EqualityMatch, rb'foo\20'),
+        # SubstringMatch: each component must be unescaped separately
+        (r'(cn=foo\2a*bar)', SubstringMatch, (b'foo*', b'bar')),
+        (r'(cn=foo\*bar*)', SubstringMatch, (b'foo*bar', None)),
+        (r'(cn=foo\\*bar)', SubstringMatch, (b'foo\\', b'bar')),
+        (r'(cn=*foo\28bar\29*)', SubstringMatch, (None, b'foo(bar)', None)),
+        (r'(cn=foo\20*bar\5cbaz)', SubstringMatch, (b'foo ', b'bar\\baz')),
+        (r'(cn=foo\\20*bar)', SubstringMatch, (rb'foo\20', b'bar')),
+        # ExtensibleMatch: escaped asterisks are always literal values
+        (r'(cn:=foo\2abar)', ExtensibleMatch, b'foo*bar'),
+        (r'(cn:=foo\*bar)', ExtensibleMatch, b'foo*bar'),
+        (r'(cn:=foo\\bar)', ExtensibleMatch, b'foo\\bar'),
+        (r'(cn:=foo\\20)', ExtensibleMatch, rb'foo\20'),
+        (r'(cn:dn:2.5.13.2:=foo\28bar\29)', ExtensibleMatch, b'foo(bar)'),
+        (r'(cn:dn:2.5.13.2:=foo\00bar)', ExtensibleMatch, b'foo\x00bar'),
+    ],
+)
+def test_unescape_match_values(expr, expected_type, expected, parser):
+    fil = get_filter_root(expr, parser)
+
+    assert isinstance(fil, expected_type)
+
+    if isinstance(fil, SubstringMatch):
+        assert fil.decode() == tuple([x.decode() if x else x for x in expected])
+    else:
+        assert fil.value == expected
+
+    assert Filter(expr, parser=parser).to_ber() == (Filter(expr, parser='libldap').to_ber())
+
+
+@pytest.mark.parametrize(
+    'expr,expected',
+    [
+        ('(cn:2.5.13.2:=foo\\2abar)', b'foo*bar'),
+    ],
+)
+def test_extensible_match_asterisk(expr, expected, parser):
+    fil = get_filter_root(expr, parser)
+
+    assert isinstance(fil, ExtensibleMatch)
+    assert fil.value == expected
