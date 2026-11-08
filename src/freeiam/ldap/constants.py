@@ -266,10 +266,10 @@ class TLSOption(IntEnum):
     """Path to a CRL file (`str`)."""
 
     RequireCert = ldap.OPT_X_TLS_REQUIRE_CERT
-    """Certificate requirement level (`TLSRequireCert`)."""
+    """Certificate requirement level (`TLSVerifyMode`)."""
 
     RequireSAN = _getoptional('OPT_X_TLS_REQUIRE_SAN', 24602)
-    """Requirement for Subject Alternative Name (`TLSRequireCert`)."""
+    """Requirement for Subject Alternative Name (`TLSVerifyMode`)."""
 
     PeerCert = _getoptional('OPT_X_TLS_PEERCERT', 24597)
     """Path to the peer certificate file (`str`)."""
@@ -329,7 +329,7 @@ class TLSCRLCheck(IntEnum):
     """Check all certificates against a certificate revocation list."""
 
 
-class TLSRequireCert(IntEnum):
+class TLSVerifyMode(IntEnum):
     """
     TLS server certificate and hostname verification policies.
 
@@ -403,7 +403,7 @@ class Dereference(IntEnum):
 
 
 AnyOption: TypeAlias = Option | SASLOption | TLSOption | int
-AnyOptionValue: TypeAlias = OptionValue | TLSCRLCheck | TLSRequireCert | TLSProtocol | KeepAlive | Dereference | int | str
+AnyOptionValue: TypeAlias = OptionValue | TLSCRLCheck | TLSVerifyMode | TLSProtocol | KeepAlive | Dereference | int | str
 
 
 class DNFormat(IntEnum):

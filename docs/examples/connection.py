@@ -87,12 +87,12 @@ async def ldap_test_tls_connection_example():
 async def ldap_insecure_tls_connection_example():
     """Disable certificate verification for isolated testing only."""
 
-    from freeiam.ldap.constants import TLSRequireCert
+    from freeiam.ldap.constants import TLSVerifyMode
 
     async with ldap.Connection('ldaps://localhost:636', timeout=TIMEOUT) as conn:
         conn.set_tls(
-            require_cert=TLSRequireCert.Never,
-            require_san=TLSRequireCert.Never,
+            require_cert=TLSVerifyMode.Never,
+            require_san=TLSVerifyMode.Never,
         )
         await conn.bind('cn=admin,dc=freeiam,dc=org', 'iamdumb')
 

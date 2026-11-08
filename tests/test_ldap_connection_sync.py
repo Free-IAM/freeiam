@@ -10,7 +10,7 @@ import ldap as _ldap
 import pytest
 
 from freeiam import errors, ldap
-from freeiam.ldap.constants import Dereference, Option, OptionValue, Scope, TLSRequireCert, Version
+from freeiam.ldap.constants import Dereference, Option, OptionValue, Scope, TLSVerifyMode, Version
 from freeiam.ldap.controls import Controls, transaction, virtual_list_view
 from freeiam.ldap.extended_operations import (
     AbortedTransactionNotice,
@@ -592,7 +592,7 @@ def test_ldap_plaintext(ldap_server, base_dn):
 def test_starttls_explicit(ldap_server, base_dn):
     conn = ldap.connection.SynchronousConnection(ldap_server['ldap_uri'])
     conn.connect()
-    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
+    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSVerifyMode.Allow)
     conn.start_tls()
     conn.bind(f'cn=admin,{base_dn}', 'iamfree')
     assert (conn.whoami()) == f'cn=admin,{base_dn}'
@@ -603,7 +603,7 @@ def test_starttls_explicit(ldap_server, base_dn):
 def test_starttls_reconnect(ldap_server, base_dn):
     conn = ldap.connection.SynchronousConnection(ldap_server['ldap_uri'], start_tls=True)
     conn.connect()
-    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
+    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSVerifyMode.Allow)
     conn.bind(f'cn=admin,{base_dn}', 'iamfree')
     assert (conn.whoami()) == f'cn=admin,{base_dn}'
     conn.reconnect()
@@ -616,7 +616,7 @@ def test_starttls_reconnect(ldap_server, base_dn):
 def test_starttls(ldap_server, base_dn):
     conn = ldap.connection.SynchronousConnection(ldap_server['ldap_uri'], start_tls=True)
     conn.connect()
-    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
+    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSVerifyMode.Allow)
     conn.bind(f'cn=admin,{base_dn}', 'iamfree')
     assert (conn.whoami()) == f'cn=admin,{base_dn}'
     conn.unbind()
@@ -626,7 +626,7 @@ def test_starttls(ldap_server, base_dn):
 def test_ldaps(ldap_server, base_dn):
     conn = ldap.connection.SynchronousConnection(ldap_server['ldaps_uri'], timeout=5)
     conn.connect()
-    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSRequireCert.Allow)
+    conn.set_tls(ca_certfile=ldap_server['ca_cert'], require_cert=TLSVerifyMode.Allow)
     conn.bind(f'cn=admin,{base_dn}', 'iamfree')
     assert (conn.whoami()) == f'cn=admin,{base_dn}'
     conn.unbind()
