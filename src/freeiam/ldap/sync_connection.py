@@ -54,6 +54,8 @@ LDAPAddList: TypeAlias = Sequence[tuple[str, list[bytes]]]
 LDAPModList: TypeAlias = Sequence[tuple[int, str, bytes | list[bytes] | None]]
 Sorting: TypeAlias = list[str | tuple[str, str | None, bool]]
 
+_DISPATCH_BATCH_SIZE = 64
+
 
 class Connection:
     """
@@ -71,9 +73,14 @@ class Connection:
         '__reconnects_counter',
         '__schema',
         '_conn',
+        '_drain_handle',
         '_hide_parent_exception',
         '_last_auth_state',
         '_options',
+        '_pending',
+        '_reader_conn',
+        '_reader_fd',
+        '_reader_loop',
         '_start_tls',
         'automatic_reconnect',
         'max_connection_attempts',
@@ -125,6 +132,11 @@ class Connection:
         self._last_auth_state: tuple[str, str | None, str | None] | None = None
         self._options: list[tuple[AnyOption, AnyOptionValue | Sequence[ldap.controls.RequestControl]]] = []
         self._hide_parent_exception = _hide_parent_exception
+        self._pending: dict[int, list[_Response | BaseException]] = {}
+        self._reader_conn: LDAPObject | None = None
+        self._reader_fd: int | None = None
+        self._reader_loop: object | None = None
+        self._drain_handle: object | None = None
 
     def __enter__(self) -> Self:
         """Initialize synchronous connection."""
@@ -498,6 +510,8 @@ class Connection:
             if exc.args and exc.args[0] == "ReconnectLDAPObject has no attribute '_l'":
                 return None
             raise  # pragma: no cover; not possible
+        finally:
+            self.disconnect()
         return Result.from_response(None, None, controls, response)
 
     def whoami(self, *, controls: Controls | None = None) -> DN | str | None:
@@ -1014,9 +1028,9 @@ class Connection:
             raise
         except (errors.Cancelled, errors.Success):  # pragma: no cover; theoretically, according to python-ldap
             return True
-        except errors.TooLate:  # pragma: no cover
+        except errors.TooLate:
             return False
-        else:  # pragma: no cover
+        else:
             return True
 
     @contextlib.contextmanager
@@ -1083,11 +1097,16 @@ class Connection:
 
     def __getstate__(self) -> dict[str, Any]:
         """Return state for pickle."""
-        return {slot: getattr(self, slot) for slot in set(self.__slots__) - {'_conn'} | {'connected'} if not slot.startswith('__')}
+        transient = {'_conn', '_pending', '_reader_conn', '_reader_fd', '_reader_loop', '_drain_handle'}
+        return {slot: getattr(self, slot) for slot in (set(self.__slots__) - transient) | {'connected'} if not slot.startswith('__')}
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         """Set state for pickle."""
         self._conn = None
+        self._pending = {}
+        self._reader_conn = None
+        self._reader_fd = None
+        self._reader_loop = None
         connected = state.pop('connected', None)
         for slot, value in state.items():
             setattr(self, slot, value)
@@ -1125,7 +1144,16 @@ class Connection:
         log.debug('result(%r, timeout=%r)', msgid, timeout, extra={'MSGID': msgid, 'ALL': retrieval_mode, 'TIMEOUT': timeout, 'FUNC': 'result'})
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
-                rtype, data, msgid_ret, ctrls, name, value = conn.result4(msgid, all=retrieval_mode, timeout=timeout, add_extop=True, add_ctrls=True)
+                try:
+                    rtype, data, msgid_ret, ctrls, name, value = conn.result4(
+                        msgid, all=retrieval_mode, timeout=timeout, add_extop=True, add_ctrls=True
+                    )
+                except TypeError as exc:  # pragma: no cover
+                    # https://github.com/python-ldap/python-ldap/issues/697
+                    # result4(timeout=0, add_ctrls=True) unconditionally iterates over resp_data == None if there is no message yet
+                    if timeout != 0 or str(exc) != "'NoneType' object is not iterable":  # pragma: no cover
+                        raise
+                    return _Response(None, None, None, [], None, None)
                 response = _Response(ResponseType(rtype) if rtype is not None else None, data, msgid_ret, ctrls, name, value)
         except (errors.LdapError, OSError) as exc:
             log.debug('result(%r) -> raised %r', msgid, exc, extra={'MSGID': msgid, 'OPERATION': 'result', 'EXCEPTION': str(exc)})

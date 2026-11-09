@@ -98,6 +98,7 @@ class LdapError(Error):
         self._info = typing.cast('str', args.get('info'))
         self._matched = typing.cast('str', args.get('matched'))
         self._errno = typing.cast('int', args.get('errno'))
+        self.msgid = typing.cast('int | None', args.get('msgid'))
         self._controls = typing.cast('list[tuple[str, bool, bytes]]', args.get('ctrls'))
         self._controls_decoded = None
         super().__init__(args)
