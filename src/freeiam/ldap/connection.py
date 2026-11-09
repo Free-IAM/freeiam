@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2025 Florian Best
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """LDAP Connection."""
+# ruff: noqa: EM102
 
 import asyncio
 import contextlib
@@ -56,6 +57,8 @@ LDAPAddList: TypeAlias = Sequence[tuple[str, list[bytes]]]
 LDAPModList: TypeAlias = Sequence[tuple[int, str, bytes | list[bytes] | None]]
 Sorting: TypeAlias = list[str | tuple[str, str | None, bool]]
 
+_DISPATCH_BATCH_SIZE = 64
+
 
 class Connection:
     """
@@ -73,9 +76,14 @@ class Connection:
         '__reconnects_counter',
         '__schema',
         '_conn',
+        '_drain_handle',
         '_hide_parent_exception',
         '_last_auth_state',
         '_options',
+        '_pending',
+        '_reader_conn',
+        '_reader_fd',
+        '_reader_loop',
         '_start_tls',
         'automatic_reconnect',
         'max_connection_attempts',
@@ -127,6 +135,11 @@ class Connection:
         self._last_auth_state: tuple[str, str | None, str | None] | None = None
         self._options: list[tuple[AnyOption, AnyOptionValue | Sequence[ldap.controls.RequestControl]]] = []
         self._hide_parent_exception = _hide_parent_exception
+        self._pending: dict[int, asyncio.Queue[_Response | BaseException]] = {}
+        self._reader_conn: LDAPObject | None = None
+        self._reader_fd: int | None = None
+        self._reader_loop: asyncio.AbstractEventLoop | None = None
+        self._drain_handle: asyncio.Handle | None = None
         self.__conn_s: SynchronousConnection | None = None
 
     @property
@@ -412,6 +425,7 @@ class Connection:
                 trace_stack_limit=5,
                 fileno=fileno,
             )
+        self._fail_pending(RuntimeError('LDAP connection replaced'))
         self.__conn_s = None
         self.__reconnects_counter = 0
         if self._start_tls:
@@ -419,13 +433,13 @@ class Connection:
 
     def disconnect(self) -> None:
         """Disconnect from the LDAP server."""
-        self._remove_reader()
+        self._fail_pending(RuntimeError('LDAP connection closed'))
         self._conn = None
         self.__conn_s = None
 
     def reconnect(self, *, force: bool = True) -> None:
         """Reconnect to the LDAP server."""
-        self._remove_reader()
+        self._fail_pending(RuntimeError('LDAP connection reconnected'))
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.reconnect(self.uri, self.max_connection_attempts, self.retry_delay, force=force)
             # if self._start_tls:
@@ -519,6 +533,7 @@ class Connection:
     async def unbind(self, *, controls: Controls | None = None) -> Result | None:
         """Unbind."""
         self._last_auth_state = None
+        self._fail_pending(RuntimeError('LDAP connection unbound'))
         try:
             conn = self.conn
         except RuntimeError:  # not connected
@@ -529,6 +544,8 @@ class Connection:
             if exc.args and exc.args[0] == "ReconnectLDAPObject has no attribute '_l'":
                 return None
             raise  # pragma: no cover; not possible
+        finally:
+            self.disconnect()
         return Result.from_response(None, None, controls, response)
 
     async def whoami(self, *, controls: Controls | None = None) -> DN | str | None:
@@ -1046,9 +1063,9 @@ class Connection:
             raise
         except (errors.Cancelled, errors.Success):  # pragma: no cover; theoretically, according to python-ldap
             return True
-        except errors.TooLate:  # pragma: no cover
+        except errors.TooLate:
             return False
-        else:  # pragma: no cover
+        else:
             return True
 
     @contextlib.asynccontextmanager
@@ -1117,11 +1134,16 @@ class Connection:
 
     def __getstate__(self) -> dict[str, Any]:
         """Return state for pickle."""
-        return {slot: getattr(self, slot) for slot in set(self.__slots__) - {'_conn'} | {'connected'} if not slot.startswith('__')}
+        transient = {'_conn', '_pending', '_reader_conn', '_reader_fd', '_reader_loop', '_drain_handle'}
+        return {slot: getattr(self, slot) for slot in (set(self.__slots__) - transient) | {'connected'} if not slot.startswith('__')}
 
     def __setstate__(self, state: dict[str, Any]) -> None:
         """Set state for pickle."""
         self._conn = None
+        self._pending = {}
+        self._reader_conn = None
+        self._reader_fd = None
+        self._reader_loop = None
         connected = state.pop('connected', None)
         for slot, value in state.items():
             setattr(self, slot, value)
@@ -1162,7 +1184,16 @@ class Connection:
         log.debug('result(%r, timeout=%r)', msgid, timeout, extra={'MSGID': msgid, 'ALL': retrieval_mode, 'TIMEOUT': timeout, 'FUNC': 'result'})
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
-                rtype, data, msgid_ret, ctrls, name, value = conn.result4(msgid, all=retrieval_mode, timeout=timeout, add_extop=True, add_ctrls=True)
+                try:
+                    rtype, data, msgid_ret, ctrls, name, value = conn.result4(
+                        msgid, all=retrieval_mode, timeout=timeout, add_extop=True, add_ctrls=True
+                    )
+                except TypeError as exc:
+                    # https://github.com/python-ldap/python-ldap/issues/697
+                    # result4(timeout=0, add_ctrls=True) unconditionally iterates over resp_data == None if there is no message yet
+                    if timeout != 0 or str(exc) != "'NoneType' object is not iterable":  # pragma: no cover
+                        raise
+                    return _Response(None, None, None, [], None, None)
                 response = _Response(ResponseType(rtype) if rtype is not None else None, data, msgid_ret, ctrls, name, value)
         except (errors.LdapError, OSError) as exc:
             log.debug('result(%r) -> raised %r', msgid, exc, extra={'MSGID': msgid, 'OPERATION': 'result', 'EXCEPTION': str(exc)})
@@ -1231,72 +1262,158 @@ class Connection:
                 break
             break
 
-    async def _poll(
+    async def _poll(  # noqa: PLR0912
         self, conn: LDAPObject, msgid: MessageId | int = MessageId.Any, retrieval_mode: RetrievalMode = RetrievalMode.One
     ) -> AsyncGenerator[_Response, None]:
-        """Wait asynchronously for operation to succeed."""
-        loop = asyncio.get_running_loop()
-        while True:
-            # TODO: move the asyncio stuff out of here
-            fut = loop.create_future()
+        """Wait asynchronously for operation to succeed and receive its response."""
+        if msgid == MessageId.Any:
+            raise ValueError('An explicit message ID is required for asynchronous polling')
 
-            fd = conn.fileno()
-            self._add_reader(loop, fd, self._ready, conn, msgid, fut, retrieval_mode)
+        if msgid in self._pending:
+            raise RuntimeError(f'LDAP message ID {msgid} is already being polled')
 
-            try:
-                response = await self._wait_for(fut)
-            except errors.NoResultsReturned:  # pragma: no cover; how?
-                self._remove_reader(fd)
-                break
-            except Exception:
-                self._remove_reader(fd)
-                raise
-
-            rtype = response.type
-            if rtype is None:  # pragma: no cover; handled in _ready()
-                continue
-
-            yield response
-            if rtype == ldap.RES_SEARCH_ENTRY:
-                continue
-            if rtype == ldap.RES_SEARCH_RESULT:
-                break
-            break
-
-    def _ready(self, fd: int, conn: LDAPObject, msgid: MessageId | int, fut: asyncio.Future[_Response], retrieval_mode: RetrievalMode) -> None:
-        log.debug('FD %s is ready', fd)
+        queue: asyncio.Queue[_Response | BaseException] = asyncio.Queue()
+        self._pending[msgid] = queue
+        completed = False
+        collected: list[Any] = []
         try:
-            os.fstat(fd)
-            response = self.get_result(conn, msgid, retrieval_mode=retrieval_mode, timeout=0)
-            if response.type is None:
+            self._register_reader(conn)
+            while True:
+                if self.timeout > 0:
+                    response = await asyncio.wait_for(queue.get(), self.timeout)
+                else:
+                    response = await queue.get()
+
+                if isinstance(response, BaseException):
+                    raise response
+
+                rtype = response.type
+                if rtype is None:
+                    continue  # pragma: no cover; handled in _ready()
+
+                if retrieval_mode == RetrievalMode.All and rtype in {ldap.RES_SEARCH_ENTRY, ldap.RES_SEARCH_REFERENCE}:
+                    collected.extend(response.data or [])
+                    continue
+
+                if retrieval_mode == RetrievalMode.All and rtype == ldap.RES_SEARCH_RESULT:
+                    collected.extend(response.data or [])
+                    response = _Response(rtype, collected, response.msgid, response.ctrls, response.name, response.value)
+
+                if rtype not in {ldap.RES_SEARCH_ENTRY, ldap.RES_SEARCH_REFERENCE, ldap.RES_INTERMEDIATE}:
+                    completed = True
+
+                yield response
+                if completed:
+                    break
+        except (asyncio.CancelledError, TimeoutError, GeneratorExit) as exc:
+            if not completed and self._reader_conn is conn:
+                # never mask cancellation or timeout
+                with contextlib.suppress(Exception):
+                    conn.abandon_ext(msgid)
+
+            raise exc from exc
+        finally:
+            if self._pending.get(msgid) is queue:
+                del self._pending[msgid]
+            if not self._pending:
+                self._remove_reader()
+
+    def _register_reader(self, conn: LDAPObject) -> None:
+        """Register or ensure a single FD reader for the LDAP connection."""
+        loop = asyncio.get_running_loop()
+        fd = conn.fileno()
+        os.fstat(fd)
+        if self._reader_fd is not None:
+            if self._reader_conn is conn and self._reader_fd == fd and self._reader_loop is loop:
                 return
 
-            fut.set_result(response)
-            self._remove_reader(fd)
-        except (OSError, errors.LdapError) as exc:
-            log.error('FD %s is not valid - maybe connection is closed', fd)  # noqa: TRY400
-            fut.set_exception(exc)
-            self._remove_reader(fd)
+            self._fail_pending(RuntimeError('LDAP socket changed while operations were pending'))
+            raise RuntimeError('LDAP socket changed while operations were pending')
 
-    async def _wait_for(self, fut: asyncio.Future[_Response]) -> _Response:
-        if self.timeout > 0:
-            return await asyncio.wait_for(fut, timeout=self.timeout)
-        return await fut
-
-    @classmethod
-    def _add_reader(cls, loop: asyncio.AbstractEventLoop, fd: int, func: Callable[..., Any], *args: Any) -> None:
         log.debug('Select on FD %s', fd)
-        os.fstat(fd)
-        # FIXME: deadlock; it replaces a previous reader, e.g. when in a iterative search or other parallel operation
-        loop.add_reader(fd, func, fd, *args)
-        # register reader from the loop thread
-        # loop.call_soon_threadsafe(lambda: loop.add_reader(fd, func, fd, *args))
+        loop.add_reader(fd, self._ready, fd, conn)
+        self._reader_fd = fd
+        self._reader_conn = conn
+        self._reader_loop = loop
+
+    def _ready(self, fd: int, conn: LDAPObject) -> None:
+        """Retrieve and dispatch available LDAP responses by message ID."""
+        self._drain_handle = None
+
+        try:
+            if self._reader_fd != fd or self._reader_conn is not conn or conn.fileno() != fd:
+                raise RuntimeError('LDAP socket changed while operations were pending')  # noqa: TRY301
+
+            os.fstat(fd)
+
+            for _ in range(_DISPATCH_BATCH_SIZE):
+                cause: errors.LdapError | None = None
+
+                try:
+                    response = self.get_result(conn, MessageId.Any, retrieval_mode=RetrievalMode.One, timeout=0)
+                except errors.LdapError as exc:
+                    # python-ldap raises exceptions for LDAP error responses.
+                    cause = exc
+                    msgid: int | None = exc.msgid
+                    if msgid is None:
+                        raise  # pragma: no cover
+                    item: _Response | errors.LdapError = exc
+                else:
+                    msgid = response.msgid
+                    if response.type is None:
+                        break
+                    item = response
+
+                if conn.fileno() != fd:
+                    raise RuntimeError('LDAP socket changed while receiving responses') from cause  # noqa: TRY301
+
+                if msgid is not None:  # pragma: no branch
+                    queue = self._pending.get(msgid)
+                    if queue is not None:
+                        queue.put_nowait(item)
+            else:
+                # there may be buffered responses inside libldap even if the FD is no longer readable
+                if self._pending and self._reader_loop is not None:
+                    self._drain_handle = self._reader_loop.call_soon(self._ready, fd, conn)
+
+        except Exception as exc:
+            log.exception('LDAP response dispatcher failed on FD %s', fd)
+            self._fail_pending(exc)
+
+    def _fail_pending(self, exc: BaseException) -> None:
+        """Fail all pending LDAP operations with the given exception."""
+        self._remove_reader()
+        pending, self._pending = self._pending, {}
+        for queue in pending.values():
+            queue.put_nowait(exc)
 
     def _remove_reader(self, fd: int | None = None) -> None:
-        fd = fd or self.fileno
-        log.debug('Remove reader FD %s', fd)
-        if fd == -1:  # pragma: no cover
+        """Unregister the reader owned by this connection."""
+        loop, registered_fd = self._reader_loop, self._reader_fd
+        if loop is None or registered_fd is None:
             return
-        loop = asyncio.get_running_loop()
-        loop.remove_reader(fd)
-        # loop.call_soon_threadsafe(lambda: loop.remove_reader(fd))
+
+        if fd is not None and fd != registered_fd:
+            return
+
+        if self._drain_handle is not None:
+            self._drain_handle.cancel()
+            self._drain_handle = None
+        self._reader_fd = None
+        self._reader_conn = None
+        self._reader_loop = None
+        if loop.is_closed():
+            return
+
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        log.debug('Remove reader FD %s', fd)
+        if running_loop is loop:
+            loop.remove_reader(registered_fd)
+        else:
+            # disconnect() may also be called outside of the loop thread
+            with contextlib.suppress(RuntimeError):
+                loop.call_soon_threadsafe(loop.remove_reader, registered_fd)

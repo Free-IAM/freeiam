@@ -10,6 +10,7 @@ import ldap as _ldap
 import pytest
 
 from freeiam import errors, ldap
+from freeiam.ldap.connection import Connection
 from freeiam.ldap.constants import Dereference, Option, OptionValue, Scope, TLSVerifyMode, Version
 from freeiam.ldap.controls import Controls, transaction, virtual_list_view
 from freeiam.ldap.extended_operations import (
@@ -195,7 +196,7 @@ def test_error_handling_no_object(conn, testuser):
     assert exc.controls == []
     assert repr(exc).startswith("NoSuchObject(description='No such object', info=None, matched='dc=freeiam,dc=org', result=32, errno=None, base_dn=")
 
-    assert conn.get_option(Option.ErrorNumber) == 32
+    assert conn.get_option(Option.ErrorNumber) == -5 if isinstance(conn, Connection) else 32  # for async, other operations already happened
     assert not conn.get_option(Option.ErrorString)
     assert conn.get_option(Option.MatchedDN) == 'dc=freeiam,dc=org'
 
@@ -525,6 +526,34 @@ def test_unique_search(conn, page_users, base_dn):
     assert exc.value.results
 
 
+@pytest.mark.timeout(10)
+def test_search_iter_streaming(conn, page_users, base_dn):
+    """Verify that search_iter yields entries before the search is exhausted."""
+    if not isinstance(conn, Connection):
+        pytest.skip('only async')
+
+    search = conn.search_iter(
+        base=base_dn,
+        scope=Scope.SUBTREE,
+        filter_expr='(objectClass=person)',
+    )
+
+    try:
+        first = print(next(search), timeout=5)
+
+        assert first.dn is not None
+
+        # the first entry must be available without consuming the remaining results
+        assert search.ag_frame is not None
+
+        remaining = list(search)
+
+        assert remaining
+        assert all(entry.dn is not None for entry in remaining)
+    finally:
+        search.close()
+
+
 def test_is_pickleable(conn, base_dn):
     # FIXME: hangs
     # num = 50
@@ -681,15 +710,18 @@ def test_count(conn, base_dn):
     assert count == 2
 
 
-@pytest.mark.xfail(raises=_ldap.PROTOCOL_ERROR, match='unsupported extended operation', reason='LDAP Test setup')
 @pytest.mark.timeout(5)  # used to block when msgid == None was not handled
 def test_cancel(conn, page_users, base_dn):
-    msgid = conn.conn.add_ext(str(base_dn), [])
+    msgid = conn.conn.add_ext(
+        f'cn=cancel-{TESTUSERNAME},{base_dn}', [('objectClass', b'person'), ('sn', b'cancel'), ('cn', b'cancel'), ('userPassword', b'PW')]
+    )
     assert msgid
-    with pytest.raises(errors.NoSuchOperation):
-        conn.cancel(msgid)
-
-    assert conn.conn.result4(msgid, all=1, timeout=1)
+    assert conn.cancel(msgid) is False
+    if isinstance(conn, Connection):  # async variant
+        with pytest.raises(_ldap.TIMEOUT):
+            assert conn.conn.result4(msgid, all=1, timeout=1)
+    else:  # sync variant
+        assert conn.conn.result4(msgid, all=1, timeout=1)
 
 
 def test_cancel_unbound(conn):
@@ -698,9 +730,33 @@ def test_cancel_unbound(conn):
     assert conn.cancel(res._response.msgid) is False
 
 
+@pytest.mark.timeout(10)
+def test_cancel_success(conn, base_dn):
+    # race condition test
+    msgid = conn.conn.search_ext(
+        str(base_dn),
+        _ldap.SCOPE_SUBTREE,
+        '(objectClass=*)',
+        attrlist=['*', '+'],
+    )
+
+    assert msgid
+    assert conn.cancel(msgid) is True
+
+
+def test_cancel_no_such_operation(conn, base_dn):
+    msgid = conn.conn.add_ext(
+        f'cn=cancel-no-such-op{TESTUSERNAME},{base_dn}', [('objectClass', b'person'), ('sn', b'cancel'), ('cn', b'cancel'), ('userPassword', b'PW')]
+    )
+    with pytest.raises(errors.NoSuchOperation):
+        conn.cancel(msgid + 2)
+
+
 @pytest.mark.timeout(5)  # used to block when msgid == None was not handled
 def test_abandon(conn, page_users, base_dn):
-    msgid = conn.conn.add_ext(str(base_dn), [])
+    msgid = conn.conn.add_ext(
+        f'cn=abandon{TESTUSERNAME},{base_dn}', [('objectClass', b'person'), ('sn', b'cancel'), ('cn', b'cancel'), ('userPassword', b'PW')]
+    )
     assert msgid
     conn.abandon(msgid)
     with pytest.raises(_ldap.TIMEOUT):

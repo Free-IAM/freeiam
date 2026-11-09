@@ -7,6 +7,7 @@ expr="
 /from freeiam.ldap.sync_connection import/d;
 /_futures:/d;
 /self._remove_reader()/d;
+/self._fail_pending(/d;
 /^ *async def _poll(/,\$d;
 s/def _poll_s/def _poll/g;
 
@@ -15,6 +16,9 @@ s/asyncio.sleep/time.sleep/g;
 s/loop = asyncio.get_running_loop()//g;
 s/loop.run_in_executor(None, functools.partial(func, \*args, \*\*kwargs))/func(*args, **kwargs)/g;
 s/import asyncio/import time/g;
+s/asyncio.AbstractEventLoop/object/g;
+s/asyncio.Handle/object/g;
+s/asyncio.Queue/list/g;
 s/async def /def /g;
 s/async for /for /g;
 s/async with /with /g;
@@ -39,11 +43,13 @@ N
 /^ *def _sync_connection(/,/^$/d
 s/self\._sync_connection\./self./g;
 s/ asynchronous / synchronous /g;
+s/except TypeError as exc:/except TypeError as exc:  # pragma: no cover/g;
 "
 expr_py="
 s/pytest_asyncio/pytest/g;
 s/^@pytest.mark.asyncio$//g;
 s/\.aclose(/.close(/g;
+s/asyncio.wait_for/print/g;
 s/ldap.Connection/ldap.connection.SynchronousConnection/g;
 s/TESTUSERNAME = 'testuser'/TESTUSERNAME = 'testsynuser'/g
 s/PAGEPREFIX = 'page'/PAGEPREFIX = 'synpage'/g;
