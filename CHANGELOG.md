@@ -2,6 +2,39 @@
 
 <!-- version list -->
 
+## v0.15.0 (2026-11-09)
+
+### Bug Fixes
+
+- **ldap**: Enforce secure TLS defaults and validate certificate settings
+  ([`3820f20`](https://github.com/Free-IAM/freeiam/commit/3820f2038856dce1a4fcee665ff6389d33d507fa))
+
+- **ldap.filter**: Align Lark filter parsing with libldap behavior
+  ([`bd5d827`](https://github.com/Free-IAM/freeiam/commit/bd5d827968856a16119f14e18e3347513c0a22b7))
+
+### Documentation
+
+- **ldap**: Add LDIF serialization and result representation examples
+  ([`7ef14a7`](https://github.com/Free-IAM/freeiam/commit/7ef14a73c28b869958aead947de74a7fc1c495ed))
+
+- **ldap**: Document TLS security settings, defaults and OpenLDAP pitfalls
+  ([`d637ded`](https://github.com/Free-IAM/freeiam/commit/d637ded9751c73fb749a9870d52617696c5be27c))
+
+- **README**: Re-arrange badges
+  ([`a22cb5f`](https://github.com/Free-IAM/freeiam/commit/a22cb5f0bd7e2aa550ac46aa3e147fd47dde863e))
+
+### Features
+
+- **ldap**: Add `ldif()`, `write_ldif(fd)` methods to search results
+  ([`420265b`](https://github.com/Free-IAM/freeiam/commit/420265be3a85f94ac6f987ae9d1cd3c6b3090664))
+
+- **ldap**: Rename `TLSRequireCert` to `TLSVerifyMode` for clarity
+  ([`c455d22`](https://github.com/Free-IAM/freeiam/commit/c455d2230ffba99a5c187e7bd05db37fb0e57921))
+
+- **ldap.controls**: Use libldap for Simple Paged Results control
+  ([`953ba43`](https://github.com/Free-IAM/freeiam/commit/953ba43ff1993f8066f03c1f26186030f14ae4c4))
+
+
 ## v0.14.0 (2026-11-05)
 
 ### Bug Fixes
