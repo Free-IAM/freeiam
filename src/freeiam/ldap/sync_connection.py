@@ -540,7 +540,7 @@ class Connection:
         raise AssertionError('unreachable')  # pragma: no cover
         # obj, = [_ for _ in self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls)]
         # return obj[0]
-        # # GC calls gen.aclose() causing unnecessary .cancel() to be called:
+        # # GC calls gen.close() causing unnecessary .cancel() to be called:
         # # return next(self.search_iter(base=dn, scope=Scope.BASE, filter_expr=filter_expr, attrs=attrs, unique=unique, controls=controls))
 
     def get_attr(
@@ -905,14 +905,43 @@ class Connection:
         response = self._execute(conn, conn.delete_ext, str(dn), controls=controls)
         return Result.from_response(dn, None, controls, response)
 
-    def delete_recursive(self, dn: DN | str, *, controls: Controls | None = None) -> Result:
+    def delete_recursive(self, dn: DN | str, *, max_depth: int = 100, max_entries: int = 10_000, controls: Controls | None = None) -> None:
         """Recursively delete an LDAP object."""
+        stack: list[tuple[DN | str, Generator[DN, None] | None]] = [(dn, None)]
+        visited = 0
+
         try:
-            return self.delete(dn, controls=controls)
-        except errors.NotAllowedOnNonleaf:
-            for child in self.search_dn(dn, Scope.ONELEVEL):
-                self.delete_recursive(child)
-        return self.delete(dn, controls=controls)
+            while stack:
+                current_dn, children = stack[-1]
+
+                if children is None:
+                    visited += 1
+                    if visited > max_entries:
+                        raise errors.TraversalLimitExceeded('Maximum LDAP subtree size exceeded.')
+
+                    try:
+                        self.delete(current_dn, controls=controls)
+                    except errors.NotAllowedOnNonleaf:
+                        if len(stack) > max_depth:
+                            raise errors.TraversalLimitExceeded('Maximum LDAP subtree depth exceeded.') from None
+
+                        children = self.search_dn(current_dn, Scope.ONELEVEL)
+                        stack[-1] = (current_dn, children)
+                    else:
+                        stack.pop()
+                    continue
+
+                try:
+                    child_dn = next(children)
+                except StopIteration:
+                    self.delete(current_dn, controls=controls)
+                    stack.pop()
+                else:
+                    stack.append((child_dn, None))
+        finally:
+            for _, children in reversed(stack):
+                if children is not None:
+                    children.close()
 
     def compare(
         self,

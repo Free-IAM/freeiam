@@ -36,6 +36,10 @@ class NotUnique(Error):
         return self.args[0]
 
 
+class TraversalLimitExceeded(Error):
+    """The traversal limit was exceeded."""
+
+
 class LdapError(Error):
     """LDAP Error wrapper base class."""
 

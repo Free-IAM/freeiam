@@ -19,6 +19,8 @@ s/async def /def /g;
 s/async for /for /g;
 s/async with /with /g;
 s/anext(/next(/g;
+s/\.aclose(/.close(/g;
+s/\<aiter(/iter(/g;
 s/asynccontextmanager/contextmanager/g;
 s/AsyncGenerator/Generator/g;
 s/StopAsyncIteration/StopIteration/g;
