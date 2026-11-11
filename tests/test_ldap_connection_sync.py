@@ -393,6 +393,10 @@ def test_remove(conn, testuser2):
 
 @pytest.mark.timeout(10)
 def test_remove_recursive(conn, ou_structure):
+    with pytest.raises(errors.TraversalLimitExceeded):
+        conn.delete_recursive(ou_structure, max_entries=1)
+    with pytest.raises(errors.TraversalLimitExceeded):
+        conn.delete_recursive(ou_structure, max_depth=1)
     conn.delete_recursive(ou_structure)
     with pytest.raises(errors.NoSuchObject):
         conn.get(ou_structure)

@@ -424,6 +424,10 @@ async def test_remove(conn, testuser2):
 @pytest.mark.asyncio
 @pytest.mark.timeout(10)
 async def test_remove_recursive(conn, ou_structure):
+    with pytest.raises(errors.TraversalLimitExceeded):
+        await conn.delete_recursive(ou_structure, max_entries=1)
+    with pytest.raises(errors.TraversalLimitExceeded):
+        await conn.delete_recursive(ou_structure, max_depth=1)
     await conn.delete_recursive(ou_structure)
     with pytest.raises(errors.NoSuchObject):
         await conn.get(ou_structure)

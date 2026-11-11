@@ -937,14 +937,43 @@ class Connection:
         response = await self._execute(conn, conn.delete_ext, str(dn), controls=controls)
         return Result.from_response(dn, None, controls, response)
 
-    async def delete_recursive(self, dn: DN | str, *, controls: Controls | None = None) -> Result:
+    async def delete_recursive(self, dn: DN | str, *, max_depth: int = 100, max_entries: int = 10_000, controls: Controls | None = None) -> None:
         """Recursively delete an LDAP object."""
+        stack: list[tuple[DN | str, AsyncGenerator[DN, None] | None]] = [(dn, None)]
+        visited = 0
+
         try:
-            return await self.delete(dn, controls=controls)
-        except errors.NotAllowedOnNonleaf:
-            async for child in self.search_dn(dn, Scope.ONELEVEL):
-                await self.delete_recursive(child)
-        return await self.delete(dn, controls=controls)
+            while stack:
+                current_dn, children = stack[-1]
+
+                if children is None:
+                    visited += 1
+                    if visited > max_entries:
+                        raise errors.TraversalLimitExceeded('Maximum LDAP subtree size exceeded.')
+
+                    try:
+                        await self.delete(current_dn, controls=controls)
+                    except errors.NotAllowedOnNonleaf:
+                        if len(stack) > max_depth:
+                            raise errors.TraversalLimitExceeded('Maximum LDAP subtree depth exceeded.') from None
+
+                        children = self.search_dn(current_dn, Scope.ONELEVEL)
+                        stack[-1] = (current_dn, children)
+                    else:
+                        stack.pop()
+                    continue
+
+                try:
+                    child_dn = await anext(children)
+                except StopAsyncIteration:
+                    await self.delete(current_dn, controls=controls)
+                    stack.pop()
+                else:
+                    stack.append((child_dn, None))
+        finally:
+            for _, children in reversed(stack):
+                if children is not None:
+                    await children.aclose()
 
     async def compare(
         self,
