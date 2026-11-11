@@ -4,7 +4,7 @@
 
 # See https://app.readthedocs.org/projects/python-ldap/downloads/pdf/latest/
 
-from enum import IntEnum, StrEnum
+from enum import IntEnum, IntFlag, StrEnum
 from typing import TypeAlias
 
 import ldap
@@ -406,7 +406,7 @@ AnyOption: TypeAlias = Option | SASLOption | TLSOption | int
 AnyOptionValue: TypeAlias = OptionValue | TLSCRLCheck | TLSVerifyMode | TLSProtocol | KeepAlive | Dereference | int | str
 
 
-class DNFormat(IntEnum):
+class DNFormat(IntFlag):
     """Used for DN-parsing functions."""
 
     LDAP = ldap.DN_FORMAT_LDAP
