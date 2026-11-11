@@ -1,7 +1,7 @@
 import pytest
 
 from freeiam.errors import InvalidDN
-from freeiam.ldap.constants import AVA
+from freeiam.ldap.constants import AVA, DNFormat
 from freeiam.ldap.dn import DN
 
 
@@ -18,16 +18,16 @@ VALID_DN_TEST_CASES = [
     '1.3.6.1.4.1.1466.0=#04024869,DC=example,DC=com',
     r'CN=Lu\C4\8Di\C4\87',
     r'CN=CN=Lu\C4\8Di\C4\87',
-    '1.1.1=',
+    pytest.param('1.1.1=', marks=pytest.mark.xfail(reason='libldap denies with PEDANTIC')),
 ]
 
 INVALID_DN_TEST_CASES = [
-    pytest.param('uid;x-option=jsmith', marks=pytest.mark.xfail(reason='')),
+    'uid;x-option=jsmith',
     'at_tr=jsmith',
     '-attr=jsmith',
     '1..1=jsmith',
     '1.1.=jsmith',
-    pytest.param('01.1=jsmith', marks=pytest.mark.xfail(reason='')),
+    '01.1=jsmith',
     '1.ff=jsmith',
     '1.1.1=#GG',
     '1.1.1=#000',
@@ -36,15 +36,27 @@ INVALID_DN_TEST_CASES = [
     'UID=jsmith,,DC=example,DC=net',
     'UID=john,smith',
     'UID=john+smith',
-    pytest.param(r'UID=john\?smith', marks=pytest.mark.xfail(reason='')),
+    r'UID=john\?smith',
     r'UID=john\Fsmith',
     r'UID=john\GGsmith',
     ' ',
     'OID.1.1=jsmith',
-    pytest.param('UID=jsmith, O=example, C=US', marks=pytest.mark.xfail(reason='')),
-    pytest.param('UID=jsmith;O=example;C=US', marks=pytest.mark.xfail(reason='')),
+    'UID=jsmith, O=example, C=US',
+    'UID=jsmith;O=example;C=US',
     '<UID=jsmith,O=example,C=US>',
-    pytest.param('CN="John Smith",O=example,C=US', marks=pytest.mark.xfail(reason='')),
+    'CN="John Smith",O=example,C=US',
+]
+
+RELAX_ACCEPTED = [
+    '1.1.1=',
+    'uid;x-option=jsmith',
+    '01.1=jsmith',
+    r'UID=john\?smith',
+    'UID=jsmith, O=example, C=US',
+]
+DN_V2 = [
+    'UID=jsmith;O=example;C=US',
+    'CN="John Smith",O=example,C=US',
 ]
 
 
@@ -65,17 +77,27 @@ def test_invalid_dn():
 
 @pytest.mark.parametrize('dn', VALID_DN_TEST_CASES)
 def test_dn_spec_valid_cases(dn):
-    DN(dn)
+    DN.strict(dn)
 
 
 @pytest.mark.parametrize('dn', INVALID_DN_TEST_CASES)
 def test_dn_spec_invalid_cases(dn):
     with pytest.raises(InvalidDN):
-        DN(dn)
+        DN.strict(dn)
+
+
+@pytest.mark.parametrize('dn', RELAX_ACCEPTED)
+def test_dn_relaxed_values(dn):
+    DN(dn, flags=DNFormat.LDAPV3)
+
+
+@pytest.mark.parametrize('dn', DN_V2)
+def test_dn_relaxed_values_v2(dn):
+    DN(dn, flags=DNFormat.LDAPV2)
 
 
 def test_broken_samba_dn():
-    assert str(DN(r'uid=foo\?bar,cn=users')) == r'uid=foo?bar,cn=users'
+    assert str(DN(r'uid=foo\?bar,cn=users', flags=DNFormat.LDAPV3)) == r'uid=foo?bar,cn=users'
 
 
 def test_empty_dn():
@@ -194,7 +216,7 @@ def test_equal():
     ],
 )
 def test_equivalent_representations(representation, canonical):
-    assert DN(representation) == DN(canonical)
+    assert DN(representation, flags=DNFormat.LDAPV3) == DN(canonical)
 
 
 def test_getitem(user_dn):
@@ -210,7 +232,7 @@ def test_escape():
 
 def test_hash(user_dn):
     user_hash = hash(user_dn)
-    assert user_hash == hash(DN('uid = Max.Mustermann , cn = users , dc = freeiam, dc = org'))
+    assert user_hash == hash(DN('uid = Max.Mustermann , cn = users , dc = freeiam, dc = org', flags=DNFormat.LDAPV3))
     assert user_hash == hash(user_dn)
 
 
@@ -219,8 +241,10 @@ def test_add(user_dn):
 
 
 def test_normalize(user_dn):
-    assert DN.normalize('uid = Max.Mustermann , cn = users , dc = freeiam, dc = org') == str(user_dn)
-    assert DN.normalize(DN('uid = Max.Mustermann , cn = users , dc = freeiam, dc = org')) == str(user_dn)
+    assert DN.normalize('uid = Max.Mustermann , cn = users , dc = freeiam, dc = org', flags=DNFormat.LDAPV3) == str(user_dn)
+    assert DN.normalize(DN('uid = Max.Mustermann , cn = users , dc = freeiam, dc = org', flags=DNFormat.LDAPV3), flags=DNFormat.LDAPV3) == str(
+        user_dn
+    )
 
 
 def test_get(user_dn):
@@ -234,8 +258,8 @@ def test_get_unique():
         'cn=users,dc=freeiam,dc=org',
         'cn = users,dc=freeiam,dc=org',
         'CN=Users,dc=freeiam,dc=org',
-    ])) == 1  # fmt: skip
-    assert DN.get_unique_str(DN.get_unique(['cn=foo', 'cn=bar']) - DN.get_unique(['cn = foo'])) == {'cn=bar'}
+    ], flags=DNFormat.LDAPV3)) == 1  # fmt: skip
+    assert DN.get_unique_str(DN.get_unique(['cn=foo', 'cn=bar']) - DN.get_unique(['cn = foo'], flags=DNFormat.LDAPV3)) == {'cn=bar'}
 
 
 def test_dn_compose():

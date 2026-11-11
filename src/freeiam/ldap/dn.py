@@ -21,8 +21,8 @@ __all__ = ('DN',)
 
 
 @functools.lru_cache
-def _to_dn(dn: str) -> list[list[tuple[str, str, int]]]:
-    return ldap.dn.str2dn(dn)
+def _to_dn(dn: str, flags: int) -> list[list[tuple[str, str, int]]]:
+    return ldap.dn.str2dn(dn, flags)
 
 
 class DN:
@@ -33,9 +33,14 @@ class DN:
     __slots__ = ('_cached_hash', '_cached_normalized', '_cached_normalized_rdns', '_dn', '_format', 'dn')
 
     @classmethod
-    def get(cls, dn: Self | str) -> Self:
+    def get(cls, dn: Self | str, flags: DNFormat = DNFormat.LDAPV3) -> Self:
         """Create a DN from a string or return an existing DN unchanged."""
-        return cls(dn) if isinstance(dn, str) else dn
+        return cls(dn, flags=flags) if isinstance(dn, str) else dn
+
+    @classmethod
+    def strict(cls, dn: str) -> Self:
+        """Parse a DN using strict LDAPv3 syntax validation."""
+        return cls(dn, flags=DNFormat.LDAPV3 | DNFormat.Pedantic)
 
     @classmethod
     def escape(cls, value: str) -> str:
@@ -66,19 +71,24 @@ class DN:
         return cls(ldap.dn.dn2str(rdns))
 
     @classmethod
-    def normalize(cls, dn: Self | str) -> str:
+    def normalize(cls, dn: Self | str, flags: DNFormat = DNFormat.LDAPV3) -> str:
         """Normalize DN."""
-        return str(cls.get(dn))
+        return str(cls.get(dn, flags=flags))
 
     @classmethod
-    def get_unique(cls, dns: list[str]) -> set[Self]:
+    def get_unique(cls, dns: list[str], *, flags: DNFormat = DNFormat.LDAPV3) -> set[Self]:
         """
         Return a unique set of DNs.
 
-        >>> len(DN.unique(['CN=users,dc=freeiam,dc=org', 'cn=users,dc=freeiam,dc=org', 'cn = users,dc=freeiam,dc=org', 'CN=Users,dc=freeiam,dc=org']))
+        >>> len(DN.unique([
+                'CN=users,dc=freeiam,dc=org',
+                'cn=users,dc=freeiam,dc=org',
+                'cn = users,dc=freeiam,dc=org',
+                'CN=Users,dc=freeiam,dc=org'
+            ]))
         1
         """
-        return {cls(dn) for dn in dns}
+        return {cls(dn, flags=flags) for dn in dns}
 
     @classmethod
     def get_unique_str(cls, dns: list[Self]) -> set[str]:
@@ -181,18 +191,21 @@ class DN:
             return self[1:]
         return None
 
-    def __init__(self, dn: str, format: DNFormat | None = None) -> None:  # noqa: A002
+    def __init__(self, dn: str, format: DNFormat | None = None, *, flags: DNFormat = DNFormat.LDAPV3) -> None:  # noqa: A002
         self.dn = dn
         self._format = format
         self._cached_hash: int | None = None
         self._cached_normalized: str | None = None
         self._cached_normalized_rdns: tuple[tuple[tuple[str, str], ...], ...] | None = None
         try:
-            self._dn = _to_dn(self.dn)
-        except ldap.DECODING_ERROR:
+            self._dn = _to_dn(self.dn, flags)
+        except ldap.DECODING_ERROR as exc:
             try:
-                self._dn = _to_dn(self.dn.replace(r'\?', '?'))  # Samba LDAP returns broken DN: https://bugzilla.samba.org/show_bug.cgi?id=14073
-            except ldap.DECODING_ERROR as exc:
+                if flags & ldap.DN_PEDANTIC:
+                    raise
+                # Samba LDAP returns broken DN: https://bugzilla.samba.org/show_bug.cgi?id=14073
+                self._dn = _to_dn(self.dn.replace(r'\?', '?'), flags)
+            except ldap.DECODING_ERROR:
                 err = InvalidDN()
                 err._description = 'Malformed DN syntax'
                 err._info = f'{self.dn!r}: {exc}'.removesuffix(': ')
@@ -319,7 +332,7 @@ class DN:
         True
         """
         if isinstance(other, str):
-            other = DN(other)
+            other = DN(other, flags=DNFormat.LDAPV3)
 
         if not isinstance(other, DN):
             return NotImplemented
