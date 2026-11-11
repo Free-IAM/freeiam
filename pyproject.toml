@@ -166,13 +166,14 @@ ignore = [
  "FIX001", # Line contains FIXME, consider resolving the issue
  "FIX002", # Line contains TODO, consider resolving the issue
  "EM101",  # Exception must not use a string literal, assign to variable first
- "N818",
+ "N818",  # error-suffix-on-exception-name
  "PLW0717",  # too-many-statements-in-try-clause
  "D421",  # property-docstring-starts-with-verb
  "RUF105",  # noqa-comments
  "RUF201",  # rule-codes-in-selectors
 
  "COM812",  # missing-trailing-comma
+ "TRY003",  # raise-vanilla-args - https://github.com/astral-sh/ruff/issues/14398
 ]
 
 unfixable = ["RUF100", "T20"]
