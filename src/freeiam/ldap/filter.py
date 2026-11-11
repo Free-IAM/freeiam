@@ -360,7 +360,7 @@ class SubstringMatch(Assertion):
         self._final = final
 
         if self._initial is None and not self._any and self._final is None:
-            raise ValueError('SubstringMatch requires at least one component')  # noqa: TRY003
+            raise ValueError('SubstringMatch requires at least one component')
 
     @classmethod
     def from_escaped(cls, attr: str, value: bytes, *, initial: bytes | None = None, any: Sequence[bytes] = (), final: bytes | None = None) -> Self:  # noqa: A002
@@ -541,14 +541,14 @@ class Container(Expression):
         """Replace an expression in the operator list."""
         index = next((i for i, e in enumerate(self._expressions) if e is expression), None)
         if index is None:  # pragma: no cover
-            raise ValueError('Not in expressions', expression)  # noqa: TRY003
+            raise ValueError('Not in expressions', expression)
         self._expressions[index] = replacement
 
     def remove(self, expression: Expression) -> None:
         """Remove an expression from the operator list."""
         index = next((i for i, e in enumerate(self._expressions) if e is expression), None)
         if index is None:  # pragma: no cover
-            raise ValueError('Not in expressions', expression)  # noqa: TRY003
+            raise ValueError('Not in expressions', expression)
         self._expressions.pop(index)
 
     def __str__(self) -> str:
@@ -720,7 +720,7 @@ class Filter:
     def get_substring(cls, attr: str, *values: str | bytes) -> SubstringMatch:
         """Get SubstringMatch."""
         if len(values) < 2:  # noqa: PLR2004
-            raise ValueError('Substring filter requires at least two parts')  # noqa: TRY003
+            raise ValueError('Substring filter requires at least two parts')
 
         parts = tuple(_bytes(value) for value in values)
         return SubstringMatch(

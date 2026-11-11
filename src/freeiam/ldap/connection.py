@@ -88,7 +88,7 @@ class Connection:
     def conn(self) -> LDAPObject:
         """The underlying connection."""
         if self._conn is None:
-            raise RuntimeError('not connected')  # noqa: TRY003
+            raise RuntimeError('not connected')
         return self._conn
 
     @property
@@ -392,7 +392,7 @@ class Connection:
     def connect(self, fileno: bool | None = None) -> None:
         """Connect to the LDAP server."""
         if self.connected:
-            raise RuntimeError('already connected')  # noqa: TRY003
+            raise RuntimeError('already connected')
 
         if self.automatic_reconnect:
             self._conn = ldap.ldapobject.ReconnectLDAPObject(
@@ -1108,7 +1108,7 @@ class Connection:
         response: _Response | None = None
         async for resp in self._poll(conn, msgid, retrieval_mode=RetrievalMode.All):
             if response is not None:  # pragma: no cover
-                raise RuntimeError('Wrong method used! Use _execute_iter instead!')  # noqa: TRY003
+                raise RuntimeError('Wrong method used! Use _execute_iter instead!')
             response = resp
         assert response is not None  # noqa: S101
         return response

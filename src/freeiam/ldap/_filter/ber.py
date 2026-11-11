@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """BER based filter implementation."""
 
-# ruff: noqa: N815,PLR2004,TRY003
+# ruff: noqa: N815, PLR2004
 
 from importlib import import_module
 

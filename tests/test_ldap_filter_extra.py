@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 """Coverage tests for LDAP filter backends and error branches."""
 
-# ruff: noqa: N802,N803,PLR6301,TRY003
+# ruff: noqa: N802, N803, PLR6301
 
 from types import SimpleNamespace
 
