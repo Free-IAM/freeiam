@@ -55,14 +55,15 @@ Correct approach: Always escape user input before inserting it into an LDAP filt
 
 .. warning::
 
-   Escaping filter characters (``\``, ``*``, ``(``, ``)``, ``\x00``) alone is not sufficient.  
-   A filter starting with a leading space becomes broken.
-
-.. warning::
-
-   Attribute names cannot be escaped but must be validated or whitelisted.
-   They may only contain the characters ``a-zA-Z0-9;-`` or, if starting with a digit, must follow the OID format (e.g., ``1.3.6.1.4.1.64020``).  
-   Allowing user input in attribute names can therefore produce an invalid or unparsable filter, or even turn it into an extensible match filter.
+   Attribute descriptions cannot contain escaped characters. Validate or
+   whitelist attribute descriptions derived from user input. An attribute
+   description consists of a descriptor or numeric OID, optionally followed
+   by semicolon-separated options. Descriptors begin with an ASCII letter;
+   options may contain ASCII letters, digits, and hyphens. Examples include
+   ``cn``, ``cn;lang-de``, and ``1.2.3.4.5;x-tag``.
+   Matching-rule identifiers are not attribute descriptions and must not
+   contain attribute options. Never interpolate untrusted input directly
+   into attribute names or matching-rule identifiers.
 
 .. warning::
 
@@ -159,6 +160,89 @@ Or by using explicit method calls:
     OR( EqualityMatch(aRecord=escape('127.0.0.1')) | EqualityMatch(aAAARecord=escape('::1')) )
     >>> Filter.get_not(Filter.get_eq('cn', user_input))
     NOT( EqualityMatch(cn=escape('foo (bar)*')) )
+
+
+Filter parsing backends
+-----------------------
+
+FreeIAM supports two interchangeable LDAP filter parser backends:
+
+* ``lark`` parses the filter expression in Python using Lark.
+* ``libldap`` uses the native OpenLDAP filter parser and decodes its BER representation.
+
+Both backends produce FreeIAM filter expression objects, which can be inspected,
+transformed, and serialized.
+
+.. code-block:: python
+
+    from freeiam.ldap.filter import Filter
+
+    expression = '(&(objectClass=person)(cn=John Doe))'
+
+    lark_filter = Filter(expression, parser='lark')
+    libldap_filter = Filter(expression, parser='libldap')
+
+    assert lark_filter.to_ber() == libldap_filter.to_ber()
+
+
+Strict parsing
+~~~~~~~~~~~~~~
+
+The default compatibility mode (``strict=False``) accepts some non-standard
+filter syntax also recognized by libldap. Set ``strict=True`` for the ``lark`` parser
+to reject these extensions and enforce stricter RFC 4515 syntax rules.
+
+.. code-block:: python
+
+    from freeiam.ldap.filter import Filter
+
+    Filter(r'(cn=foo\*bar)', parser='lark', strict=False)
+    Filter(r'(cn=foo\2abar)', parser='lark', strict=True)
+
+    # raises a filter parsing error: non-standard backslash escape
+    Filter(r'(cn=foo\*bar)', parser='lark', strict=True)
+
+For example, ``\*`` is accepted in compatibility mode, whereas ``\2a`` is the
+RFC 4515 hexadecimal escape for a literal asterisk. Compatibility mode also
+accepts whitespace around operators that strict mode rejects.
+
+Strict parsing checks filter syntax; it does not validate the LDAP server's
+schema, attribute types, matching-rule availability, or access controls.
+
+Parser resource limits
+~~~~~~~~~~~~~~~~~~~~~~
+
+FreeIAM enforces three resource limits on textual filter inputs before
+invoking either parser, independent of the ``strict`` setting:
+
+* **Maximum length:** 65536 (total number of characters in the filter expression)
+* **Maximum escapes:** 16384 (total number of backslash characters, counted
+  conservatively rather than distinguishing individual escape sequences)
+* **Maximum groups:** 64 (total number of opening parentheses, not the actual
+  maximum nesting depth. Escaped opening parentheses also count)
+
+These limits reduce parser-side CPU and memory exhaustion risks. They do not
+prevent expensive LDAP server searches (for example, wildcard searches or
+filters on unindexed attributes). Textual input limits do not automatically
+apply to filters constructed from an AST or decoded directly from BER.
+
+BER serialization
+-----------------
+
+LDAP filters can be encoded as ASN.1 BER, the representation used in LDAP
+protocol messages. BER round-trips preserve the filter's logical meaning,
+not its original textual escape spelling or formatting.
+
+.. code-block:: python
+
+    from freeiam.ldap.filter import Filter
+
+    original = Filter('(&(objectClass=person)(cn=John))', parser='lark')
+    encoded = original.to_ber()
+    restored = Filter.from_ber(encoded)
+
+    assert restored.to_ber() == encoded
+
 
 Pretty filters
 --------------
@@ -370,8 +454,8 @@ All of these transformations can be applied using the following traversal code:
 .. literalinclude:: filter.py
    :language: python
    :caption: LDAP filter transformation
-   :start-after: start FILTER TRANSFORMATION
-   :end-before: end FILTER TRANSFORMATION
+   :start-after: start FILTER TRANSFORMATIONS
+   :end-before: end FILTER TRANSFORMATIONS
 
 Resulting transformed filter:
 
