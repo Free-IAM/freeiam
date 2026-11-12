@@ -209,7 +209,9 @@ def test_escape():
 
 
 def test_hash(user_dn):
-    assert hash(user_dn) == hash(DN('uid = Max.Mustermann , cn = users , dc = freeiam, dc = org'))
+    user_hash = hash(user_dn)
+    assert user_hash == hash(DN('uid = Max.Mustermann , cn = users , dc = freeiam, dc = org'))
+    assert user_hash == hash(user_dn)
 
 
 def test_add(user_dn):
@@ -254,3 +256,28 @@ def test_contains(user_dn):
     assert DN('cn=users') in user_dn
     assert 'cn=users,dc=freeiam' not in user_dn
     assert DN('cn=users,dc=freeiam') not in user_dn
+
+
+def test_dn_equality_rejects_hash_value():
+    dn = DN('cn=admin,dc=example')
+    assert dn != hash(dn)
+
+
+def test_dn_equality_rejects_unrelated_types():
+    dn = DN('cn=admin,dc=example')
+
+    assert dn != 12345
+    assert dn != None  # noqa: E711
+    assert dn != object()
+
+
+def test_dn_equality_different_dns():
+    assert DN('cn=alice,dc=example') != DN('cn=bob,dc=example')
+
+
+def test_dn_equality_normalized_dns():
+    first = DN('CN=Alice,DC=example')
+    second = DN('cn=alice,dc=example')
+
+    assert first == second
+    assert hash(first) == hash(second)

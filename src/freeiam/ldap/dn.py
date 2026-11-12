@@ -30,7 +30,7 @@ class DN:
 
     _CASE_INSENSITIVE_ATTRIBUTES = ('c', 'cn', 'dc', 'l', 'o', 'ou', 'uid')
 
-    __slots__ = ('_cached_hash', '_cached_normalized', '_dn', '_format', 'dn')
+    __slots__ = ('_cached_hash', '_cached_normalized', '_cached_normalized_rdns', '_dn', '_format', 'dn')
 
     @classmethod
     def get(cls, dn: Self | str) -> Self:
@@ -186,6 +186,7 @@ class DN:
         self._format = format
         self._cached_hash: int | None = None
         self._cached_normalized: str | None = None
+        self._cached_normalized_rdns: tuple[tuple[tuple[str, str], ...], ...] | None = None
         try:
             self._dn = _to_dn(self.dn)
         except ldap.DECODING_ERROR:
@@ -317,20 +318,31 @@ class DN:
         >>> DN(r'cn=%s31foo' % chr(92)) == DN(r'cn=1foo')
         True
         """
-        return hash(self) == hash(DN(other) if isinstance(other, str) else other)
+        if isinstance(other, str):
+            other = DN(other)
+
+        if not isinstance(other, DN):
+            return NotImplemented
+
+        return self._normalized_rdns() == other._normalized_rdns()
 
     def __ne__(self, other: object) -> bool:
         return not self == other
 
     def __hash__(self) -> int:
         if self._cached_hash is None:
-            self._cached_hash = hash(tuple(
+            self._cached_hash = hash(self._normalized_rdns())
+        return self._cached_hash
+
+    def _normalized_rdns(self) -> tuple[tuple[tuple[str, str], ...], ...]:
+        if self._cached_normalized_rdns is None:
+            self._cached_normalized_rdns = tuple(
                 tuple(sorted(
                     (attr.lower(), val.lower() if attr.lower() in self._CASE_INSENSITIVE_ATTRIBUTES else val)
                     for attr, val, _ava in rdn
                 )) for rdn in self._dn
-            ))  # fmt: skip
-        return self._cached_hash
+            )  # fmt: skip
+        return self._cached_normalized_rdns
 
     def __add__(self, other: Self | str) -> Self:
         return self.__class__(f'{self},{other}')
