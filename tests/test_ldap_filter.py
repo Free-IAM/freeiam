@@ -1713,3 +1713,18 @@ def test_extensible_match_asterisk(expr, expected, parser):
 
     assert isinstance(fil, ExtensibleMatch)
     assert fil.value == expected
+
+
+@pytest.mark.parametrize(
+    'expression,limit',
+    [
+        ('(cn=' + 'a' * 100 + ')', '_MAX_LENGTH'),
+        ('(&' * 100 + '(cn=x)' + ')' * 100, '_MAX_GROUPS'),
+        ('(cn=' + r'\20' * 100 + ')', '_MAX_ESCAPES'),
+    ],
+)
+def test_filter_resource_limits(parser, expression, limit, monkeypatch):
+    monkeypatch.setattr(Filter, limit, 32)
+
+    with pytest.raises(FilterError):
+        Filter(expression, parser=parser)

@@ -12,6 +12,8 @@ from typing import Any, Protocol, Self, cast
 
 import ldap.filter
 
+from freeiam import errors
+
 
 __all__ = (
     'AND',
@@ -599,13 +601,14 @@ class Filter:
     """An LDAP filter AST according to RFC 4515."""
 
     __slots__ = ('_debug', 'ast', 'filter_expr')
+
+    _MAX_LENGTH = 65_536
+    _MAX_GROUPS = 64
+    _MAX_ESCAPES = 16_384
     RE_HEXESCAPE = re.compile(rb'\\([0-9A-Fa-f]{2})')
     _RE_LIBLDAP_HEXESCAPE = re.compile(rb'\\(?:[0-9a-fA-F]{2}|[*()\\])')
 
     def __init__(self, /, filter_expr: str | None, *, strict: bool = False, parser: str = 'lark', _debug: bool = False) -> None:
-        # TODO: security: restrict length
-        # TODO: security: restrict depth
-        # TODO: security: restrict number of escape sequences
         self.filter_expr = filter_expr
         self.ast = Container([])
         self._debug = _debug
@@ -628,7 +631,24 @@ class Filter:
             self.ast = Container([])
             return
 
+        self._validate_limits(self.filter_expr)
         self.ast = self.get_parser(parser, strict).parse(self.filter_expr, self._debug)
+
+    @classmethod
+    def _validate_limits(cls, expression: str) -> None:
+        if len(expression) > cls._MAX_LENGTH:
+            raise cls._error('LDAP filter exceeds maximum length')
+
+        if expression.count('\\') > cls._MAX_ESCAPES:
+            raise cls._error('LDAP filter exceeds maximum escape count')
+
+        if expression.count('(') > cls._MAX_GROUPS:
+            raise cls._error('LDAP filter exceeds maximum depth')
+
+    @classmethod
+    def _error(cls, expression: str) -> errors.FilterError:
+        """Create a filter parsing error."""
+        return errors.FilterError({'result': -7, 'desc': 'Bad search filter', 'info': str(expression), 'ctrls': []})
 
     def get_parser(self, name: str, strict: bool = False) -> _FilterParser:
         """Return the selected filter parser backend."""
