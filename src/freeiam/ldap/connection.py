@@ -1170,8 +1170,11 @@ class Connection:
     def request(self, operation: Callable[..., int], *args: Any, **kwargs: Any) -> int | None:
         """Make the LDAP request for the given operation."""
         op = getattr(operation, '__name__', repr(operation))
-        arg_str = ', '.join(map(repr, args)) if 'bind' not in op else ''
-        kw = ', '.join(f'{k}={v!r}' for k, v in kwargs.items()) if 'bind' not in op else ''
+        arg_str = ''
+        kw = ''
+        if 'bind' not in op and 'passwd' not in op:
+            arg_str = ', '.join(map(repr, args))
+            kw = ', '.join(f'{k}={v!r}' for k, v in kwargs.items())
         log.debug('Request %s(%s%s%s)', op, arg_str, ', ' if kw else '', kw, extra={'OPERATION': op, 'ARGUMENTS': arg_str, 'KEYWORDS': kw})
         try:
             with errors.LdapError.wrap(self._hide_parent_exception):
