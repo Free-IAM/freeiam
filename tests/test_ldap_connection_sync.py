@@ -354,7 +354,12 @@ def test_get_schema_cache(conn, base_dn):
 
 
 def test_modify_rename(conn, testuser2, base_dn):
-    result = conn.modify_ml(testuser2, [(_ldap.MOD_REPLACE, 'cn', [f'{TESTUSERNAME}3'.encode()])])
+    with pytest.raises(errors.NamingViolation):
+        conn.modify_ml(testuser2, [(_ldap.MOD_REPLACE, 'cn', [f'{TESTUSERNAME}3'.encode()])])
+    result = conn.modify_ml(testuser2, [(_ldap.MOD_REPLACE, 'cn', [f'{TESTUSERNAME}3'.encode()])], auto_rename=True)
+    assert result.dn == f'cn={TESTUSERNAME}3,{base_dn}'
+
+    result = conn.modify_ml(result.dn, [(_ldap.MOD_REPLACE, 'cn', [f'{TESTUSERNAME}3'.encode()])], auto_rename=True)
     assert result.dn == f'cn={TESTUSERNAME}3,{base_dn}'
 
 

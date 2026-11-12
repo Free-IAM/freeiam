@@ -58,7 +58,7 @@ LDAP distinguishes changing an entry's relative distinguished name from
 moving it to another parent. ``modrdn()`` changes the RDN, ``rename()`` can
 apply a complete new DN, and ``move()`` changes the parent while preserving
 the RDN. Changing an RDN attribute with a modify operation can also trigger an
-implicit rename, depending on the server and schema.
+explicit rename, depending on the server and schema.
 
 .. literalinclude:: crud.py
    :language: python

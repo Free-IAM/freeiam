@@ -98,9 +98,9 @@ async def ldap_move_and_rename_user_examples():
         obj = await conn.rename(dn, new_dn, delete_old=False)
         print(obj.dn)
 
-        # implicit rename by changing the RDN attribute
+        # explicit rename by changing the RDN attribute
         obj = await conn.modify_ml(
-            dn, [(Mod.Replace, 'uid', [b'erika.musterfrau'])]
+            dn, [(Mod.Replace, 'uid', [b'erika.musterfrau'])], auto_rename=True
         )  # fmt: skip
         print(obj.dn)
 
