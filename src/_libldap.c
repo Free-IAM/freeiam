@@ -15,7 +15,6 @@
  * Raises TypeError for invalid arguments, ValueError for an invalid
  * LDAP filter, and MemoryError on allocation failure.
  */
-
 PyObject *
 FREEIAM_ldap_pvt_put_filter(PyObject *module, PyObject *args)
 {
@@ -51,9 +50,32 @@ cleanup:
     return result;
 }
 
-static PyMethodDef freeiam_libldap_methods[] = {{"ldap_pvt_put_filter", FREEIAM_ldap_pvt_put_filter, METH_VARARGS,
-                                                 "Encode an LDAP search filter using libldap."},
-                                                {NULL, NULL, 0, NULL}};
+/*
+ * freeiam._libdap.ldap_tls_in_place
+ *
+ * Check if connection is established via TLS
+ *
+ * Python signature:
+ *     ldap_tls_in_place(conn) -> bool
+ *
+ * Raises TypeError for invalid arguments.
+ */
+//PyObject *
+//FREEIAM_ldap_tls_inplace(LDAPObject *self)
+//{
+//    PyObject *conn;
+//
+//    if (!PyArg_ParseTuple(args, "O:ldap_tls_inplace", &conn))
+//        return NULL;
+//
+//    return PyBool_FromLong(ldap_tls_inplace(conn));
+//}
+
+static PyMethodDef freeiam_libldap_methods[] = {
+    {"ldap_pvt_put_filter", FREEIAM_ldap_pvt_put_filter, METH_VARARGS, "Encode an LDAP search filter using libldap."},
+    // {"ldap_tls_inplace", FREEIAM_ldap_tls_inplace, METH_VARARGS, "Check if connection is established via TLS."},
+    {NULL, NULL, 0, NULL}
+};
 
 static struct PyModuleDef moduledef = {PyModuleDef_HEAD_INIT, "_libldap", NULL, -1, freeiam_libldap_methods};
 

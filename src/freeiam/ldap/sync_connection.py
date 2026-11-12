@@ -5,11 +5,13 @@
 import contextlib
 import logging
 import math
+import re
 import time
 from collections.abc import Callable, Generator, Sequence
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Literal, Self, TypeAlias, cast, overload
+from urllib.parse import urlsplit
 
 import ldap.controls.openldap
 import ldap.controls.pagedresults
@@ -75,6 +77,8 @@ class Connection:
         '_last_auth_state',
         '_options',
         '_start_tls',
+        '_tls_established',
+        'allow_insecure_bind',
         'automatic_reconnect',
         'max_connection_attempts',
         'retry_delay',
@@ -107,6 +111,7 @@ class Connection:
         *,
         start_tls: bool = False,
         timeout: float = -1,
+        allow_insecure_bind: bool = False,
         automatic_reconnect: bool = True,
         max_connection_attempts: int = 10,
         retry_delay: float = 0.0,
@@ -116,6 +121,7 @@ class Connection:
         self._conn = _conn
         self.uri = uri
         self.timeout = timeout
+        self.allow_insecure_bind = allow_insecure_bind
         self.automatic_reconnect = automatic_reconnect
         self.max_connection_attempts = max_connection_attempts
         self.retry_delay = retry_delay
@@ -125,6 +131,54 @@ class Connection:
         self._last_auth_state: tuple[str, str | None, str | None] | None = None
         self._options: list[tuple[AnyOption, AnyOptionValue | Sequence[ldap.controls.RequestControl]]] = []
         self._hide_parent_exception = _hide_parent_exception
+        self._tls_established = False
+
+    def _validate_ldap_uri(self, uri: str, *, start_tls: bool = False) -> None:
+        """Validate LDAP URIs and their transport security configuration."""
+        if not isinstance(uri, str) or not uri.strip():
+            raise ValueError('An explicit LDAP URI is required')
+
+        uris = re.split(r'[\s,]+', uri.strip())
+        schemes = set()
+
+        for entry in uris:
+            try:
+                parsed = urlsplit(entry)
+                scheme = parsed.scheme.lower()
+
+                if scheme not in {'ldap', 'ldaps', 'ldapi'}:
+                    msg = f'Unsupported LDAP URI scheme: {scheme!r}'
+                    raise ValueError(msg)
+
+                if parsed.username is not None or parsed.password is not None:
+                    raise ValueError('LDAP URIs must not contain credentials')
+
+                if parsed.query or parsed.fragment:
+                    raise ValueError('LDAP URIs must not contain query or fragment')
+
+                if scheme in {'ldap', 'ldaps'}:
+                    if not parsed.hostname:
+                        raise ValueError('LDAP URI requires a hostname')
+                    _ = parsed.port
+                    if parsed.path not in {'', '/'}:
+                        raise ValueError('LDAP URI must not contain a DN')
+                elif parsed.port is not None:
+                    raise ValueError('LDAPI does not support ports')
+
+                schemes.add(scheme)
+
+            except ValueError as exc:
+                msg = f'Invalid LDAP URI {entry!r}: {exc}'
+                raise ValueError(msg) from exc
+
+        if len(schemes) > 1:
+            raise ValueError('Mixed LDAP transport schemes are not supported')
+
+        if start_tls and schemes != {'ldap'}:
+            raise ValueError('STARTTLS requires an ldap:// URI')
+
+        if schemes == {'ldapi'}:
+            self._tls_established = True
 
     def __enter__(self) -> Self:
         """Initialize synchronous connection."""
@@ -367,6 +421,8 @@ class Connection:
         if self.connected:
             raise RuntimeError('already connected')
 
+        if not fileno:
+            self._validate_ldap_uri(self.uri, start_tls=self._start_tls)
         if self.automatic_reconnect:
             self._conn = ldap.ldapobject.ReconnectLDAPObject(
                 self.uri,
@@ -409,6 +465,7 @@ class Connection:
         self._start_tls = True
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.start_tls_s()
+            self._tls_established = True
 
     def get_schema(self, subschema_dn: DN | str | None = None) -> Schema:
         """Get the LDAP schema."""
@@ -440,6 +497,7 @@ class Connection:
 
     def bind(self, authc_id: str | None, password: str | None, *, controls: Controls | None = None) -> Result:
         """Authenticate via plaintext credentials."""
+        self._require_secure_bind()
         conn = self.conn
         self._last_auth_state = ('simple_bind_s', authc_id, password)
         response = self._execute(conn, conn.simple_bind, authc_id, password, controls=controls)
@@ -475,6 +533,22 @@ class Connection:
         """Authenticate via SASL noninteractively."""
         with errors.LdapError.wrap(self._hide_parent_exception):
             self.conn.sasl_non_interactive_bind_s(sasl_mech, **Controls.expand(controls), sasl_flags=ldap.SASL_QUIET, authz_id=authz_id)
+
+    def _require_secure_bind(self) -> None:
+        """Reject credential authentication over insecure transports."""
+        if self.allow_insecure_bind:
+            return
+        if self._tls_established:
+            return
+
+        try:
+            version = self.get_option(ldap.OPT_X_TLS_VERSION)
+        except (ldap.LDAPError, ValueError):
+            version = None
+        if not version:
+            raise errors.ConnectError({
+                'info': 'Credential authentication requires an active TLS connection. Use LDAPS or STARTTLS, or explicitly set allow_insecure_bind=True for trusted environments.'
+            })
 
     def _restore_options(self) -> None:
         for option, value in self._options:
