@@ -810,24 +810,27 @@ class Connection:
         oldattr: dict[str, list[bytes]] | Attributes,
         newattr: dict[str, list[bytes]] | Attributes,
         *,
+        auto_rename: bool = False,
         controls: Controls | None = None,
     ) -> Result:
         """Modify an LDAP object."""
         ml = ldap.modlist.modifyModlist(oldattr, newattr)
-        return self.modify_ml(dn, ml, controls=controls)
+        return self.modify_ml(dn, ml, auto_rename=auto_rename, controls=controls)
 
     def modify_ml(
         self,
         dn: DN | str,
         ml: LDAPModList,
         *,
+        auto_rename: bool = False,
         controls: Controls | None = None,
     ) -> Result:
         """Modify an LDAP object from a modification list."""
         conn = self.conn
-        new_dn = self._compute_changed_dn(DN.get(dn), ml)
-        if dn != new_dn:
-            dn = cast('DN', (self.rename(dn, new_dn)).dn)
+        if auto_rename:
+            new_dn = self._compute_changed_dn(DN.get(dn), ml)
+            if new_dn != dn:
+                dn = cast('DN', (self.rename(dn, new_dn)).dn)
         response = self._execute(conn, conn.modify_ext, str(dn), ml, controls=controls)
         return Result.from_response(dn, None, controls, response)
 

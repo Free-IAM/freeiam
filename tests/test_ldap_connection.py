@@ -378,7 +378,12 @@ async def test_get_schema_cache(conn, base_dn):
 
 @pytest.mark.asyncio
 async def test_modify_rename(conn, testuser2, base_dn):
-    result = await conn.modify_ml(testuser2, [(_ldap.MOD_REPLACE, 'cn', [f'{TESTUSERNAME}3'.encode()])])
+    with pytest.raises(errors.NamingViolation):
+        await conn.modify_ml(testuser2, [(_ldap.MOD_REPLACE, 'cn', [f'{TESTUSERNAME}3'.encode()])])
+    result = await conn.modify_ml(testuser2, [(_ldap.MOD_REPLACE, 'cn', [f'{TESTUSERNAME}3'.encode()])], auto_rename=True)
+    assert result.dn == f'cn={TESTUSERNAME}3,{base_dn}'
+
+    result = await conn.modify_ml(result.dn, [(_ldap.MOD_REPLACE, 'cn', [f'{TESTUSERNAME}3'.encode()])], auto_rename=True)
     assert result.dn == f'cn={TESTUSERNAME}3,{base_dn}'
 
 
