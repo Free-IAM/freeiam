@@ -1728,3 +1728,65 @@ def test_filter_resource_limits(parser, expression, limit, monkeypatch):
 
     with pytest.raises(FilterError):
         Filter(expression, parser=parser)
+
+
+@pytest.mark.parametrize(
+    'attribute',
+    [
+        '',
+        ';',
+        ';foo',
+        '-bar',
+        '.baz',
+        '123',
+        'cn;',
+        'cn;;lang-de',
+        'cn;lang-de;',
+        'cn;lang_de',
+        'cn;lang.de',
+        '1.2.',
+        '1..2',
+        '01.2.3',
+        '1.02.3',
+    ],
+)
+def test_invalid_attribute_name(attribute):
+    with pytest.raises(ValueError):
+        Attribute(attribute)
+
+
+@pytest.mark.parametrize(
+    'attribute',
+    [
+        'cn',
+        'cn-',
+        'cn--test',
+        'cn;lang-de',
+        'cn;1',
+        'cn;-',
+        'foo;options;here',
+        '1.2',
+        '1.2.3.4.5;x-tag',
+    ],
+)
+def test_valid_attribute_name(attribute):
+    assert Attribute(attribute).attribute == attribute
+
+
+@pytest.mark.parametrize(
+    'matchingrule',
+    [
+        '',
+        ';foo',
+        '-rule',
+        '.rule',
+        '123',
+        'caseIgnoreMatch;x-tag',
+        '1.2.3;x-tag',
+        '1.02.3',
+        '1..2',
+    ],
+)
+def test_invalid_matchingrule_name(matchingrule):
+    with pytest.raises(ValueError):
+        Attribute('cn', matchingrule)

@@ -5,7 +5,6 @@
 import enum
 import operator
 import re
-import string
 from collections import deque
 from collections.abc import Callable, Sequence
 from typing import Any, Protocol, Self, cast
@@ -84,8 +83,9 @@ class Attribute:
 
     __slots__ = ('attribute', 'dn', 'eq', 'matchingrule')
 
-    ALLOWED_CHARS = string.ascii_letters + string.digits + ';-.'
-    ALLOWED_OID = string.digits + '.'
+    _ATTR_OR_OID = r'(?:[a-zA-Z][a-zA-Z0-9-]*|(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*))+)'
+    _ATTRIBUTE_RE = re.compile(rf'{_ATTR_OR_OID}(?:;[a-zA-Z0-9-]+)*')
+    _MATCHINGRULE_RE = re.compile(_ATTR_OR_OID)
 
     @property
     def approx(self) -> Self:
@@ -111,9 +111,9 @@ class Attribute:
             self.eq = self.eq_ext
         else:
             self.eq = Filter.get_eq
-        if attribute.strip(self.ALLOWED_CHARS) or (attribute[0].isdigit() and attribute.strip(self.ALLOWED_OID)):
+        if not self._ATTRIBUTE_RE.fullmatch(attribute):
             raise ValueError(attribute)
-        if matchingrule and (matchingrule.strip(self.ALLOWED_CHARS) or (matchingrule[0].isdigit() and matchingrule.strip(self.ALLOWED_OID))):
+        if matchingrule is not None and not self._MATCHINGRULE_RE.fullmatch(matchingrule):
             raise ValueError(matchingrule)
 
     def eq_ext(self, attr: str, value: str) -> 'ExtensibleMatch':
