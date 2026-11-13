@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2025 Florian Best
 # SPDX-License-Identifier: CC0-1.0
 
-.PHONY: test docs docs-open build upload changelog publish coverage benchmark copyright prek-install lint lint-all clang clang-check ruff-check ruff-fix ruff-unsafe-fix ruff-statistics ruff-preview-statistics ruff-unsafe-preview-fix format-check format
+.PHONY: test docs docs-open build upload changelog publish coverage benchmark benchmark-connection benchmark-filter benchmark-dn benchmark-readme copyright prek-install lint lint-all clang clang-check ruff-check ruff-fix ruff-unsafe-fix ruff-statistics ruff-preview-statistics ruff-unsafe-preview-fix format-check format
 
 PRE_COMMIT=prek
 UV=uv
@@ -81,9 +81,22 @@ coverage:
 	-coverage html
 
 benchmark:
-	-pytest -m benchmark_only --benchmark-only --benchmark-save=ldap_run
-	-pytest-benchmark compare --csv > benchmark.csv
-	-pytest-benchmark compare --json > benchmark.json
+	$(MAKE) benchmark-readme
+
+benchmark-connection:
+	$(UV) run --group test --group benchmark pytest -c pytest_benchmark.ini benchmarks/test_search.py --benchmark-only --benchmark-save=ldap_connection
+	$(UV) run --group test --group benchmark pytest-benchmark compare --csv connection-benchmark.csv
+
+benchmark-filter:
+	$(UV) run --group test pytest --noconftest -c pytest_benchmark.ini benchmarks/test_filter.py --benchmark-only --benchmark-save=ldap_filter
+	$(UV) run --group test pytest-benchmark compare --csv filter-benchmark.csv
+
+benchmark-dn:
+	$(UV) run --group test pytest --noconftest -c pytest_benchmark.ini benchmarks/test_dn.py --benchmark-only --benchmark-save=ldap_dn
+	$(UV) run --group test pytest-benchmark compare --csv dn-benchmark.csv
+
+benchmark-readme: benchmark-connection benchmark-filter benchmark-dn
+	$(UV) run python benchmarks/update_readme_tables.py
 
 copyright:
 	-prek run -a --hook-stage manual reuse-annotate
