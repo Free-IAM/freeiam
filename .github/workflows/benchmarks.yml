@@ -1,0 +1,135 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  filter:
+    name: LDAP filter benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libldap2-dev libsasl2-dev libssl-dev
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Run filter benchmarks
+        run: |
+          uv run --group test pytest \
+            --noconftest \
+            -c pytest_benchmark.ini \
+            benchmarks/test_filter.py \
+            --benchmark-only \
+            --benchmark-save=ldap_filter
+
+      - name: Export filter benchmark report
+        if: always()
+        run: uv run --group test pytest-benchmark compare --csv filter-benchmark.csv
+
+      - name: Upload filter benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ldap-filter-benchmarks
+          if-no-files-found: warn
+          path: |
+            filter-benchmark.csv
+            .benchmarks/**/*.json
+
+  dn:
+    name: LDAP DN benchmarks
+    needs: filter
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libldap2-dev libsasl2-dev libssl-dev
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Run DN benchmarks
+        run: |
+          uv run --group test pytest \
+            --noconftest \
+            -c pytest_benchmark.ini \
+            benchmarks/test_dn.py \
+            --benchmark-only \
+            --benchmark-save=ldap_dn
+
+      - name: Export DN benchmark report
+        if: always()
+        run: uv run --group test pytest-benchmark compare --csv dn-benchmark.csv
+
+      - name: Upload DN benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ldap-dn-benchmarks
+          if-no-files-found: warn
+          path: |
+            dn-benchmark.csv
+            .benchmarks/**/*.json
+
+  ldap-connection:
+    name: LDAP connection benchmarks
+    needs: dn
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libldap2-dev libsasl2-dev libssl-dev
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Run LDAP connection benchmarks
+        run: |
+          uv run --group test --group benchmark pytest \
+            -c pytest_benchmark.ini \
+            benchmarks/test_search.py \
+            --benchmark-only \
+            --benchmark-save=ldap_connection
+
+      - name: Export LDAP connection benchmark report
+        if: always()
+        run: uv run --group test --group benchmark pytest-benchmark compare --csv ldap-connection-benchmark.csv
+
+      - name: Upload LDAP connection benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ldap-connection-benchmarks
+          if-no-files-found: warn
+          path: |
+            ldap-connection-benchmark.csv
+            .benchmarks/**/*.json
