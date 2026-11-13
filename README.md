@@ -138,22 +138,86 @@ The project currently maintains 100% test coverage, ensuring that all code paths
 This helps guarantee reliability, correctness, and ease of future maintenance.
 
 ## LDAP client benchmarks
-Current benchmarks indicate that the synchronous non-iterable methods offer the best performance.
-The benchmark suite compares FreeIAM (`freeiam.ldap`) against Python-LDAP (`ldap`), LDAP3 (`ldap3`), and Bonsai (`bonsai`).
+The benchmark suite compares FreeIAM (`freeiam.ldap`) with Python-LDAP (`ldap`), LDAP3 (`ldap3`), and Bonsai (`bonsai`).
+The connection benchmarks use a local OpenLDAP container with 20 benchmark users.
 
-Please note this is a work in progress (WIP) and the benchmark coverage and accuracy will be improved over time.
+The matrix has five groups:
 
-| Testname                            | Min (us)  | Max (us)   | Mean (us) | StdDev (us) | Median (us) | IQR (us) | Outliers | OPS      | Rounds | Iterations |
-|-----------------------------------|-----------|------------|-----------|-------------|-------------|----------|----------|----------|--------|------------|
-| test_sync_search[ldap-noiter]      | 336.42    | 1762.35    | 466.35    | 132.87      | 428.97      | 103.48   | 120;76   | 2144.33  | 1418   | 1          |
-| test_sync_search[freeiam-noiter]   | 381.79    | 1425.61    | 572.07    | 118.68      | 545.87      | 109.69   | 165;51   | 1748.04  | 1143   | 1          |
-| test_sync_search[bonsai-noiter]    | 446.28    | 1514.67    | 680.02    | 138.66      | 645.65      | 111.18   | 113;55   | 1470.55  | 861    | 1          |
-| test_sync_search[freeiam-iter]     | 692.62    | 2134.28    | 958.01    | 186.67      | 913.93      | 169.14   | 72;29    | 1043.83  | 488    | 1          |
-| test_sync_search[ldap3-noiter]     | 1181.49   | 3948.65    | 1603.93   | 333.01      | 1518.64     | 253.67   | 71;43    | 623.47   | 482    | 1          |
-| test_async_search[freeiam-noiter]  | 1577.63   | 6493.86    | 2659.18   | 634.62      | 2430.03     | 676.09   | 58;22    | 376.06   | 328    | 1          |
-| test_async_search[freeiam-iter]    | 2768.34   | 5792.08    | 3479.36   | 598.57      | 3279.16     | 579.05   | 34;11    | 287.41   | 169    | 1          |
-| test_parallel_sync_search[freeiam] | 12317.69  | 46028.09   | 14145.28  | 4472.71     | 13232.57    | 972.18   | 1;4      | 70.70    | 55     | 1          |
-| test_multiple_parallel_sync_search[freeiam] | 33453.03  | 39019.64   | 35980.09  | 1332.03     | 36083.70    | 1862.24  | 10;0     | 27.79    | 28     | 1          |
+- `test_sync_search`: one synchronous search per benchmark call. `iter` consumes the iterator-style API; `noiter` consumes the regular API.
+- `test_async_search`: one asynchronous search per benchmark call. FreeIAM and Bonsai use one persistent event loop and connection for the test. Python-LDAP uses `ldap.asyncsearch` with non-blocking result polling because its public API is otherwise synchronous.
+- `test_parallel_sync_search`: four worker processes. Each worker prepares one blocking connection before measurement and uses it for the benchmark calls.
+- `test_parallel_async_search`: four concurrent tasks, each using a prepared connection. This avoids sharing a connection between clients that do not support concurrent requests.
+- `test_multiple_parallel_*`: four workers or tasks performing 25 searches each, for 100 searches in total.
+
+The iterator fallback for Bonsai and LDAP3 materializes the result of their regular search because these libraries do not provide an iterator-specific API. It measures complete result handling, but it is not server-side streaming.
+
+### Connection benchmarks
+Measured on one local run with Python 3.13.5 and pytest-benchmark 5.3.1.
+Values are mean/median times in microseconds per benchmark call.
+
+<!-- benchmark-table:connection:start -->
+| Backend | Sync no-iter | Sync iter | Async no-iter | Async iter | Parallel sync | Parallel async | Multiple parallel sync | Multiple parallel async |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Python-LDAP | 502.85/473.58 | 492.56/457.57 | 644.50/593.15 | 637.18/585.70 | 1524.75/1388.15 | 2088.21/1825.47 | 33980.66/32280.52 | 35671.74/35447.86 |
+| FreeIAM | 637.22/606.28 | 994.07/949.06 | 1393.67/1328.45 | 1453.78/1337.97 | 1728.74/1654.69 | 5504.40/5082.83 | 37064.75/37251.53 | 136565.84/134292.38 |
+| Bonsai | 730.79/694.00 | 724.56/692.79 | 1275.10/1221.13 | 1367.13/1288.54 | 1961.82/1899.58 | 5485.01/5204.34 | 43983.26/43650.35 | 128337.35/127116.84 |
+| LDAP3 | 1636.98/1511.67 | 1537.30/1449.10 | - | - | 3833.96/3668.92 | - | 75988.76/75143.82 | - |
+<!-- benchmark-table:connection:end -->
+
+Python-LDAP is fastest in every directly comparable benchmark in this run. FreeIAM is closest to Python-LDAP in regular synchronous searches, while its async and parallel async paths have substantially higher overhead. LDAP3 has no async column because this benchmark suite does not provide an async adapter for it.
+
+### Filter parser benchmarks
+The filter benchmarks compare the `lark` and `libldap` parser backends through the public `Filter` API.
+They cover equality, presence, substring, escaped, extensible, nested, and complex filters.
+Values are mean parsing times in microseconds.
+
+<!-- benchmark-table:filter:start -->
+| Case | Lark (us) | libldap (us) |
+|---|---:|---:|
+| Presence | 68.94 | 80.09 |
+| Equality | 76.78 | 132.94 |
+| Escaped | 83.24 | 113.02 |
+| Substring | 94.77 | 187.84 |
+| Extensible | 99.23 | 185.41 |
+| Nested | 351.07 | 425.63 |
+| Complex | 837.06 | 1256.98 |
+<!-- benchmark-table:filter:end -->
+
+`lark` is faster for all cases except the nearly identical presence filter. The difference is largest for substring, extensible, and complex filters.
+
+### DN benchmarks
+The DN benchmarks cover cold-cache parsing, warm-cache parsing, normalization, normalized equality, and DN composition.
+Values are mean times.
+
+<!-- benchmark-table:dn:start -->
+| Operation | Case | Mean |
+|---|---|---:|
+| Warm-cache parsing | User | 0.629 us |
+| Warm-cache parsing | Multi-valued RDN | 0.662 us |
+| Warm-cache parsing | Escaped | 0.697 us |
+| Warm-cache parsing | Complex | 0.661 us |
+| Cold-cache parsing | User | 3.130 us |
+| Cold-cache parsing | Multi-valued RDN | 3.628 us |
+| Cold-cache parsing | Escaped | 3.803 us |
+| Cold-cache parsing | Complex | 3.593 us |
+| Equality | Normalized multi-valued RDN | 0.999 us |
+| Normalization | User | 7.062 us |
+| Normalization | Multi-valued RDN | 8.366 us |
+| Normalization | Escaped | 7.383 us |
+| Normalization | Complex | 9.840 us |
+| Composition | User DN | 9.208 us |
+<!-- benchmark-table:dn:end -->
+
+### Test system
+The connection, filter, and DN runs used the following system:
+
+| Component | Value |
+|---|---|
+| CPU | Intel Core i7-8565U, 4 cores / 8 threads, up to 4.6 GHz |
+| Architecture | x86_64 |
+| Python | CPython 3.13.5 |
+
+The connection benchmark includes LDAP server and request/result handling overhead. Connection setup is performed before timed calls. Results from different machines, Python versions, LDAP server instances, or system loads should not be compared as absolute values.
 
 ## Project Goals
 - Clean and extensible APIs and libraries
