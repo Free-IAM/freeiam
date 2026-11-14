@@ -47,6 +47,7 @@ jobs:
           if-no-files-found: warn
           path: |
             filter-benchmark.csv
+            pytest-results.xml
             .benchmarks/**/*.json
 
   dn:
@@ -90,6 +91,7 @@ jobs:
           if-no-files-found: warn
           path: |
             dn-benchmark.csv
+            pytest-results.xml
             .benchmarks/**/*.json
 
   ldap-connection:
@@ -132,4 +134,5 @@ jobs:
           if-no-files-found: warn
           path: |
             ldap-connection-benchmark.csv
+            pytest-results.xml
             .benchmarks/**/*.json
