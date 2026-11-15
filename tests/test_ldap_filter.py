@@ -1,6 +1,7 @@
 import ldap
 import pytest
 
+from freeiam import _libldap  # noqa: PLC2701
 from freeiam.errors import FilterError
 from freeiam.ldap.filter import (
     AND,
@@ -538,6 +539,7 @@ OPENLDAP_INVALID_FILTERS_BUT_OPENLDAP_ITSELF_DOES_NOT_RESPECT_THAT = [
 
 ALL_VALID_FILTERS = VALID_FILTERS + OPENLDAP_VALID_FILTERS + OPENLDAP_INVALID_FILTERS_BUT_OPENLDAP_ITSELF_DOES_NOT_RESPECT_THAT
 ALL_INVALID_FILTERS = INVALID_FILTERS + OPENLDAP_INVALID_FILTERS + OPENLDAP_VALID_FILTERS_BUT_OPENLDAP_ITSELF_DOES_NOT_RESPECT_THAT
+LIBLDAP_FILTER_URI = 'ldap://127.0.0.1:9/'
 
 
 @pytest.mark.parametrize('expr', ALL_VALID_FILTERS)
@@ -600,7 +602,15 @@ def test_libldap_invalid_filter(expr):
 
 
 def _validate_filter(expr):
-    lo = ldap.initialize('')
+    try:
+        _libldap.ldap_pvt_put_filter(expr)
+    except ValueError:
+        raise FilterError({}) from None
+    return
+    # let libldap parse the filter without consulting the system LDAP config
+    lo = ldap.initialize(LIBLDAP_FILTER_URI)
+    lo.set_option(ldap.OPT_NETWORK_TIMEOUT, 0.01)
+    lo.set_option(ldap.OPT_TIMEOUT, 0.01)
     try:
         lo.search_ext_s('', ldap.SCOPE_BASE, expr)
     except ldap.FILTER_ERROR as exc:
