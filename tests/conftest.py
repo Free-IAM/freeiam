@@ -64,18 +64,24 @@ def pytest_addoption(parser):
     group.addoption('--keep-ldap', action='store_true', default=False, help='Create a persistent LDAP container and leave it running')
 
 
+def pytest_runtest_setup(item):
+    if container and 'ldap_server' in item.fixturenames:
+        remember_logs(container)
+
+
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     outcome = yield
     result = outcome.get_result()
     if not container:
         return
-    if result.failed:
-        if result.when != 'call':
+    if result.when != 'call':
+        if result.failed:
             log.error('FAILURE during %s', result.when)
+            dump_logs(container, level=logging.ERROR)
+        return
+    if result.failed:
         dump_logs(container, level=logging.ERROR)
-    else:
-        remember_logs(container)
 
 
 class ExtraFormatter(logging.Formatter):
